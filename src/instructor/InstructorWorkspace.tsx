@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BarChart3, BookOpen, Eye, GraduationCap, Settings } from 'lucide-react';
 import { ClassSetup } from './ClassSetup';
 import { ClassDashboard, ClassList } from './Classes';
 import { CourseBuilder, CourseReviewer, CurriculumList, demoDraftModule } from './Curriculum';
-import type { ClassGroup, Course, Module } from './model';
+import type { ClassGroup, Course, Module, StaffRole } from './model';
 import { AccessSettings, ProgramOverview } from './Operations';
 import { browserInstructorStore, type InstructorStore } from './store';
 import { PageHeader } from './ui';
@@ -18,7 +18,8 @@ const routes = [
   { path: 'access', label: 'Access settings', icon: Settings },
 ];
 
-const currentRoute = () => window.location.hash.replace(/^#\/?/, '') || 'classes';
+const cleanRoute = (hash: string) => hash.replace(/^#\/?/, '');
+const currentRoute = () => cleanRoute(window.location.hash);
 const profileKey = 'cic-learn.preview-profile';
 
 function initialProfile() {
@@ -26,33 +27,51 @@ function initialProfile() {
   catch { return 'instructor'; }
 }
 
+/**
+ * Standalone (npm run dev:instructor): own sidebar, profile picker and hash routing.
+ * Embedded (role + hash given by src/instructor/InstructorRoute.tsx): renders inside the
+ * main app's sidebar layout; the signed-in role picks the profile and the router supplies the hash.
+ */
 export function InstructorWorkspace({
-  store = browserInstructorStore, draftModule = demoDraftModule,
+  store = browserInstructorStore, draftModule = demoDraftModule, role, hash,
 }: {
   store?: InstructorStore;
   draftModule?: (source: { text: string; file: File | null }) => Promise<Module>;
+  role?: StaffRole;
+  hash?: string;
 }) {
+  const embedded = role !== undefined;
   const [data, setData] = useState(() => store.load());
-  const [route, setRoute] = useState(currentRoute);
+  const [standaloneRoute, setStandaloneRoute] = useState(currentRoute);
   const [newClass, setNewClass] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const [profileId, setProfileId] = useState(initialProfile);
-  const [section, item] = route.split('/');
+  const [pickedProfileId, setProfileId] = useState(initialProfile);
+  const profileId = role ?? pickedProfileId;
   const profile = data.staff.find(person => person.id === profileId) || data.staff[0];
+  const homeSection = profile.role === 'reviewer' ? 'review' : 'classes';
+  const route = (hash !== undefined ? cleanRoute(hash) : standaloneRoute) || homeSection;
+  const [section, item] = route.split('/');
   const visibleClasses = profile.role === 'admin' ? data.classes : data.classes.filter(group => profile.classIds.includes(group.id));
-  const navigation = routes.filter(({ path }) => profile.role === 'admin'
+  // Embedded admins use the main app's admin pages for overview and access.
+  const navigation = routes.filter(({ path }) => (profile.role === 'admin' && !embedded)
     || (profile.role === 'reviewer' ? path === 'review' : ['classes', 'curriculum', 'review'].includes(path)));
-  const home = profile.role === 'reviewer' ? '#/review' : '#/classes';
+  const home = '#/' + homeSection;
 
   useEffect(() => {
-    const change = () => {
-      setRoute(currentRoute());
-      setError('');
-      requestAnimationFrame(() => document.getElementById('ic-page-title')?.focus());
-    };
+    if (embedded) return;
+    const change = () => setStandaloneRoute(currentRoute());
     window.addEventListener('hashchange', change);
     return () => window.removeEventListener('hashchange', change);
-  }, []);
+  }, [embedded]);
+
+  // Move focus to the new page title on navigation (not on first load).
+  const previousRoute = useRef(route);
+  useEffect(() => {
+    if (previousRoute.current === route) return;
+    previousRoute.current = route;
+    setError('');
+    requestAnimationFrame(() => document.getElementById('ic-page-title')?.focus());
+  }, [route]);
 
   function save(next: typeof data) {
     try {
@@ -109,6 +128,13 @@ export function InstructorWorkspace({
     if (section === 'access') return <AccessSettings staff={data.staff} groups={data.classes} onSave={staff => save({ ...data, staff })} />;
     return <PageHeader title="Page not found" back={{ label: 'Back to workspace', to: home }} />;
   })();
+
+  if (embedded) {
+    return <div className="ic-app ic-embedded">
+      {error && <p className="ic-error" id="ic-save-error" tabIndex={-1} role="alert">{error}</p>}
+      {content}
+    </div>;
+  }
 
   return <div className="ic-app">
     <a className="ic-skip" href="#ic-main" onClick={event => { event.preventDefault(); document.getElementById('ic-main')?.focus(); }}>Skip to content</a>

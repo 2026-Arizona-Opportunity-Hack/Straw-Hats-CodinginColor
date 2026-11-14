@@ -1,12 +1,12 @@
 // Owner: Aryan. Sidebar on desktop, collapsible menu on phones. Brand: CIC Dark Green navigation.
 import { useState } from 'react'
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import {
   BarChart3,
   BookOpen,
   GraduationCap,
   LayoutDashboard,
-  Library,
+  Eye,
   LogOut,
   Menu,
   School,
@@ -20,11 +20,22 @@ import { homePathFor } from '../auth/paths.ts'
 import { isMockMode } from '../supabase.ts'
 import type { Role } from '../types/db.ts'
 
-const NAV: Record<Role, { to: string; label: string; icon: LucideIcon }[]> = {
+interface NavItem {
+  to: string
+  label: string
+  icon: LucideIcon
+  /** Section inside a hash-routed page (the instructor workspace), e.g. 'curriculum'. */
+  section?: string
+  /** This section is shown when the URL has no hash. */
+  defaultSection?: boolean
+}
+
+const NAV: Record<Role, NavItem[]> = {
   student: [{ to: '/student', label: 'My courses', icon: GraduationCap }],
   instructor: [
-    { to: '/instructor', label: 'My classes', icon: LayoutDashboard },
-    { to: '/instructor/library', label: 'Course library', icon: Library },
+    { to: '/instructor', section: 'classes', defaultSection: true, label: 'Classes', icon: LayoutDashboard },
+    { to: '/instructor', section: 'curriculum', label: 'Curriculum', icon: BookOpen },
+    { to: '/instructor', section: 'review', label: 'Reviewer preview', icon: Eye },
   ],
   admin: [
     { to: '/admin', label: 'Overview', icon: LayoutDashboard },
@@ -33,7 +44,7 @@ const NAV: Record<Role, { to: string; label: string; icon: LucideIcon }[]> = {
     { to: '/admin/analytics', label: 'Impact & learning', icon: BarChart3 },
     { to: '/admin/settings', label: 'Settings & API', icon: Settings },
   ],
-  reviewer: [{ to: '/reviewer', label: 'Curriculum', icon: BookOpen }],
+  reviewer: [{ to: '/reviewer', section: 'review', defaultSection: true, label: 'Curriculum', icon: BookOpen }],
 }
 
 const ROLE_LABEL: Record<Role, string> = {
@@ -62,34 +73,43 @@ export function AppLayout() {
   const { profile, signOut } = useAuth()
   const [open, setOpen] = useState(false)
   const home = profile ? homePathFor(profile.role) : '/login'
+  const location = useLocation()
+  const currentSection = location.hash.replace(/^#\/?/, '').split('/')[0]
+  /** Top-level pages (/admin) match exactly; nested ones (/admin/classes) match their subtree. */
+  const isItemActive = (item: NavItem) => {
+    const { pathname } = location
+    if (item.section) {
+      if (pathname !== item.to) return false
+      return currentSection ? currentSection === item.section : Boolean(item.defaultSection)
+    }
+    return item.to.split('/').length <= 2 ? pathname === item.to : pathname.startsWith(item.to)
+  }
 
   const nav = (
     <nav aria-label="Main" className="flex flex-col gap-1">
       <p className="mb-1 px-3 text-[11px] font-bold uppercase tracking-widest text-sidebar-muted">Menu</p>
       {profile &&
-        NAV[profile.role].map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to.split('/').length <= 2}
-            onClick={() => setOpen(false)}
-            className={({ isActive }) =>
-              `dot-hover flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-semibold ${
+        NAV[profile.role].map((item) => {
+          const { to, label, icon: Icon, section } = item
+          const isActive = isItemActive(item)
+          return (
+            <Link
+              key={to + (section ?? '')}
+              to={section ? { pathname: to, hash: '#/' + section } : to}
+              onClick={() => setOpen(false)}
+              aria-current={isActive ? 'page' : undefined}
+              className={`dot-hover flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-semibold ${
                 isActive
                   ? 'bg-white text-brand shadow-[0_4px_14px_-6px_rgb(0_0_0/0.35)] [--dot:rgb(0_122_61/0.16)]'
                   : 'text-sidebar-muted [--dot:rgb(255_255_255/0.22)] hover:bg-white/5 hover:text-white'
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <Icon aria-hidden="true" className="size-4" />
-                <span className="flex-1">{label}</span>
-                {isActive && <span aria-hidden="true" className="size-2 rounded-full bg-brand-accent motion-safe:animate-pulse" />}
-              </>
-            )}
-          </NavLink>
-        ))}
+              }`}
+            >
+              <Icon aria-hidden="true" className="size-4" />
+              <span className="flex-1">{label}</span>
+              {isActive && <span aria-hidden="true" className="size-2 rounded-full bg-brand-accent motion-safe:animate-pulse" />}
+            </Link>
+          )
+        })}
     </nav>
   )
 
