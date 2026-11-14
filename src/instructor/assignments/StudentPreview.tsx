@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { InteractiveHtmlFrame } from '../../shared/ui/InteractiveHtmlFrame';
-import { formatDue } from './display';
+import { formatDue, pointsLabel } from './display';
 import { gradeQuiz, isHttpsUrl, linkEmbed, questionCorrect, questionKinds, totalPoints, type Assignment, type QuizResponse } from './model';
 
 export function StudentPreview({ assignment }: { assignment: Assignment }) {
@@ -15,7 +15,7 @@ export function StudentPreview({ assignment }: { assignment: Assignment }) {
   return <section className="ic-tile ic-stack ic-student-preview" aria-label="Student preview">
     <p className="ic-preview-banner">Student preview · answers here are not saved</p>
     <header><h2 className="ic-preview-title">{assignment.title}</h2>
-      <p className="ic-note">{totalPoints(assignment)} points · {assignment.dueAt ? 'Due ' + formatDue(assignment.dueAt) : 'No due date'}{assignment.timeLimit ? ` · ${assignment.timeLimit} min limit` : ''}{assignment.attempts ? ` · ${assignment.attempts} attempt${assignment.attempts > 1 ? 's' : ''}` : ''}</p></header>
+      <p className="ic-note">{pointsLabel(totalPoints(assignment))} · {assignment.dueAt ? 'Due ' + formatDue(assignment.dueAt) : 'No due date'}{assignment.timeLimit ? ` · ${assignment.timeLimit} min limit` : ''}{assignment.attempts ? ` · ${assignment.attempts} attempt${assignment.attempts > 1 ? 's' : ''}` : ''}</p></header>
     {assignment.instructions && <p className="ic-preserve">{assignment.instructions}</p>}
 
     {assignment.kind === 'quiz' && <form className="ic-stack" onSubmit={event => {
@@ -44,7 +44,7 @@ export function StudentPreview({ assignment }: { assignment: Assignment }) {
         </fieldset>;
       })}
       {result ? <div className="ic-row">
-        <p className="ic-success" role="status">Score: {result.earned} of {result.possible} points ({Math.round(result.percent)}%)</p>
+        <p className="ic-success" role="status">Score: {result.earned} of {pointsLabel(result.possible)} ({Math.round(result.percent)}%)</p>
         <button type="button" className="ic-button" onClick={() => { setChecked(false); setResponses({}); }}>Try again</button>
       </div> : <div className="ic-form-footer"><button type="submit" className="ic-button ic-primary" disabled={!assignment.quiz.questions.length}>Submit quiz</button></div>}
     </form>}

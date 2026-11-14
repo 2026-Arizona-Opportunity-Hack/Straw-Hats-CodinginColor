@@ -4,7 +4,7 @@ import { Download, Eye, Pencil, Save, Trash2 } from 'lucide-react';
 import { InteractiveHtmlFrame } from '../../shared/ui/InteractiveHtmlFrame';
 import type { ClassGroup, Course } from '../model';
 import { PageHeader } from '../ui';
-import { formatDue, kindIcon } from './display';
+import { formatDue, kindIcon, pointsLabel } from './display';
 import { QuizEditor } from './QuizEditor';
 import { StudentPreview } from './StudentPreview';
 import {
@@ -60,7 +60,7 @@ export function AssignmentEditor({ initial, course, backHref, onSave, onDelete }
 
   return <div className="ic-tab-page">
     <PageHeader level={2} title={draft.title || 'Untitled assignment'} back={{ label: 'Assignments', to: backHref }}
-      description={<>{assignmentKinds[draft.kind].label} · {totalPoints(draft)} points · {formatDue(draft.dueAt)}
+      description={<>{assignmentKinds[draft.kind].label} · {pointsLabel(totalPoints(draft))} · {formatDue(draft.dueAt)}
         <span className={'ic-save-state' + (dirty ? ' is-dirty' : '')} role="status">{status || (dirty ? 'Unsaved changes' : 'All changes saved')}</span></>}>
       <div className="ic-mode" role="group" aria-label="View">
         <button type="button" aria-pressed={view === 'edit'} onClick={() => setView('edit')}><Pencil size={15} /> Edit</button>

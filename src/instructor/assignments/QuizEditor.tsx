@@ -1,6 +1,7 @@
 // Build quiz questions: choice, select-all, true/false, short answer and number.
 import { ArrowDown, ArrowUp, Copy, Plus, Trash2 } from 'lucide-react';
 import { id } from '../model';
+import { pointsLabel } from './display';
 import { newQuestion, questionKinds, type QuestionKind, type QuizQuestion } from './model';
 
 export function QuizEditor({ questions, onChange }: { questions: QuizQuestion[]; onChange: (questions: QuizQuestion[]) => void }) {
@@ -14,7 +15,7 @@ export function QuizEditor({ questions, onChange }: { questions: QuizQuestion[];
   };
 
   return <section className="ic-tile ic-stack">
-    <header className="ic-tile-heading"><div><h2>Questions</h2><p className="ic-note">{questions.length} question{questions.length === 1 ? '' : 's'} · {questions.reduce((sum, q) => sum + q.points, 0)} points</p></div></header>
+    <header className="ic-tile-heading"><div><h2>Questions</h2><p className="ic-note">{questions.length} question{questions.length === 1 ? '' : 's'} · {pointsLabel(questions.reduce((sum, q) => sum + q.points, 0))}</p></div></header>
     {questions.map((q, index) => <fieldset key={q.id} className="ic-question-card">
       <legend>Question {index + 1}</legend>
       <div className="ic-question-toolbar">

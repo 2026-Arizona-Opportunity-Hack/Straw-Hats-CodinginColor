@@ -8,3 +8,5 @@ export function formatDue(value: string | null) {
   return Number.isNaN(date.getTime()) ? 'No due date'
     : date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
+
+export const pointsLabel = (n: number) => `${n} point${n === 1 ? '' : 's'}`;

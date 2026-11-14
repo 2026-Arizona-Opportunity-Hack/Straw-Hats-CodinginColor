@@ -69,7 +69,15 @@ npm run dev            # http://localhost:5173
 ```
 
 With the Supabase values in `.env` left empty, the app runs on **mock data** and the login page shows a role picker (student, instructor, admin, reviewer).
-Fill them in to use a real Supabase project, then apply `supabase/migrations/` in order.
+Fill them in to use a real Supabase project, then apply the migrations and demo data with the Supabase CLI:
+
+```bash
+npx supabase login
+npx supabase link --project-ref <your-project-ref>
+npx supabase db push --include-seed   # runs supabase/migrations/ in order, then supabase/seed.sql
+```
+
+With Supabase configured, the instructor workspace reads and writes live data (classes, rosters, assigned modules, assignments, course content); Row Level Security limits each instructor to their own classes.
 
 Before opening a PR: `npm run build && npm run lint`.
 
