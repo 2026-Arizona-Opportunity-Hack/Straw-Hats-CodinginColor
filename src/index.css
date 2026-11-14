@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+/* Brand tokens. Swap for CIC's palette once Aryan gets it from the nonprofit. */
+@theme {
+  --color-brand: #1d4ed8;
+  --color-brand-dark: #1e3a8a;
+}
+
+/* Visible focus ring everywhere (keyboard navigation is a judging criterion). */
+:focus-visible {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 2px;
+}
