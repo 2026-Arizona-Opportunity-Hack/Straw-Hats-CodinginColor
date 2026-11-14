@@ -84,6 +84,10 @@ insert into class_instructors values
   ('20000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000000b2'),
   ('20000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-0000000000b2');
 
+-- Each class starts with every published module of its course assigned.
+insert into class_modules (class_id, module_id)
+select c.id, m.id from classes c join modules m on m.course_id = c.course_id and m.published;
+
 -- ───────── Students + generated progress ─────────
 do $$
 declare

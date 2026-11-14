@@ -45,7 +45,7 @@ export function AssignmentEditor({ initial, course, backHref, onSave, onDelete }
       setDraft(clean);
       setSaved(clean);
       setError('');
-      setStatus(clean.published ? 'Saved and published.' : 'Draft saved.');
+      setStatus(clean.published ? 'Saved and published' : 'Draft saved');
     }
   }
 
@@ -59,8 +59,9 @@ export function AssignmentEditor({ initial, course, backHref, onSave, onDelete }
   }
 
   return <div className="ic-tab-page">
-    <PageHeader title={draft.title || 'Untitled assignment'} description={`${assignmentKinds[draft.kind].label} · ${totalPoints(draft)} points · ${formatDue(draft.dueAt)}`}
-      back={{ label: 'Assignments', to: backHref }}>
+    <PageHeader level={2} title={draft.title || 'Untitled assignment'} back={{ label: 'Assignments', to: backHref }}
+      description={<>{assignmentKinds[draft.kind].label} · {totalPoints(draft)} points · {formatDue(draft.dueAt)}
+        <span className={'ic-save-state' + (dirty ? ' is-dirty' : '')} role="status">{status || (dirty ? 'Unsaved changes' : 'All changes saved')}</span></>}>
       <div className="ic-mode" role="group" aria-label="View">
         <button type="button" aria-pressed={view === 'edit'} onClick={() => setView('edit')}><Pencil size={15} /> Edit</button>
         <button type="button" aria-pressed={view === 'preview'} onClick={() => setView('preview')}><Eye size={15} /> Student preview</button>
@@ -70,7 +71,6 @@ export function AssignmentEditor({ initial, course, backHref, onSave, onDelete }
       <button type="button" className="ic-button ic-primary" disabled={!dirty} onClick={() => save()}><Save size={16} /> Save</button>
     </PageHeader>
     {error && <p className="ic-error" role="alert">{error}</p>}
-    <p className="ic-note" role="status">{status || (dirty ? 'Unsaved changes.' : 'All changes saved.')}</p>
 
     {view === 'preview' ? <StudentPreview assignment={draft} /> : <div className="ic-editor-layout">
       <div className="ic-stack">

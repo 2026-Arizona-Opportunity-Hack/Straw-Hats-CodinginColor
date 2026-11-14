@@ -5,7 +5,11 @@ const storeKey = 'cic-learn.instructor-preview.v1';
 
 export interface InstructorStore {
   load(): InstructorData;
-  save(data: InstructorData): void;
+  /**
+   * Persist `data`. Synchronous stores throw on failure; async stores (Supabase) return a
+   * promise and report failures through it. `previous` lets a store write only what changed.
+   */
+  save(data: InstructorData, previous: InstructorData): void | Promise<void>;
 }
 
 export const browserInstructorStore: InstructorStore = {

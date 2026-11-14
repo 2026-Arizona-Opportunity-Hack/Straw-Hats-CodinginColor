@@ -448,3 +448,11 @@ body:has(.ic-app) { margin: 0; }
 .ic-app .ic-kind-option { align-content: start; }
 .ic-data-table th, .ic-data-table .ic-status, .ic-nowrap { white-space: nowrap; }
 .ic-add-questions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 4px; }
+
+/* Nested page header (assignment editor) and its toolbar alignment. */
+.ic-app .ic-subpage-header h2 { font-size: clamp(24px, 2.6vw, 30px); line-height: 1.15; letter-spacing: -.03em; }
+.ic-page-actions .ic-mode { align-self: stretch; align-items: stretch; }
+.ic-page-actions .ic-mode button { min-height: 41px; padding-inline: 6px; }
+.ic-save-state { display: inline-block; margin-left: 10px; padding-left: 10px; border-left: 1px solid var(--ic-border); color: var(--ic-green); font-weight: 600; }
+.ic-save-state.is-dirty { color: var(--ic-alert); }
+.ic-option-list { display: grid; gap: 2px; }

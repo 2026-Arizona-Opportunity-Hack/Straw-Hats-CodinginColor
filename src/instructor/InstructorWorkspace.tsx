@@ -74,17 +74,24 @@ export function InstructorWorkspace({
     requestAnimationFrame(() => document.getElementById('ic-page-title')?.focus());
   }, [route]);
 
+  function showError(message: string) {
+    setError(message);
+    requestAnimationFrame(() => document.getElementById('ic-save-error')?.focus());
+  }
+
   function save(next: typeof data) {
+    let pending: void | Promise<void>;
     try {
-      store.save(next);
-      setData(next);
-      setError('');
-      return true;
+      pending = store.save(next, data);
     } catch {
-      setError('Could not save these changes in this browser. Free up browser storage or remove large images and try again.');
-      requestAnimationFrame(() => document.getElementById('ic-save-error')?.focus());
+      showError('Could not save these changes in this browser. Free up browser storage or remove large images and try again.');
       return false;
     }
+    // Optimistic: show the change now; a failed online save is reported and the store reloads.
+    setData(next);
+    setError('');
+    pending?.catch(problem => showError(problem instanceof Error ? problem.message : 'Could not save your last change.'));
+    return true;
   }
 
   function saveClass(group: ClassGroup, created = false) {

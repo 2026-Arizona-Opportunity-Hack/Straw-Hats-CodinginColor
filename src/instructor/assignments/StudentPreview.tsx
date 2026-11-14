@@ -18,21 +18,26 @@ export function StudentPreview({ assignment }: { assignment: Assignment }) {
       <p className="ic-note">{totalPoints(assignment)} points · {assignment.dueAt ? 'Due ' + formatDue(assignment.dueAt) : 'No due date'}{assignment.timeLimit ? ` · ${assignment.timeLimit} min limit` : ''}{assignment.attempts ? ` · ${assignment.attempts} attempt${assignment.attempts > 1 ? 's' : ''}` : ''}</p></header>
     {assignment.instructions && <p className="ic-preserve">{assignment.instructions}</p>}
 
-    {assignment.kind === 'quiz' && <form className="ic-stack" onSubmit={event => { event.preventDefault(); setChecked(true); }}>
+    {assignment.kind === 'quiz' && <form className="ic-stack" onSubmit={event => {
+      event.preventDefault();
+      const blank = assignment.quiz.questions.filter(q => { const r = responses[q.id]; return r === undefined || (Array.isArray(r) ? !r.length : !r.trim()); }).length;
+      if (blank && !window.confirm(`${blank} question${blank === 1 ? ' is' : 's are'} unanswered. Submit anyway?`)) return;
+      setChecked(true);
+    }}>
       {assignment.quiz.questions.map((q, index) => {
         const response = responses[q.id];
         const correct = checked && questionCorrect(q, response);
         return <fieldset key={q.id} className={'ic-question-card' + (checked ? (correct ? ' is-correct' : ' is-wrong') : '')}>
           <legend>Question {index + 1} · {q.points} pt{q.points === 1 ? '' : 's'} · {questionKinds[q.kind]}</legend>
           <p className="ic-preserve">{q.prompt || <em>No question text yet</em>}</p>
-          {(q.kind === 'single' || q.kind === 'truefalse' || q.kind === 'multiple') && q.choices.map((choice, ci) => choice.trim() && <label key={ci} className="ic-checkbox">
+          {(q.kind === 'single' || q.kind === 'truefalse' || q.kind === 'multiple') && <div className="ic-option-list">{q.choices.map((choice, ci) => choice.trim() && <label key={ci} className="ic-checkbox">
             <input type={q.kind === 'multiple' ? 'checkbox' : 'radio'} name={'preview-' + q.id} aria-disabled={checked}
               checked={Array.isArray(response) && response.includes(ci)}
               // Not `disabled`: Chrome greys out a disabled checked radio, hiding what the student picked.
               onChange={event => checked || setResponses(r => {
                 const current = Array.isArray(r[q.id]) ? r[q.id] as number[] : [];
                 return { ...r, [q.id]: q.kind === 'multiple' ? (event.target.checked ? [...current, ci] : current.filter(c => c !== ci)) : [ci] };
-              })} />{choice}</label>)}
+              })} />{choice}</label>)}</div>}
           {(q.kind === 'short' || q.kind === 'numeric') && <label>Your answer<input type={q.kind === 'numeric' ? 'number' : 'text'} step="any" disabled={checked}
             value={typeof response === 'string' ? response : ''} onChange={event => setResponses(r => ({ ...r, [q.id]: event.target.value }))} /></label>}
           {checked && <p className={correct ? 'ic-good-text' : 'ic-stuck-text'} role="status">{correct ? 'Correct' : 'Not correct'}</p>}
