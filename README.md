@@ -73,6 +73,15 @@ Fill them in to use a real Supabase project, then apply `supabase/migrations/` i
 
 Before opening a PR: `npm run build && npm run lint`.
 
+### Instructor workspace
+
+Instructors and reviewers use the workspace in `src/instructor/` inside the main app, under the shared sidebar: `/instructor#/classes`, `/instructor#/curriculum`, `/instructor#/review`, and `/reviewer` for external reviewers.
+`src/instructor/InstructorRoute.tsx` mounts it and passes the signed-in role.
+Its page styles live in `src/instructor/styles.css` (`ic-*` classes); reuse them when connecting data so the layout stays consistent.
+It still uses fictional data saved in the browser; connecting it to `src/api/instructor/` and Supabase is the next step.
+
+`npm run dev:instructor` (port 5176) still runs it standalone with its own sidebar and profile picker.
+
 ## Code layout and owners
 
 Everyone works in their own folder so PRs don't collide.
@@ -85,9 +94,27 @@ Frontend code calls only the functions in `src/api/`; each one returns mock data
 | `src/api/student/` | Student data functions | Shivraj |
 | `src/api/instructor/` | Instructor, admin and reviewer data functions | Ruthvik |
 | `src/student/` | Student pages: courses, module player | Jacky |
-| `src/instructor/`, `src/reviewer/` | Instructor and reviewer pages | Ken |
+| `src/instructor/` | Instructor workspace and reviewer view | Ken |
 | `src/admin/` | Admin pages | Aryan |
 | `supabase/migrations/` | `0001` is the shared contract; `1xxx` Shivraj, `2xxx` Ruthvik (append-only) | Shivraj + Ruthvik |
+
+### Admin pages
+
+CIC staff run the program from `/admin`. In mock mode, pick **Admin** on the login page.
+
+| Page | What CIC staff can do |
+|---|---|
+| Overview | Headline numbers, students needing attention, recent submissions, quick actions |
+| Schools & classes | Search classes, see completion and learning gain per class, create a class, assign or remove instructors |
+| People & roles | See everyone and what each role can access; change roles (confirmation required; admins can't remove their own access) |
+| Impact & learning | Donor-ready report: reach by school, before/after growth per module, instructors and their courses, student progress, CSV export |
+| Settings & API | Create API keys for the read API (shown once, stored as SHA-256 hashes) and revoke them |
+
+Metric definitions live in `src/admin/metrics.ts` and on the Impact page. Learning gain is a student's best post-test % minus their first pretest %, per module.
+
+**Database needs.** On a real Supabase project the admin pages need admin policies that `0001` doesn't have yet: read `class_instructors`, `enrollments` and `class_modules`; manage `class_instructors` and `api_keys`. Until they exist, the pages say what's missing instead of showing zeros.
+
+**Demo data.** `supabase/seed.sql` adds 3 schools, 3 classes, 2 instructors and 16 students with realistic progress. Logins use password `cic-learn-demo`: `admin@cic.demo`, `teacher@cic.demo`, `ana.lopez@cic.demo`, `reviewer@cic.demo`.
 
 ### Interactive HTML activities
 
