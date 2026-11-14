@@ -1,11 +1,9 @@
 // Build quiz questions: choice, select-all, true/false, short answer and number.
-import { useState } from 'react';
 import { ArrowDown, ArrowUp, Copy, Plus, Trash2 } from 'lucide-react';
 import { id } from '../model';
 import { newQuestion, questionKinds, type QuestionKind, type QuizQuestion } from './model';
 
 export function QuizEditor({ questions, onChange }: { questions: QuizQuestion[]; onChange: (questions: QuizQuestion[]) => void }) {
-  const [nextKind, setNextKind] = useState<QuestionKind>('single');
   const set = (index: number, patch: Partial<QuizQuestion>) => onChange(questions.map((q, i) => i === index ? { ...q, ...patch } : q));
   const move = (from: number, to: number) => {
     if (to < 0 || to >= questions.length) return;
@@ -33,7 +31,7 @@ export function QuizEditor({ questions, onChange }: { questions: QuizQuestion[];
           <button type="button" className="ic-icon" aria-label={`Delete question ${index + 1}`} disabled={questions.length === 1} onClick={() => onChange(questions.filter((_, i) => i !== index))}><Trash2 size={16} /></button>
         </span>
       </div>
-      <label>Question<textarea rows={2} value={q.prompt} maxLength={2000} onChange={event => set(index, { prompt: event.target.value })} /></label>
+      <label>Question<textarea id={'prompt-' + q.id} rows={2} value={q.prompt} maxLength={2000} onChange={event => set(index, { prompt: event.target.value })} /></label>
       {(q.kind === 'single' || q.kind === 'multiple' || q.kind === 'truefalse') && <div className="ic-stack ic-choices" role="group" aria-label={`Choices for question ${index + 1}`}>
         <p className="ic-note">{q.kind === 'multiple' ? 'Check every correct choice.' : 'Select the correct choice.'}</p>
         {q.choices.map((choice, ci) => <div className="ic-choice-row" key={ci}>
@@ -56,11 +54,16 @@ export function QuizEditor({ questions, onChange }: { questions: QuizQuestion[];
         <label className="ic-inline-field">Allowed difference<input type="number" step="any" min={0} value={q.tolerance} onChange={event => set(index, { tolerance: Math.max(0, Number(event.target.value) || 0) })} /></label>
       </div>}
     </fieldset>)}
-    <div className="ic-row">
-      <label className="ic-inline-field">New question<select value={nextKind} onChange={event => setNextKind(event.target.value as QuestionKind)}>
-        {Object.entries(questionKinds).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </select></label>
-      <button type="button" className="ic-button" onClick={() => onChange([...questions, newQuestion(nextKind)])}><Plus size={16} /> Add question</button>
+    <div className="ic-add-questions" role="group" aria-label="Add a question">
+      <span className="ic-note">Add a question:</span>
+      {(Object.keys(questionKinds) as QuestionKind[]).map(kind => <button key={kind} type="button" className="ic-button" onClick={() => {
+        const question = newQuestion(kind);
+        onChange([...questions, question]);
+        // Bring the new question into view with the cursor in its text box.
+        requestAnimationFrame(() => document.getElementById('prompt-' + question.id)?.focus());
+      }}>
+        <Plus size={15} aria-hidden="true" /> {questionKinds[kind]}
+      </button>)}
     </div>
   </section>;
 }

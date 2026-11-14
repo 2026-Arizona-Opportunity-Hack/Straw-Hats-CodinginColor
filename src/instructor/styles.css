@@ -447,3 +447,4 @@ body:has(.ic-app) { margin: 0; }
 .ic-app .ic-tile-heading h2 { display: flex; align-items: center; gap: 6px; }
 .ic-app .ic-kind-option { align-content: start; }
 .ic-data-table th, .ic-data-table .ic-status, .ic-nowrap { white-space: nowrap; }
+.ic-add-questions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 4px; }
