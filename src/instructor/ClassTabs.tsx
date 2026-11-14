@@ -1,8 +1,8 @@
 // Tabbed pages inside a class: Dashboard, Modules, Grades, Assignments, Curriculum, Syllabus.
 // Each tab is its own URL (#/classes/<id>/<tab>) so back, reload and links work.
-import { useState, type ReactNode } from 'react';
-import { ArrowRight, BookOpen, Search } from 'lucide-react';
-import { activityTypes, questionTypes, type ClassGroup, type Course } from './model';
+import { useState, type FormEvent, type ReactNode } from 'react';
+import { ArrowRight, BookOpen, Printer, Search, Trash2, Upload, UserPlus } from 'lucide-react';
+import { activityTypes, makeLearners, questionTypes, type ClassGroup, type Course } from './model';
 import { assignedModules, attemptFor, classProgress, percent, points, statuses } from './progress';
 import { classTabs, type ClassTabId } from './classTabIds';
 import { Empty } from './ui';
@@ -129,30 +129,6 @@ export function DashboardTab({ group, course }: { group: ClassGroup; course?: Co
   </div>;
 }
 
-export function ModulesTab({ group, course, onEditAssignment }: { group: ClassGroup; course?: Course; onEditAssignment: () => void }) {
-  const modules = assignedModules(group, course);
-  return <div className="ic-tab-page">
-    <Tile title="How each module is going" note="Completion, scores and who is stuck, per assigned module."
-      actions={course && <button type="button" className="ic-button" onClick={onEditAssignment}>Edit assignment</button>}>
-      {modules.length ? <div className="ic-module-cards">{modules.map((module, index) => {
-        const stats = moduleStats(group, course, module.id);
-        const healthy = stats.stuck === 0;
-        return <article key={module.id} className={'ic-module-card' + (healthy ? '' : ' is-alert')}>
-          <header><div><span className="ic-code">MODULE {index + 1}</span><h3>{module.title}</h3></div>
-            <span className={'ic-status ' + (healthy ? 'is-published' : 'is-stuck')}>{healthy ? 'On track' : `${stats.stuck} stuck`}</span></header>
-          <progress aria-label={`${module.title} completion`} value={stats.completion ?? 0} max={100} />
-          <dl>
-            <div><dt>Completion</dt><dd>{percent(stats.completion)}</dd></div>
-            <div><dt>Avg score</dt><dd>{percent(stats.avgScore)}</dd></div>
-            <div><dt>Finished</dt><dd>{stats.finished}/{stats.students}</dd></div>
-          </dl>
-          <footer className="ic-note">{stats.activities} activities · {module.lessons.length} lesson{module.lessons.length === 1 ? '' : 's'}</footer>
-        </article>;
-      })}</div> : <Empty>No published modules assigned. Use Edit assignment to add some.</Empty>}
-    </Tile>
-  </div>;
-}
-
 export function GradesTab({ group, course, onSelect }: { group: ClassGroup; course?: Course; onSelect: (learnerId: string) => void }) {
   const [moduleId, setModuleId] = useState('');
   const [filter, setFilter] = useState('All students');
@@ -215,27 +191,98 @@ export function AssignmentsTab({ group, course }: { group: ClassGroup; course?: 
   </div>;
 }
 
-export function CurriculumTab({ group, course }: { group: ClassGroup; course?: Course }) {
+export function CurriculumTab({ group, course, onEditAssignment }: { group: ClassGroup; course?: Course; onEditAssignment: () => void }) {
   if (!course) return <div className="ic-tab-page"><section className="ic-tile"><Empty>This class has no course yet.</Empty></section></div>;
+  const modules = assignedModules(group, course);
   return <div className="ic-tab-page">
-    <section className="ic-tile">
-      <header className="ic-tile-heading"><div><h2>{course.title}</h2><p className="ic-note">{course.description}</p></div>
-        <a className="ic-button" href={`#/curriculum/${course.id}`}><BookOpen size={16} /> Open in course builder</a></header>
+    <Tile title="Modules in this class" note="Completion, scores and who is stuck, per assigned module."
+      actions={<div className="ic-row">
+        <button type="button" className="ic-button" onClick={onEditAssignment}>Choose modules</button>
+        <a className="ic-button" href={`#/curriculum/${course.id}`}><BookOpen size={16} /> Open course builder</a>
+      </div>}>
+      {modules.length ? <div className="ic-module-cards">{modules.map((module, index) => {
+        const stats = moduleStats(group, course, module.id);
+        const healthy = stats.stuck === 0;
+        return <article key={module.id} className={'ic-module-card' + (healthy ? '' : ' is-alert')}>
+          <header><div><span className="ic-code">MODULE {index + 1}</span><h3>{module.title}</h3></div>
+            <span className={'ic-status ' + (healthy ? 'is-published' : 'is-stuck')}>{healthy ? 'On track' : `${stats.stuck} stuck`}</span></header>
+          <progress aria-label={`${module.title} completion`} value={stats.completion ?? 0} max={100} />
+          <dl>
+            <div><dt>Completion</dt><dd>{percent(stats.completion)}</dd></div>
+            <div><dt>Avg score</dt><dd>{percent(stats.avgScore)}</dd></div>
+            <div><dt>Finished</dt><dd>{stats.finished}/{stats.students}</dd></div>
+          </dl>
+          <footer className="ic-note">{stats.activities} activities · {module.lessons.length} lesson{module.lessons.length === 1 ? '' : 's'}</footer>
+        </article>;
+      })}</div> : <Empty>No published modules assigned. Use Choose modules to add some.</Empty>}
+    </Tile>
+    <Tile title="Full course outline" note={course.title + ' · ' + course.description}>
       <ol className="ic-outline">{course.modules.map(module => <li key={module.id}>
         <div className="ic-outline-module"><strong>{module.title}</strong>
           <span className={'ic-status ' + (group.moduleIds.includes(module.id) && module.published ? 'is-published' : '')}>
             {!module.published ? 'Draft' : group.moduleIds.includes(module.id) ? 'Assigned' : 'Not assigned'}</span></div>
         <ul>{module.lessons.map(lesson => <li key={lesson.id}>{lesson.title}<span className="ic-note"> · {lesson.activities.length} activities</span></li>)}</ul>
       </li>)}</ol>
-    </section>
+    </Tile>
   </div>;
 }
 
-export function SyllabusTab() {
+export function RosterTab({ group, course, onSave, onImport, onCards }: {
+  group: ClassGroup; course?: Course; onSave: (group: ClassGroup) => boolean; onImport: () => void; onCards: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [search, setSearch] = useState('');
+  const [message, setMessage] = useState('');
+  const [now] = useState(() => Date.now());
+  const { roster } = classProgress(group, course);
+  const rows = roster.filter(row => row.learner.name.toLowerCase().includes(search.trim().toLowerCase()));
+  const trimmed = name.trim();
+
+  function addStudent(event: FormEvent) {
+    event.preventDefault();
+    if (!trimmed || trimmed.length > 100) return;
+    if (onSave({ ...group, learners: [...group.learners, ...makeLearners([trimmed], group.learners)] })) {
+      setMessage(`Added ${trimmed}.`);
+      setName('');
+    }
+  }
+
+  function removeStudent(id: string, studentName: string) {
+    if (!window.confirm(`Remove ${studentName} from ${group.name}? Their progress in this class is deleted.`)) return;
+    if (onSave({ ...group, learners: group.learners.filter(learner => learner.id !== id) })) setMessage(`Removed ${studentName}.`);
+  }
+
   return <div className="ic-tab-page">
+    <div className="ic-stat-grid">
+      <StatCard label="Students" value={group.learners.length} note="On this roster" />
+      <StatCard label="Class code" value={group.joinCode} note="Students enter this with their passcode" />
+      <StatCard label="Active this week" value={roster.filter(row => row.learner.lastActive && now - new Date(row.learner.lastActive).getTime() < 7 * 86_400_000).length} note="Submitted work in the last 7 days" tone="good" />
+      <StatCard label="Never signed in" value={roster.filter(row => !row.learner.lastActive).length} note="Check they have a login card" />
+    </div>
+    <section className="ic-tile ic-filter-bar">
+      <label className="ic-search ic-grow"><Search size={16} /><input aria-label="Search roster" type="search" placeholder="Search students" value={search} onChange={event => setSearch(event.target.value)} /></label>
+      <form className="ic-row" onSubmit={addStudent}>
+        <label className="ic-inline-field">Add student<input value={name} maxLength={100} placeholder="Full name" onChange={event => setName(event.target.value)} /></label>
+        <button type="submit" className="ic-button" disabled={!trimmed}><UserPlus size={16} /> Add</button>
+      </form>
+      <button type="button" className="ic-button" onClick={onImport}><Upload size={16} /> Import CSV</button>
+      <button type="button" className="ic-button ic-primary" onClick={onCards}><Printer size={16} /> Login cards</button>
+      {message && <p className="ic-note" role="status">{message}</p>}
+    </section>
     <section className="ic-tile">
-      <header className="ic-tile-heading"><div><h2>Syllabus</h2><p className="ic-note">Course description, schedule, grading policy and expectations for this class.</p></div></header>
-      <Empty>The syllabus editor is coming next.</Empty>
+      {rows.length ? <div className="ic-table-wrap" tabIndex={0} role="region" aria-label="Roster table">
+        <table className="ic-data-table">
+          <thead><tr>{['Student', 'Passcode', 'Status', 'Last active', ''].map((text, index) => <th scope="col" key={index}>{text || <span className="ic-sr-only">Actions</span>}</th>)}</tr></thead>
+          <tbody>{rows.map(row => <tr key={row.learner.id}>
+            <td><strong>{row.learner.name}</strong></td>
+            <td><code>{row.learner.passcode}</code></td>
+            <td><span className={'ic-status ' + (row.status === 'Stuck' ? 'is-stuck' : row.status === 'Complete' ? 'is-published' : '')}>{row.status}</span></td>
+            <td>{row.learner.lastActive ? new Date(row.learner.lastActive).toLocaleDateString() : 'Never'}</td>
+            <td className="ic-cell-action"><button type="button" className="ic-icon" aria-label={`Remove ${row.learner.name}`} onClick={() => removeStudent(row.learner.id, row.learner.name)}><Trash2 size={16} /></button></td>
+          </tr>)}</tbody>
+        </table>
+      </div> : <Empty>{search ? 'No students match your search.' : 'No students yet. Add one or import a CSV.'}</Empty>}
+      <p className="ic-note ic-section-gap">Students sign in with the class code and their own passcode. We store only their name.</p>
     </section>
   </div>;
 }

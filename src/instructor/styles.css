@@ -397,3 +397,8 @@ body:has(.ic-app) { margin: 0; }
   .ic-tile { padding: 16px; }
   .ic-donut-wrap { justify-content: center; }
 }
+
+.ic-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ic-cell-action { width: 48px; text-align: right; }
+.ic-filter-bar form .ic-inline-field input { width: 200px; }
+.ic-filter-bar > .ic-note { flex-basis: 100%; }

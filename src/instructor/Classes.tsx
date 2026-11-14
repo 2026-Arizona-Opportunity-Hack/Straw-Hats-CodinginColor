@@ -4,7 +4,7 @@ import { RosterUpload } from './ClassSetup';
 import { makeLearners, type ClassGroup, type Course, type Learner } from './model';
 import { attemptFor, classProgress, percent, points } from './progress';
 import {
-  AssignmentsTab, ClassTabBar, CurriculumTab, DashboardTab, GradesTab, ModulesTab, SyllabusTab,
+  AssignmentsTab, ClassTabBar, CurriculumTab, DashboardTab, GradesTab, RosterTab,
 } from './ClassTabs';
 import type { ClassTabId } from './classTabIds';
 import type { RosterRow } from './roster';
@@ -46,20 +46,21 @@ export function ClassDashboard({ group, course, onSave, justCreated, tab }: {
   const ready = rows.filter(row => !row.issue).map(row => row.name);
   const exampleLink = 'https://example.com/join/' + group.joinCode;
   const editAssignment = () => { setDraftModules(group.moduleIds); setDialog('assignment'); };
+  const openImport = () => { setRows([]); setDialog('roster'); };
+  const openCards = () => { setFeedback(''); setDialog('cards'); };
 
   return <>
     <PageHeader title={group.name} description={group.school + (course ? ' · ' + course.title : '')} back={{ label: 'Classes', to: '#/classes' }}>
-      <button className="ic-button" onClick={() => { setRows([]); setDialog('roster'); }}><Users size={17} /> Import roster</button>
-      <button className="ic-button ic-primary" onClick={() => { setFeedback(''); setDialog('cards'); }}><Printer size={17} /> Student login cards</button>
+      <button className="ic-button" onClick={openImport}><Users size={17} /> Import roster</button>
+      <button className="ic-button ic-primary" onClick={openCards}><Printer size={17} /> Student login cards</button>
     </PageHeader>
     {justCreated && <p className="ic-success" role="status">Class created with {group.learners.length} students. Open student login cards to see the example link and passcodes.</p>}
     <ClassTabBar groupId={group.id} active={tab} />
     {tab === 'dashboard' && <DashboardTab group={group} course={course} />}
-    {tab === 'modules' && <ModulesTab group={group} course={course} onEditAssignment={editAssignment} />}
-    {tab === 'grades' && <GradesTab group={group} course={course} onSelect={setSelected} />}
+    {tab === 'curriculum' && <CurriculumTab group={group} course={course} onEditAssignment={editAssignment} />}
     {tab === 'assignments' && <AssignmentsTab group={group} course={course} />}
-    {tab === 'curriculum' && <CurriculumTab group={group} course={course} />}
-    {tab === 'syllabus' && <SyllabusTab />}
+    {tab === 'grades' && <GradesTab group={group} course={course} onSelect={setSelected} />}
+    {tab === 'roster' && <RosterTab group={group} course={course} onSave={onSave} onImport={openImport} onCards={openCards} />}
     {details && <Dialog wide title={details.learner.name + ' · Activity details'} onClose={() => setSelected(null)}>
       <p className="ic-note">{details.status} · {details.completed} of {details.total} completed · {details.minutes} min · Learning gain {points(details.gain)}</p>
       <ul className="ic-list ic-section-gap">{activities.map(activity => {
