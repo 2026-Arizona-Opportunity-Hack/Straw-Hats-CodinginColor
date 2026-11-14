@@ -73,6 +73,14 @@ Fill them in to use a real Supabase project, then apply `supabase/migrations/` i
 
 Before opening a PR: `npm run build && npm run lint`.
 
+### Instructor UI baseline
+
+Run `npm run dev:instructor` after installing the root dependencies, then open [the instructor workspace](http://localhost:5176/). Run `npm run build:instructor` to build the standalone preview.
+
+The sidebar and page styles live in `src/instructor/InstructorWorkspace.tsx` and `src/instructor/styles.css`. The class setup, roster, curriculum block editor, program overview, access settings, and reviewer views use those same styles. When connecting new data or actions, reuse the existing markup and `ic-*` classes to preserve the layout.
+
+This standalone workspace uses fictional rosters and browser-local storage. The join link, passcodes, access controls, and materials drafting are demonstrations. The main app on port 5173 uses the team's shared routes and data interfaces.
+
 ## Code layout and owners
 
 Everyone works in their own folder so PRs don't collide.
