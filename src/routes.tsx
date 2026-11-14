@@ -1,6 +1,6 @@
 // Owner: Aryan. Add routes here; page components live in each owner's folder.
 import { createBrowserRouter, Navigate } from 'react-router-dom'
-import { AdminHome, AdminUsers } from './admin/AdminPages.tsx'
+import { AdminAnalytics, AdminClasses, AdminHome, AdminSettings, AdminUsers } from './admin/AdminPages.tsx'
 import { CourseLibrary } from './instructor/CourseLibrary.tsx'
 import { InstructorHome } from './instructor/InstructorHome.tsx'
 import { LoginPage } from './LoginPage.tsx'
@@ -39,6 +39,18 @@ export const router = createBrowserRouter([
       {
         path: 'admin/users',
         element: <RequireRole roles={['admin']}><AdminUsers /></RequireRole>,
+      },
+      {
+        path: 'admin/classes',
+        element: <RequireRole roles={['admin']}><AdminClasses /></RequireRole>,
+      },
+      {
+        path: 'admin/analytics',
+        element: <RequireRole roles={['admin']}><AdminAnalytics /></RequireRole>,
+      },
+      {
+        path: 'admin/settings',
+        element: <RequireRole roles={['admin']}><AdminSettings /></RequireRole>,
       },
       {
         path: 'reviewer',
