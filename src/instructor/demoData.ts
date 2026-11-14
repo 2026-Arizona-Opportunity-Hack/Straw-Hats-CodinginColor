@@ -1,5 +1,5 @@
 import { LOOP_DEMO_HTML } from '../api/fixtures';
-import { newAssignment, newQuestion, type Assignment } from './assignments/model';
+import { newAssignment, newQuestion, type Assignment, type Block, type QuizQuestion } from './assignments/model';
 import type { Activity, Course, InstructorData, Learner } from './model';
 
 const article: Activity = {
@@ -79,27 +79,38 @@ const daysFromNow = (days: number) => {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 };
 
+const question = (q: Partial<QuizQuestion> & Pick<QuizQuestion, 'kind'>): Block => ({ id: 'b-' + q.id, type: 'question', question: { ...newQuestion(q.kind), ...q } });
+
 const maryvaleAssignments: Assignment[] = [
   {
     ...newAssignment('quiz'), id: 'quiz-variables', title: 'Variables quick check', published: true, moduleId: 'variables', dueAt: daysFromNow(2),
-    instructions: 'Five minutes, one attempt. Answer on your own.',
-    quiz: { shuffle: true, showAnswers: 'after_submit', questions: [
-      { ...newQuestion('single'), id: 'q1', prompt: 'After score = 0 and score = score + 1, what is score?', choices: ['0', '1', '2'], correct: [1] },
-      { ...newQuestion('truefalse'), id: 'q2', prompt: 'A variable name can start with a number.', correct: [1] },
-      { ...newQuestion('short'), id: 'q3', prompt: 'Which function shows a value on the screen?', accepted: ['print', 'print()'] },
-    ] },
+    instructions: 'Five minutes, one attempt. Answer on your own.', shuffle: true,
+    blocks: [
+      question({ id: 'q1', kind: 'single', prompt: 'After score = 0 and score = score + 1, what is score?', choices: ['0', '1', '2'], correct: [1] }),
+      question({ id: 'q2', kind: 'truefalse', prompt: 'A variable name can start with a number.', correct: [1] }),
+      question({ id: 'q3', kind: 'short', prompt: 'Which function shows a value on the screen?', accepted: ['print', 'print()'] }),
+    ],
   },
   {
-    ...newAssignment('link'), id: 'link-reading', title: 'Read: for loops in Python', published: true, moduleId: 'loops', points: 0, dueAt: daysFromNow(4),
-    instructions: 'Read the "for Statements" section before Thursday.', link: { url: 'https://docs.python.org/3/tutorial/controlflow.html#for-statements' },
+    ...newAssignment('link'), id: 'link-reading', title: 'Read: for loops in Python', published: true, moduleId: 'loops', dueAt: daysFromNow(4),
+    instructions: 'Read the "for Statements" section, then answer the questions below.',
+    blocks: [
+      { id: 'b-link', type: 'link', url: 'https://docs.python.org/3/tutorial/controlflow.html#for-statements', caption: 'Python tutorial, section 4.2' },
+      question({ id: 'q4', kind: 'numeric', prompt: 'How many times does the body of for i in range(5) run?', answer: 5 }),
+      question({ id: 'q5', kind: 'multiple', prompt: 'Which of these can a for loop go through?', choices: ['A list', 'A string', 'A single number'], correct: [0, 1] }),
+    ],
   },
   {
-    ...newAssignment('html'), id: 'html-loops', title: 'Loop counter game', published: true, moduleId: 'loops', points: 5, dueAt: daysFromNow(6),
-    instructions: 'Play until you get it right.', html: { html: LOOP_DEMO_HTML, reportsScore: true },
+    ...newAssignment('html'), id: 'html-loops', title: 'Loop counter game', published: true, moduleId: 'loops', dueAt: daysFromNow(6),
+    instructions: 'Play until you get it right.',
+    blocks: [{ id: 'b-html', type: 'html', html: LOOP_DEMO_HTML, reportsScore: true, points: 5 }],
   },
   {
-    ...newAssignment('written'), id: 'written-reflection', title: 'Reflection: where do you see loops?', moduleId: 'loops', points: 10,
-    written: { prompts: ['Describe something in your day that repeats like a loop.', 'How would you write it as a for loop?'] },
+    ...newAssignment('written'), id: 'written-reflection', title: 'Reflection: where do you see loops?', moduleId: 'loops',
+    blocks: [
+      { id: 'b-w1', type: 'written', prompt: 'Describe something in your day that repeats like a loop.', points: 5 },
+      { id: 'b-w2', type: 'written', prompt: 'How would you write it as a for loop?', points: 5 },
+    ],
   },
 ];
 

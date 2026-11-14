@@ -1,11 +1,14 @@
 // Class assignments: work an instructor builds and hands to one class.
-// An assignment belongs to a class and can optionally point at a module.
+// An assignment is an ordered list of blocks (text, links and videos, interactive pages,
+// questions, written prompts, code), so a video can be followed by questions about it.
+// It belongs to a class and can optionally point at a module.
 import { embedUrl, id, slidesUrl } from '../model';
 
+/** Starting templates offered when creating an assignment. */
 export const assignmentKinds = {
   quiz: { label: 'Quiz', detail: 'Questions with an answer key, graded automatically' },
-  link: { label: 'Link or embed', detail: 'A video, doc, form or any web page' },
-  html: { label: 'Interactive page', detail: 'Paste or upload your own HTML activity' },
+  link: { label: 'Link or video', detail: 'A video, doc, form or web page, with questions about it' },
+  html: { label: 'Interactive page', detail: 'Your own HTML activity, with optional questions' },
   written: { label: 'Written response', detail: 'Prompts students answer in their own words' },
   code: { label: 'Code exercise', detail: 'Python with starter code and tests' },
 } as const;
@@ -38,15 +41,33 @@ export type QuizQuestion = {
   tolerance: number;
 };
 
+export type Block =
+  | { id: string; type: 'text'; text: string }
+  | { id: string; type: 'link'; url: string; caption: string }
+  | { id: string; type: 'html'; html: string; reportsScore: boolean; points: number }
+  | { id: string; type: 'question'; question: QuizQuestion }
+  | { id: string; type: 'written'; prompt: string; points: number }
+  | { id: string; type: 'code'; prompt: string; starter: string; tests: string; points: number };
+
+export type BlockType = Block['type'];
+
+export const blockLabels: Record<BlockType, string> = {
+  text: 'Text',
+  link: 'Link or video',
+  html: 'Interactive page',
+  question: 'Question',
+  written: 'Written response',
+  code: 'Code exercise',
+};
+
 export type ShowAnswers = 'after_submit' | 'after_due' | 'never';
 
 export type Assignment = {
   id: string;
+  /** The template it started from; used as its type label in lists. */
   kind: AssignmentKind;
   title: string;
   instructions: string;
-  /** Total points. For quizzes this is the sum of question points. */
-  points: number;
   /** ISO local date-time from <input type="datetime-local">, or null. */
   dueAt: string | null;
   /** null means unlimited. */
@@ -56,11 +77,10 @@ export type Assignment = {
   moduleId: string | null;
   published: boolean;
   createdAt: string;
-  quiz: { questions: QuizQuestion[]; shuffle: boolean; showAnswers: ShowAnswers };
-  link: { url: string };
-  html: { html: string; reportsScore: boolean };
-  written: { prompts: string[] };
-  code: { starter: string; tests: string };
+  blocks: Block[];
+  /** Shuffle the order of question blocks for each student. */
+  shuffle: boolean;
+  showAnswers: ShowAnswers;
 };
 
 export function newQuestion(kind: QuestionKind = 'single'): QuizQuestion {
@@ -68,32 +88,72 @@ export function newQuestion(kind: QuestionKind = 'single'): QuizQuestion {
   return { id: id(), kind, prompt: '', points: 1, choices, correct: [], accepted: [], answer: null, tolerance: 0 };
 }
 
+export function newBlock(type: BlockType, questionKind: QuestionKind = 'single'): Block {
+  switch (type) {
+    case 'text': return { id: id(), type, text: '' };
+    case 'link': return { id: id(), type, url: '', caption: '' };
+    case 'html': return { id: id(), type, html: '', reportsScore: true, points: 5 };
+    case 'question': return { id: id(), type, question: newQuestion(questionKind) };
+    case 'written': return { id: id(), type, prompt: '', points: 5 };
+    case 'code': return { id: id(), type, prompt: '', starter: '', tests: '', points: 5 };
+  }
+}
+
+const templateBlocks: Record<AssignmentKind, () => Block[]> = {
+  quiz: () => [newBlock('question')],
+  link: () => [newBlock('link'), newBlock('question')],
+  html: () => [newBlock('html')],
+  written: () => [newBlock('written')],
+  code: () => [newBlock('code')],
+};
+
 export function newAssignment(kind: AssignmentKind): Assignment {
   return {
     id: id(), kind, title: 'Untitled ' + assignmentKinds[kind].label.toLowerCase(), instructions: '',
-    points: kind === 'quiz' ? 1 : 10, dueAt: null, attempts: kind === 'quiz' ? 1 : null, timeLimit: null,
+    dueAt: null, attempts: kind === 'quiz' ? 1 : null, timeLimit: null,
     moduleId: null, published: false, createdAt: new Date().toISOString(),
-    quiz: { questions: kind === 'quiz' ? [newQuestion()] : [], shuffle: false, showAnswers: 'after_submit' },
-    link: { url: '' },
-    html: { html: '', reportsScore: true },
-    written: { prompts: kind === 'written' ? [''] : [] },
-    code: { starter: '', tests: '' },
+    blocks: templateBlocks[kind](), shuffle: false, showAnswers: 'after_submit',
   };
+}
+
+/** Same block with new ids. */
+export function cloneBlock(block: Block): Block {
+  const copy = { ...structuredClone(block), id: id() };
+  if (copy.type === 'question') copy.question = { ...copy.question, id: id() };
+  return copy;
 }
 
 /** Copy with fresh ids, as a draft. */
 export function duplicateAssignment(source: Assignment, title = source.title + ' (copy)'): Assignment {
-  return {
-    ...structuredClone(source), id: id(), title, published: false, createdAt: new Date().toISOString(),
-    quiz: { ...structuredClone(source.quiz), questions: source.quiz.questions.map(q => ({ ...structuredClone(q), id: id() })) },
-  };
+  return { ...structuredClone(source), id: id(), title, published: false, createdAt: new Date().toISOString(), blocks: source.blocks.map(cloneBlock) };
+}
+
+export function blockPoints(block: Block) {
+  if (block.type === 'question') return block.question.points || 0;
+  if (block.type === 'written' || block.type === 'code' || block.type === 'html') return block.points || 0;
+  return 0;
 }
 
 export function totalPoints(assignment: Assignment) {
-  return assignment.kind === 'quiz' ? assignment.quiz.questions.reduce((sum, q) => sum + (q.points || 0), 0) : assignment.points;
+  return assignment.blocks.reduce((sum, block) => sum + blockPoints(block), 0);
 }
 
-/** Where a link assignment renders: an embeddable URL, or null to open in a new tab. */
+export const questionsOf = (assignment: Assignment) =>
+  assignment.blocks.flatMap(block => (block.type === 'question' ? [block.question] : []));
+
+/** One-line summary for lists, e.g. "Link · 3 questions". */
+export function contentSummary(assignment: Assignment) {
+  const counts = new Map<string, number>();
+  for (const block of assignment.blocks) {
+    if (block.type === 'text') continue;
+    const label = block.type === 'question' ? 'question' : blockLabels[block.type].toLowerCase();
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  const text = [...counts].map(([label, n]) => (n === 1 && label !== 'question' ? label : `${n} ${label}${n === 1 ? '' : 's'}`)).join(' · ') || 'empty';
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** Where a link block renders: an embeddable URL, or null to open in a new tab. */
 export function linkEmbed(value: string): string | null {
   const known = embedUrl(value) || slidesUrl(value);
   if (known) return known;
@@ -114,29 +174,71 @@ export function isHttpsUrl(value: string) {
   try { return new URL(value).protocol === 'https:'; } catch { return false; }
 }
 
+function questionProblem(q: QuizQuestion): string | null {
+  if (!q.prompt.trim()) return 'add the question text.';
+  if (!(q.points > 0)) return 'give it at least 1 point.';
+  if (q.kind === 'single' || q.kind === 'multiple' || q.kind === 'truefalse') {
+    if (q.choices.filter(c => c.trim()).length < 2) return 'add at least two choices.';
+    if (!q.correct.length || q.correct.some(i => !q.choices[i]?.trim())) return 'mark the correct answer.';
+  }
+  if (q.kind === 'short' && !q.accepted.some(a => a.trim())) return 'add at least one accepted answer.';
+  if (q.kind === 'numeric' && q.answer === null) return 'enter the correct number.';
+  return null;
+}
+
+/** "Block 3 (Question 2)" style label used in messages. */
+export function blockName(blocks: Block[], index: number) {
+  const block = blocks[index];
+  const name = block.type === 'question'
+    ? `Question ${blocks.slice(0, index + 1).filter(b => b.type === 'question').length}`
+    : blockLabels[block.type];
+  return `Block ${index + 1} (${name})`;
+}
+
 /** First problem that blocks publishing, or null. Drafts can be saved with problems. */
 export function publishProblem(a: Assignment): string | null {
   if (!a.title.trim()) return 'Give the assignment a title.';
-  if (a.kind === 'quiz') {
-    if (!a.quiz.questions.length) return 'Add at least one question.';
-    for (const [index, q] of a.quiz.questions.entries()) {
-      const label = `Question ${index + 1}: `;
-      if (!q.prompt.trim()) return label + 'add a prompt.';
-      if (!(q.points > 0)) return label + 'give it at least 1 point.';
-      if (q.kind === 'single' || q.kind === 'multiple' || q.kind === 'truefalse') {
-        if (q.choices.filter(c => c.trim()).length < 2) return label + 'add at least two choices.';
-        if (!q.correct.length || q.correct.some(i => !q.choices[i]?.trim())) return label + 'mark the correct answer.';
-      }
-      if (q.kind === 'short' && !q.accepted.some(a => a.trim())) return label + 'add at least one accepted answer.';
-      if (q.kind === 'numeric' && q.answer === null) return label + 'enter the correct number.';
+  if (!a.blocks.length) return 'Add at least one block.';
+  for (const [index, block] of a.blocks.entries()) {
+    const where = blockName(a.blocks, index) + ': ';
+    if (block.type === 'text' && !block.text.trim()) return where + 'add some text or remove the block.';
+    if (block.type === 'link' && !isHttpsUrl(block.url)) return where + 'add a link that starts with https://.';
+    if (block.type === 'html' && !block.html.trim()) return where + 'paste or upload the HTML page.';
+    if (block.type === 'written' && !block.prompt.trim()) return where + 'add a prompt.';
+    if (block.type === 'code' && !block.prompt.trim()) return where + 'describe the coding task.';
+    if (block.type === 'question') {
+      const problem = questionProblem(block.question);
+      if (problem) return where + problem;
     }
   }
-  if (a.kind === 'link' && !isHttpsUrl(a.link.url)) return 'Add a link that starts with https://.';
-  if (a.kind === 'html' && !a.html.html.trim()) return 'Paste or upload the HTML page.';
-  if (a.kind === 'written' && !a.written.prompts.some(p => p.trim())) return 'Add at least one prompt.';
-  if (a.kind === 'code' && !a.instructions.trim()) return 'Describe the coding task in the instructions.';
-  if (a.kind !== 'quiz' && !(a.points >= 0)) return 'Points must be zero or more.';
   return null;
+}
+
+/**
+ * Reads assignments saved before blocks existed (one fixed type with quiz / link / html /
+ * written / code fields) and newer block-based ones. Unknown input becomes an empty draft.
+ */
+export function normalizeAssignment(raw: Partial<Assignment> & Record<string, unknown>): Assignment {
+  const kind = (typeof raw.kind === 'string' && raw.kind in assignmentKinds ? raw.kind : 'quiz') as AssignmentKind;
+  const base = { ...newAssignment(kind), ...raw, kind } as Assignment & Record<string, unknown>;
+  if (Array.isArray(raw.blocks)) {
+    return { ...base, blocks: raw.blocks as Block[], shuffle: Boolean(raw.shuffle), showAnswers: (raw.showAnswers as ShowAnswers) ?? 'after_submit' };
+  }
+  const legacy = raw as Record<string, Record<string, unknown> | undefined>;
+  const quiz = legacy.quiz ?? {};
+  const questions = (Array.isArray(quiz.questions) ? quiz.questions : []) as QuizQuestion[];
+  const points = typeof raw.points === 'number' ? raw.points as number : 10;
+  const blocks: Block[] = [];
+  if (kind === 'link') blocks.push({ id: id(), type: 'link', url: String(legacy.link?.url ?? ''), caption: '' });
+  if (kind === 'html') blocks.push({ id: id(), type: 'html', html: String(legacy.html?.html ?? ''), reportsScore: legacy.html?.reportsScore !== false, points });
+  if (kind === 'written') {
+    const prompts = (Array.isArray(legacy.written?.prompts) ? legacy.written.prompts : ['']) as string[];
+    prompts.forEach(prompt => blocks.push({ id: id(), type: 'written', prompt, points: Math.round(points / Math.max(prompts.length, 1)) }));
+  }
+  if (kind === 'code') blocks.push({ id: id(), type: 'code', prompt: String(raw.instructions ?? ''), starter: String(legacy.code?.starter ?? ''), tests: String(legacy.code?.tests ?? ''), points });
+  for (const question of questions) blocks.push({ id: id(), type: 'question', question });
+  for (const key of ['quiz', 'link', 'html', 'written', 'code', 'points']) delete base[key];
+  return { ...base, blocks, shuffle: Boolean(quiz.shuffle), showAnswers: (quiz.showAnswers as ShowAnswers) ?? 'after_submit' };
 }
 
 /**
@@ -152,9 +254,9 @@ export function publishProblem(a: Assignment): string | null {
 export function parseQuizText(text: string): { questions: QuizQuestion[]; errors: string[] } {
   const questions: QuizQuestion[] = [];
   const errors: string[] = [];
-  const blocks = text.replace(/\r\n?/g, '\n').split(/\n\s*\n/).map(block => block.trim()).filter(Boolean);
-  blocks.forEach((block, index) => {
-    const lines = block.split('\n').map(line => line.trim()).filter(Boolean);
+  const chunks = text.replace(/\r\n?/g, '\n').split(/\n\s*\n/).map(chunk => chunk.trim()).filter(Boolean);
+  chunks.forEach((chunk, index) => {
+    const lines = chunk.split('\n').map(line => line.trim()).filter(Boolean);
     const answerLine = lines.findIndex(line => /^ANSWER\s*:/i.test(line));
     const choiceLines = lines.filter(line => /^[A-Z][.)]\s+/.test(line));
     const prompt = lines.filter(line => !/^[A-Z][.)]\s+/.test(line) && !/^ANSWER\s*:/i.test(line)).join(' ');
@@ -175,35 +277,32 @@ export function parseQuizText(text: string): { questions: QuizQuestion[]; errors
   return { questions, errors };
 }
 
-/** Validates an exported assignment file and returns a fresh draft copy. */
+export const questionBlocks = (questions: QuizQuestion[]): Block[] => questions.map(question => ({ id: id(), type: 'question', question }));
+
+/** Validates an exported assignment file (v1 or v2) and returns a fresh draft copy. */
 export function parseAssignmentFile(text: string): Assignment {
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { throw new Error('That file is not valid JSON.'); }
-  const value = raw as Partial<Assignment> & { format?: string };
-  if (value?.format !== 'cic-assignment-v1' || typeof value.kind !== 'string' || !(value.kind in assignmentKinds)) {
+  const value = raw as Record<string, unknown>;
+  if (!['cic-assignment-v1', 'cic-assignment-v2'].includes(String(value?.format)) || typeof value.kind !== 'string' || !(value.kind in assignmentKinds)) {
     throw new Error('Choose an assignment file exported from CIC Learn.');
   }
-  const base = newAssignment(value.kind as AssignmentKind);
-  const merged: Assignment = {
-    ...base,
-    title: String(value.title ?? base.title).slice(0, 200),
-    instructions: String(value.instructions ?? '').slice(0, 20_000),
-    points: Number.isFinite(value.points) ? Number(value.points) : base.points,
-    attempts: value.attempts === null || Number.isInteger(value.attempts) ? value.attempts ?? null : base.attempts,
-    timeLimit: value.timeLimit === null || Number.isInteger(value.timeLimit) ? value.timeLimit ?? null : null,
-    quiz: { ...base.quiz, ...(value.quiz ?? {}) },
-    link: { ...base.link, ...(value.link ?? {}) },
-    html: { ...base.html, ...(value.html ?? {}) },
-    written: { ...base.written, ...(value.written ?? {}) },
-    code: { ...base.code, ...(value.code ?? {}) },
-  };
-  if (!Array.isArray(merged.quiz.questions)) throw new Error('The quiz questions in that file are not readable.');
-  return duplicateAssignment(merged, merged.title);
+  const assignment = normalizeAssignment(value as Partial<Assignment> & Record<string, unknown>);
+  if (!Array.isArray(assignment.blocks) || assignment.blocks.some(block => !block || !(block.type in blockLabels))) {
+    throw new Error('The content in that file is not readable.');
+  }
+  return duplicateAssignment({
+    ...assignment,
+    title: String(assignment.title).slice(0, 200),
+    instructions: String(assignment.instructions ?? '').slice(0, 20_000),
+    attempts: assignment.attempts === null || Number.isInteger(assignment.attempts) ? assignment.attempts : null,
+    timeLimit: assignment.timeLimit === null || Number.isInteger(assignment.timeLimit) ? assignment.timeLimit : null,
+  }, String(assignment.title).slice(0, 200));
 }
 
 export function exportAssignment(a: Assignment) {
   const { id: _id, createdAt: _created, moduleId: _module, published: _published, ...rest } = a;
-  return JSON.stringify({ format: 'cic-assignment-v1', ...rest }, null, 2);
+  return JSON.stringify({ format: 'cic-assignment-v2', ...rest }, null, 2);
 }
 
 export type QuizResponse = Record<string, number[] | string>;

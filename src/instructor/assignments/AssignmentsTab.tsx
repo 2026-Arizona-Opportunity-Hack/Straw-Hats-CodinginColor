@@ -7,7 +7,7 @@ import { Dialog, Empty } from '../ui';
 import { AssignmentEditor } from './AssignmentEditor';
 import { formatDue, kindIcon } from './display';
 import {
-  assignmentKinds, duplicateAssignment, newAssignment, parseAssignmentFile, parseQuizText, publishProblem, totalPoints,
+  assignmentKinds, contentSummary, duplicateAssignment, newAssignment, parseAssignmentFile, parseQuizText, publishProblem, questionBlocks, totalPoints,
   type Assignment, type AssignmentKind,
 } from './model';
 
@@ -98,14 +98,14 @@ function AssignmentList({ group, course, otherClasses, assignments, base, onCrea
     <section className="ic-tile">
       {rows.length ? <div className="ic-table-wrap" tabIndex={0} role="region" aria-label="Assignments table">
         <table className="ic-data-table">
-          <thead><tr>{['Assignment', 'Type', 'Module', 'Due', 'Points', 'Submitted', 'Avg', 'Status', ''].map((text, i) => <th scope="col" key={i}>{text || <span className="ic-sr-only">Actions</span>}</th>)}</tr></thead>
+          <thead><tr>{['Assignment', 'Content', 'Module', 'Due', 'Points', 'Submitted', 'Avg', 'Status', ''].map((text, i) => <th scope="col" key={i}>{text || <span className="ic-sr-only">Actions</span>}</th>)}</tr></thead>
           <tbody>{rows.map(item => {
             const Icon = kindIcon[item.kind];
             const attempts = group.learners.map(learner => attemptFor(learner, item.id)).filter(attempt => attempt?.submitted);
             const scores = attempts.map(attempt => attempt!.score).filter((score): score is number => score !== null);
             return <tr key={item.id}>
               <td><a className="ic-strong-link" href={`${base}/${item.id}`}>{item.title}</a></td>
-              <td><span className="ic-kind"><Icon size={15} aria-hidden="true" />{assignmentKinds[item.kind].label}</span></td>
+              <td><span className="ic-kind"><Icon size={15} aria-hidden="true" />{contentSummary(item)}</span></td>
               <td>{modules.find(m => m.id === item.moduleId)?.title ?? '—'}</td>
               <td className="ic-nowrap">{formatDue(item.dueAt)}</td>
               <td>{totalPoints(item)}</td>
@@ -174,7 +174,7 @@ function ImportDialog({ group, otherClasses, onClose, onImport }: {
     {mode === 'text' && <form className="ic-stack" onSubmit={event => {
       event.preventDefault();
       if (!parsed?.questions.length) return setError('Paste at least one question in the format shown.');
-      onImport({ ...newAssignment('quiz'), title: title.trim() || 'Imported quiz', quiz: { questions: parsed.questions, shuffle: false, showAnswers: 'after_submit' } });
+      onImport({ ...newAssignment('quiz'), title: title.trim() || 'Imported quiz', blocks: questionBlocks(parsed.questions) });
     }}>
       <p className="ic-note">One question per block, choices as <code>A.</code> <code>B.</code>, then an <code>ANSWER:</code> line. Many quiz tools export this format (Moodle calls it Aiken).</p>
       <label>Quiz title<input value={title} maxLength={200} onChange={event => setTitle(event.target.value)} /></label>

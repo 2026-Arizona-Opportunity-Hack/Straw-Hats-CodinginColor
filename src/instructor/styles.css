@@ -447,7 +447,6 @@ body:has(.ic-app) { margin: 0; }
 .ic-app .ic-tile-heading h2 { display: flex; align-items: center; gap: 6px; }
 .ic-app .ic-kind-option { align-content: start; }
 .ic-data-table th, .ic-data-table .ic-status, .ic-nowrap { white-space: nowrap; }
-.ic-add-questions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 4px; }
 
 /* Nested page header (assignment editor) and its toolbar alignment. */
 .ic-app .ic-subpage-header h2 { font-size: clamp(24px, 2.6vw, 30px); line-height: 1.15; letter-spacing: -.03em; }
@@ -456,3 +455,12 @@ body:has(.ic-app) { margin: 0; }
 .ic-save-state { display: inline-block; margin-left: 10px; padding-left: 10px; border-left: 1px solid var(--ic-border); color: var(--ic-green); font-weight: 600; }
 .ic-save-state.is-dirty { color: var(--ic-alert); }
 .ic-option-list { display: grid; gap: 2px; }
+
+/* Assignment blocks */
+.ic-add-blocks { display: grid; gap: 10px; padding: 14px; border: 1px dashed var(--ic-border-strong); border-radius: 12px; background: var(--ic-canvas); }
+.ic-add-group { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ic-add-label { flex-basis: 100%; color: var(--ic-muted); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.ic-app .ic-add-group .ic-button { min-height: 36px; padding: 6px 12px; font-size: 13px; background: var(--ic-paper); }
+.ic-preview-media { display: grid; gap: 6px; margin: 0; }
+.ic-preview-text { margin: 0; }
+.ic-field { display: grid; gap: 5px; min-width: 0; }

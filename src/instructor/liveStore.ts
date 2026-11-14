@@ -2,7 +2,7 @@
 // assignments and progress, and writes back only what changed. Row Level Security decides
 // what the signed-in person can read or change (supabase/migrations/2001_instructor_workspace.sql).
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { newAssignment, type Assignment, type AssignmentKind } from './assignments/model';
+import { normalizeAssignment, totalPoints, type Assignment, type AssignmentKind } from './assignments/model';
 import {
   activityTypes, type Activity, type ActivityType, type Attempt, type ClassGroup, type Course, type InstructorData,
   type Learner, type Question, type StaffRole,
@@ -106,24 +106,21 @@ export function isoToLocal(value: string | null) {
 }
 
 function toAssignment(row: Row): Assignment {
-  const kind = row.kind as AssignmentKind;
-  const base = newAssignment(kind);
-  const content = (row.content ?? {}) as Partial<Assignment>;
-  return {
-    ...base, id: String(row.id), kind, title: str(row.title), instructions: str(row.instructions), points: Number(row.points ?? 0),
-    dueAt: isoToLocal(row.due_at as string | null), attempts: (row.max_attempts as number | null) ?? null,
+  const content = (row.content ?? {}) as Record<string, unknown>;
+  // normalizeAssignment also reads rows saved before assignments were block-based.
+  return normalizeAssignment({
+    ...content, kind: row.kind as AssignmentKind, id: String(row.id), title: str(row.title), instructions: str(row.instructions),
+    points: Number(row.points ?? 0), dueAt: isoToLocal(row.due_at as string | null), attempts: (row.max_attempts as number | null) ?? null,
     timeLimit: (row.time_limit_minutes as number | null) ?? null, moduleId: (row.module_id as string | null) ?? null,
     published: Boolean(row.published), createdAt: str(row.created_at),
-    quiz: { ...base.quiz, ...content.quiz }, link: { ...base.link, ...content.link }, html: { ...base.html, ...content.html },
-    written: { ...base.written, ...content.written }, code: { ...base.code, ...content.code },
-  };
+  });
 }
 
 function assignmentRow(a: Assignment, classId: string) {
   return {
-    id: a.id, class_id: classId, kind: a.kind, title: a.title.trim() || 'Untitled', instructions: a.instructions, points: a.points,
+    id: a.id, class_id: classId, kind: a.kind, title: a.title.trim() || 'Untitled', instructions: a.instructions, points: totalPoints(a),
     due_at: localToIso(a.dueAt), max_attempts: a.attempts, time_limit_minutes: a.timeLimit, module_id: a.moduleId, published: a.published,
-    content: { quiz: a.quiz, link: a.link, html: a.html, written: a.written, code: a.code },
+    content: { blocks: a.blocks, shuffle: a.shuffle, showAnswers: a.showAnswers },
   };
 }
 

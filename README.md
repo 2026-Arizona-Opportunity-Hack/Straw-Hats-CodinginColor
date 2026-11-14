@@ -87,7 +87,7 @@ Instructors and reviewers use the workspace in `src/instructor/` inside the main
 `src/instructor/InstructorRoute.tsx` mounts it and passes the signed-in role.
 Its page styles live in `src/instructor/styles.css` (`ic-*` classes); reuse them when connecting data so the layout stays consistent.
 Inside a class, tabs are Dashboard, Curriculum, Assignments, Grades and Roster (`#/classes/<id>/<tab>`).
-Assignments (`src/instructor/assignments/`) can be quizzes (multiple choice, select all, true/false, short answer, number), links and embeds, interactive HTML pages, written responses or code exercises.
+Assignments (`src/instructor/assignments/`) are built from blocks in any order: text, links and videos, interactive HTML pages, questions (multiple choice, select all, true/false, short answer, number), written responses and code exercises, so a video can be followed by questions about it.
 Instructors can create, edit, duplicate, publish, delete, export to a `.json` file, and import from that file, from another class, or from pasted quiz text in the Aiken format (`A.` choices plus an `ANSWER: B` line).
 It still uses fictional data saved in the browser; connecting it to `src/api/instructor/` and Supabase is the next step.
 
