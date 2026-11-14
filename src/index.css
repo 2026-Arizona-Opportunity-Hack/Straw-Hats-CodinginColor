@@ -1,13 +1,100 @@
 @import "tailwindcss";
 
-/* Brand tokens. Swap for CIC's palette once Aryan gets it from the nonprofit. */
+/*
+ * Coding in Color brand tokens (CIC brand guidelines, section 7).
+ *   CIC_PRIMARY_GREEN #00A850  accent only (active markers, meters) — never body text
+ *   CIC_DARK_GREEN    #007A3D  dominant: headings, buttons, table headers, navigation
+ *   CIC_LIGHT_TINT    #E6F4ED  alternating rows, callouts, subtle shading
+ *   CIC_LIGHT_GRAY    #C8C8C8  dividers/borders only (1.7:1 on white, too faint for text)
+ *   CIC_MED_GRAY      #595959  secondary text
+ *   CIC_BLACK / WHITE          body text / backgrounds
+ * Accessibility: buttons use Dark Green because white on #00A850 is only ~3:1 (fails WCAG AA).
+ * Status colors (danger, warning, info) stay off-palette so state is never mistaken for brand.
+ */
 @theme {
-  --color-brand: #1d4ed8;
-  --color-brand-dark: #1e3a8a;
+  --color-brand: #007a3d;
+  --color-brand-dark: #005f2f;
+  --color-brand-accent: #00a850;
+  --color-brand-tint: #e6f4ed;
+  --color-brand-subtle: #f5f9f7;
+  --color-cic-gray: #c8c8c8;
+  --color-cic-muted: #595959;
+  --color-divider: #e4e9e6;
+  --color-canvas: #f6f8f7;
+  --color-input: #8a8a8a;
+  --color-info: #1d5fa8;
+  --color-info-soft: #eaf2fb;
+  --color-warn: #9a4b00;
+  --color-warn-soft: #fff4e5;
+  --color-danger: #b3261e;
+  --color-danger-soft: #fdecea;
+  --color-sidebar-muted: #ebf7f0;
+  --font-sans: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-canvas);
+  color: #000000;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* Brand: headings and titles in CIC Dark Green, bold. */
+h1, h2, h3 {
+  color: var(--color-brand);
+  font-weight: 700;
 }
 
 /* Visible focus ring everywhere (keyboard navigation is a judging criterion). */
 :focus-visible {
   outline: 3px solid var(--color-brand);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * Hover dots: a fine dot grid fades in behind an element on hover/focus.
+ * Usage: class="dot-hover"; tint with [--dot:<color>]. Pure CSS, no JS.
+ */
+.dot-hover {
+  position: relative;
+  isolation: isolate;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+.dot-hover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: radial-gradient(var(--dot, rgb(0 168 80 / 0.28)) 1.2px, transparent 1.4px);
+  background-size: 10px 10px;
+  opacity: 0;
+  transform: scale(0.97);
+  transition: opacity 0.25s ease, transform 0.35s ease;
+  -webkit-mask-image: radial-gradient(circle at 70% 30%, #000 0%, transparent 85%);
+  mask-image: radial-gradient(circle at 70% 30%, #000 0%, transparent 85%);
+}
+.dot-hover:hover::before,
+.dot-hover:focus-visible::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+
+/* Brand-green gradient panels (sidebar, impact banner): deep green into CIC Dark Green with a soft glow. */
+.brand-panel {
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgb(0 168 80 / 0.28), transparent 60%),
+    linear-gradient(160deg, #003f20 0%, #00562b 45%, #007a3d 100%);
+}
+.soft-card {
+  box-shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 4px 16px -8px rgb(16 24 40 / 0.08);
 }
