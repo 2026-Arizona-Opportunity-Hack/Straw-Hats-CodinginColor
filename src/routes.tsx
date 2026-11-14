@@ -1,12 +1,14 @@
 // Owner: Aryan. Add routes here; page components live in each owner's folder.
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { AdminHome, AdminUsers } from './admin/AdminPages.tsx'
+import { CourseLibrary } from './instructor/CourseLibrary.tsx'
+import { InstructorHome } from './instructor/InstructorHome.tsx'
 import { LoginPage } from './LoginPage.tsx'
+import { ReviewerHome } from './reviewer/ReviewerHome.tsx'
 import { RequireRole } from './shared/auth/RequireRole.tsx'
 import { AppLayout } from './shared/ui/AppLayout.tsx'
-import { PageHeader } from './shared/ui/index.tsx'
-import type { Role } from './shared/types/db.ts'
-
-const ROLES: Role[] = ['student', 'instructor', 'admin', 'reviewer']
+import { ModulePlayer } from './student/ModulePlayer.tsx'
+import { StudentHome } from './student/StudentHome.tsx'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -14,15 +16,34 @@ export const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { index: true, element: <Navigate to="/login" replace /> },
-      // Placeholder home per role; replaced by real pages in each owner's folder.
-      ...ROLES.map((role) => ({
-        path: role,
-        element: (
-          <RequireRole roles={[role]}>
-            <PageHeader title={`${role} home`} subtitle="Coming soon." />
-          </RequireRole>
-        ),
-      })),
+      {
+        path: 'student',
+        element: <RequireRole roles={['student']}><StudentHome /></RequireRole>,
+      },
+      {
+        path: 'student/module/:moduleId',
+        element: <RequireRole roles={['student']}><ModulePlayer /></RequireRole>,
+      },
+      {
+        path: 'instructor',
+        element: <RequireRole roles={['instructor', 'admin']}><InstructorHome /></RequireRole>,
+      },
+      {
+        path: 'instructor/library',
+        element: <RequireRole roles={['instructor', 'admin']}><CourseLibrary /></RequireRole>,
+      },
+      {
+        path: 'admin',
+        element: <RequireRole roles={['admin']}><AdminHome /></RequireRole>,
+      },
+      {
+        path: 'admin/users',
+        element: <RequireRole roles={['admin']}><AdminUsers /></RequireRole>,
+      },
+      {
+        path: 'reviewer',
+        element: <RequireRole roles={['reviewer', 'admin']}><ReviewerHome /></RequireRole>,
+      },
       { path: '*', element: <p>Page not found.</p> },
     ],
   },
