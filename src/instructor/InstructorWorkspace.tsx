@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { BarChart3, BookOpen, Eye, GraduationCap, Settings } from 'lucide-react';
 import { ClassSetup } from './ClassSetup';
 import { ClassDashboard, ClassList } from './Classes';
+import { isClassTab } from './classTabIds';
 import { CourseBuilder, CourseReviewer, CurriculumList, demoDraftModule } from './Curriculum';
 import type { ClassGroup, Course, Module, StaffRole } from './model';
 import { AccessSettings, ProgramOverview } from './Operations';
@@ -50,7 +51,7 @@ export function InstructorWorkspace({
   const profile = data.staff.find(person => person.id === profileId) || data.staff[0];
   const homeSection = profile.role === 'reviewer' ? 'review' : 'classes';
   const route = (hash !== undefined ? cleanRoute(hash) : standaloneRoute) || homeSection;
-  const [section, item] = route.split('/');
+  const [section, item, subpage] = route.split('/');
   const visibleClasses = profile.role === 'admin' ? data.classes : data.classes.filter(group => profile.classIds.includes(group.id));
   // Embedded admins use the main app's admin pages for overview and access.
   const navigation = routes.filter(({ path }) => (profile.role === 'admin' && !embedded)
@@ -113,7 +114,7 @@ export function InstructorWorkspace({
     if (!navigation.some(({ path }) => path === section)) return <PageHeader title="Page unavailable for this role" back={{ label: 'Back to workspace', to: home }} />;
     if (section === 'classes') {
       if (item === 'new') return <ClassSetup courses={data.courses} classes={data.classes} onCreate={group => saveClass(group, true)} />;
-      if (group) return <ClassDashboard key={group.id} group={group} course={course} onSave={saveClass} justCreated={newClass === group.id} />;
+      if (group) return <ClassDashboard key={group.id} group={group} course={course} onSave={saveClass} justCreated={newClass === group.id} tab={isClassTab(subpage) ? subpage : 'dashboard'} />;
       if (!item) return <ClassList groups={visibleClasses} courses={data.courses} />;
     }
     if (section === 'curriculum') {
