@@ -216,8 +216,9 @@ body:has(.ic-app) { margin: 0; }
 .ic-preview-response { border: 1px solid var(--ic-border); border-radius: 5px; margin-top: 7px; padding: 8px; color: var(--ic-muted); font-size: 13px; }
 .ic-video { width: 100%; aspect-ratio: 16/9; border: 0; margin-top: 8px; }
 
-.ic-dialog { color: var(--ic-ink); width: min(560px, calc(100% - 24px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--ic-border); border-radius: 10px; box-shadow: 0 3px 8px #0002; }
+.ic-dialog { margin: auto; color: var(--ic-ink); width: min(560px, calc(100% - 24px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--ic-border); border-radius: 10px; box-shadow: 0 3px 8px #0002; }
 .ic-dialog-wide { width: min(820px, calc(100% - 24px)); }
+/* margin: auto centers the modal; the Tailwind reset sets margin: 0 on everything. */
 .ic-dialog::backdrop { background: #0008; }
 .ic-dialog > .ic-panel-heading { margin: 0; padding: 12px 18px; border-bottom: 1px solid var(--ic-border); }
 .ic-dialog-content { padding: 18px; }
