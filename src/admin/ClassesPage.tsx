@@ -8,24 +8,25 @@ import {
   Badge, Button, Card, DataTable, EmptyState, Field, FormStatus, Input, Meter, PageHeader, Select, Td, Th,
 } from '../shared/ui/index.tsx'
 import { addInstructor, createClass, removeInstructor } from './api.ts'
-import { LoadState } from './common.tsx'
+import { ArchiveButton, LoadState } from './common.tsx'
 import { ORG_KEY, useOrg } from './hooks.ts'
-import { analyze, fmtGain, type OrgData } from './metrics.ts'
+import { analyze, archivedReason, fmtGain, termOf, type OrgData } from './metrics.ts'
 
 export function ClassesPage() {
   const { data, isLoading, error } = useOrg()
   const [params, setParams] = useSearchParams()
   const q = params.get('q') ?? ''
   const school = params.get('school') ?? ''
+  const showArchived = params.get('archived') === '1'
   if (!data) return <><PageHeader title="Schools & classes" /><LoadState isLoading={isLoading} error={error} /></>
 
-  const a = analyze(data)
+  const a = analyze(data, { includeArchived: true })
   const stats = new Map(a.byClass.map((s) => [s.id, s]))
   const name = new Map(data.people.map((p) => [p.id, p.display_name]))
-  const instructors = data.people.filter((p) => p.role === 'instructor')
+  const instructors = data.people.filter((p) => p.role === 'instructor' && !p.archived_at)
   const needle = q.trim().toLowerCase()
   const classes = data.classes.filter(
-    (c) => (!school || c.school === school) && (!needle || [c.name, c.join_code, c.school].some((v) => v.toLowerCase().includes(needle))),
+    (c) => Boolean(archivedReason(c)) === showArchived && (!school || c.school === school) && (!needle || [c.name, c.join_code, c.school].some((v) => v.toLowerCase().includes(needle))),
   )
 
   function applyFilters(e: FormEvent<HTMLFormElement>) {
@@ -33,6 +34,7 @@ export function ClassesPage() {
     const f = new FormData(e.currentTarget)
     const next = new URLSearchParams()
     for (const k of ['q', 'school']) if (f.get(k)) next.set(k, String(f.get(k)))
+    if (showArchived) next.set('archived', '1')
     setParams(next)
   }
 
@@ -46,7 +48,14 @@ export function ClassesPage() {
 
       <section aria-labelledby="classes-heading" className="mb-10">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <h2 id="classes-heading" className="text-xl">Classes <span className="text-cic-muted">({classes.length})</span></h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 id="classes-heading" className="text-xl">
+              {showArchived ? 'Archived classes' : 'Active classes'} <span className="text-cic-muted">({classes.length})</span>
+            </h2>
+            <Link to={showArchived ? '/admin/classes' : '/admin/classes?archived=1'} className="text-sm font-semibold text-brand hover:underline">
+              {showArchived ? 'Back to active classes' : 'View archived'}
+            </Link>
+          </div>
           <form role="search" onSubmit={applyFilters} className="flex flex-wrap items-end gap-2">
             <label htmlFor="q" className="sr-only">Search classes</label>
             <div className="relative">
@@ -66,7 +75,7 @@ export function ClassesPage() {
         {classes.length === 0 ? (
           <EmptyState
             icon={<SchoolIcon />}
-            title={data.classes.length ? 'No classes match' : 'No classes yet'}
+            title={showArchived ? 'No archived classes' : data.classes.length ? 'No classes match' : 'No classes yet'}
             description={data.classes.length ? 'Try a different search or school.' : 'Create the first class below and share its join code.'}
           />
         ) : (
@@ -75,6 +84,7 @@ export function ClassesPage() {
               <tr>
                 <Th>Class</Th><Th>School</Th><Th>Instructors</Th><Th className="text-right">Students</Th>
                 <Th>Completion</Th><Th className="text-right">Avg gain</Th><Th className="text-right">Need help</Th>
+                <Th><span className="sr-only">Archive</span></Th>
               </tr>
             </thead>
             <tbody>
@@ -82,11 +92,14 @@ export function ClassesPage() {
                 const st = stats.get(c.id)
                 const mine = data.classInstructors.filter((x) => x.class_id === c.id)
                 const help = (st?.stuck ?? 0) + (st?.notStarted ?? 0)
+                const reason = archivedReason(c)
                 return (
                   <tr key={c.id} className="align-top">
                     <Td>
                       <p className="font-semibold">{c.name}</p>
-                      <p className="text-xs text-cic-muted">Join code <span className="font-mono">{c.join_code}</span></p>
+                      <p className="text-xs text-cic-muted">
+                        {c.created_at && `${termOf(c.created_at).label} · `}Join code <span className="font-mono">{c.join_code}</span>
+                      </p>
                     </Td>
                     <Td>{c.school}</Td>
                     <Td>
@@ -106,6 +119,10 @@ export function ClassesPage() {
                           {help}<span className="sr-only"> students need help in {c.name}</span>
                         </Link>
                       ) : '0'}
+                    </Td>
+                    <Td className="text-right">
+                      {reason && <p className="mb-1 whitespace-nowrap text-xs text-cic-muted">{reason}</p>}
+                      {(!reason || c.archived_at) && <ArchiveButton table="classes" id={c.id} name={c.name} archived={Boolean(reason)} />}
                     </Td>
                   </tr>
                 )
@@ -259,7 +276,7 @@ function NewClassForm({ data, schools }: { data: OrgData; schools: string[] }) {
         <Field id="class-instructor" label="Instructor" optional>
           <Select id="class-instructor" name="instructor_id" defaultValue="">
             <option value="">Assign later</option>
-            {data.people.filter((p) => p.role === 'instructor').map((p) => <option key={p.id} value={p.id}>{p.display_name}</option>)}
+            {data.people.filter((p) => p.role === 'instructor' && !p.archived_at).map((p) => <option key={p.id} value={p.id}>{p.display_name}</option>)}
           </Select>
         </Field>
         <Field id="class-code" label="Join code" optional hint="Students type this to join. Leave blank to generate one.">

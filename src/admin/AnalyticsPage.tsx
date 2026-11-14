@@ -7,7 +7,7 @@ import { Button, Card, DataTable, EmptyState, Meter, PageHeader, Select, Td, Th 
 import { GainChart } from './charts.tsx'
 import { LoadState, StatusBadge } from './common.tsx'
 import { useOrg } from './hooks.ts'
-import { GrowthRows, ImpactNumber, JourneyLegend, JourneyPips, StatusBar, StatusLegend, type Pip } from './impact.tsx'
+import { GrowthRows, ImpactNumber, JourneyLegend, JourneyPips, OverallProgress, StatusBar, StatusLegend, type Pip } from './impact.tsx'
 import {
   analyze, fmtGain, fmtMinutes, fmtPct, mean, modulesInScope, PASS_PCT, STUCK_DAYS, timeAgo,
   type GroupSummary, type OrgData, type Status, type StudentSummary,
@@ -18,6 +18,7 @@ type GroupBy = keyof typeof GROUPS
 
 const SECTIONS = [
   ['impact', 'Impact'],
+  ['overall', 'Overall progress'],
   ['reach', 'Where support goes'],
   ['growth', 'Learning growth'],
   ['instructors', 'Instructors'],
@@ -57,19 +58,19 @@ function exportCsv(a: ReturnType<typeof analyze>, modTitle: Map<string, string>)
 export function AnalyticsPage() {
   const { data, isLoading, error } = useOrg()
   const [params, setParams] = useSearchParams()
-  const filters = { school: params.get('school') || undefined, classId: params.get('class') || undefined }
+  const filters = { school: params.get('school') || undefined, classId: params.get('class') || undefined, includeArchived: params.get('archived') === '1' }
   const by: GroupBy = (params.get('by') as GroupBy) in GROUPS ? (params.get('by') as GroupBy) : 'class'
   if (!data) return <><PageHeader title="Impact & learning" /><LoadState isLoading={isLoading} error={error} /></>
 
   const a = analyze(data, filters)
-  const filtered = Boolean(filters.school || filters.classId)
+  const filtered = Boolean(filters.school || filters.classId || filters.includeArchived)
   const modTitle = new Map(data.modules.map((m) => [m.id, m.title]))
 
   function applyFilters(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
     const next = new URLSearchParams({ by })
-    for (const k of ['school', 'class']) if (f.get(k)) next.set(k, String(f.get(k)))
+    for (const k of ['school', 'class', 'archived']) if (f.get(k)) next.set(k, String(f.get(k)))
     setParams(next)
   }
 
@@ -96,6 +97,10 @@ export function AnalyticsPage() {
             {data.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
         </div>
+        <label className="flex min-h-11 items-center gap-2 text-sm font-semibold">
+          <input type="checkbox" name="archived" value="1" defaultChecked={filters.includeArchived} className="size-4 accent-brand" />
+          Include archived classes
+        </label>
         <Button type="submit">Apply filters</Button>
         {filtered && <Button variant="ghost" onClick={() => setParams({ by })}>Clear</Button>}
       </form>
@@ -169,6 +174,20 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
           <ImpactNumber value={a.overall.avgGain ?? 0} label="Avg learning gain" hint={`${fmtPct(a.overall.avgPre)} → ${fmtPct(a.overall.avgPost)} on tests`} format={(v) => `+${Math.round(v)} pts`} />
         </div>
         <p className="mt-5 text-sm text-sidebar-muted">Every number is calculated from real student work in CIC Learn. Nothing is entered by hand.</p>
+      </section>
+
+      {/* Overall progress */}
+      <section id="overall" className="scroll-mt-32">
+        <Card title="Overall progress" description="Where every student stands, and how far through their modules they are.">
+          <OverallProgress
+            students={statusAll}
+            modules={{
+              done: modulesCompleted,
+              inProgress: a.studentModules.filter((r) => r.started && !r.done).length,
+              notStarted: a.studentModules.filter((r) => !r.started).length,
+            }}
+          />
+        </Card>
       </section>
 
       {/* 2. Where support goes */}

@@ -115,7 +115,7 @@ export function Badge({ tone = 'neutral', children }: { tone?: Tone; children: R
 /** One headline number. `hint` explains the metric in plain words. */
 export function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="dot-hover soft-card relative flex flex-col gap-1 overflow-hidden rounded-2xl border border-divider bg-white p-5 transition-transform hover:-translate-y-0.5 hover:border-brand">
+    <div className="soft-card relative flex flex-col gap-1 overflow-hidden rounded-2xl border border-divider bg-white p-5">
       <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand to-brand-accent" />
       <p className="text-sm font-semibold text-cic-muted">{label}</p>
       <p className="text-3xl font-bold tracking-tight">{value}</p>

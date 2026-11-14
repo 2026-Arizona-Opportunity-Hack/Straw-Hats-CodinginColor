@@ -56,23 +56,80 @@ export function ImpactNumber({ value, label, hint, format = (v) => Math.round(v)
   )
 }
 
-/** 100% stacked bar of student statuses with counts inside wide segments and a legend below. */
-export function StatusBar({ counts, label }: { counts: Record<Status, number>; label: string }) {
-  const total = ORDER.reduce((s, k) => s + counts[k], 0)
-  if (!total) return <p className="text-sm text-cic-muted">No students yet</p>
-  const summary = ORDER.filter((k) => counts[k]).map((k) => `${counts[k]} ${STATUS_LABEL[k].toLowerCase()}`).join(', ')
+export interface Segment {
+  label: string
+  count: number
+  color: string
+  /** Text color on the segment; dark on light fills so counts stay readable. */
+  ink?: string
+}
+
+/** 100% stacked bar with counts inside wide-enough segments. Always pair with a legend. */
+export function SegmentBar({ segments, label, tall }: { segments: Segment[]; label: string; tall?: boolean }) {
+  const shown = segments.filter((s) => s.count > 0)
+  const total = shown.reduce((n, s) => n + s.count, 0)
+  if (!total) return <p className="text-sm text-cic-muted">Nothing to show yet</p>
   return (
-    <div className="flex h-7 w-full gap-0.5 overflow-hidden rounded-md" role="img" aria-label={`${label}: ${summary}`}>
-      {ORDER.filter((k) => counts[k]).map((k) => (
+    <div
+      className={`flex w-full gap-0.5 overflow-hidden rounded-md ${tall ? 'h-11 rounded-lg text-sm' : 'h-7 text-xs'}`}
+      role="img"
+      aria-label={`${label}: ${shown.map((s) => `${s.count} ${s.label.toLowerCase()}`).join(', ')}`}
+    >
+      {shown.map((s) => (
         <div
-          key={k}
-          title={`${STATUS_LABEL[k]}: ${counts[k]}`}
-          className="grid place-items-center text-xs font-bold text-white transition-[filter] hover:brightness-110"
-          style={{ width: `${(counts[k] / total) * 100}%`, background: STATUS_COLOR[k] }}
+          key={s.label}
+          title={`${s.label}: ${s.count}`}
+          className="grid place-items-center font-bold"
+          style={{ width: `${(s.count / total) * 100}%`, background: s.color, color: s.ink ?? '#fff' }}
         >
-          {counts[k] / total >= 0.12 ? counts[k] : ''}
+          {s.count / total >= 0.08 ? s.count : ''}
         </div>
       ))}
+    </div>
+  )
+}
+
+const statusSegments = (counts: Record<Status, number>): Segment[] =>
+  ORDER.map((k) => ({ label: STATUS_LABEL[k], count: counts[k], color: STATUS_COLOR[k], ink: k === 'not_started' ? '#000' : undefined }))
+
+export function StatusBar({ counts, label }: { counts: Record<Status, number>; label: string }) {
+  return <SegmentBar segments={statusSegments(counts)} label={label} />
+}
+
+/** Overall picture: where every student stands, and how far through the modules they are. */
+export function OverallProgress({ students, modules }: { students: Record<Status, number>; modules: { done: number; inProgress: number; notStarted: number } }) {
+  const moduleSegments: Segment[] = [
+    { label: 'Completed', count: modules.done, color: '#007a3d' },
+    { label: 'In progress', count: modules.inProgress, color: '#2a78d6' },
+    { label: 'Not started', count: modules.notStarted, color: '#e3e3e3', ink: '#000' },
+  ]
+  const rows = [
+    { title: 'Students', segments: statusSegments(students) },
+    { title: 'Modules', segments: moduleSegments },
+  ]
+  return (
+    <div className="flex flex-col gap-6">
+      {rows.map(({ title, segments }) => {
+        const total = segments.reduce((n, s) => n + s.count, 0)
+        return (
+          <div key={title}>
+            <p className="mb-2 flex justify-between font-semibold">
+              <span>{title}</span>
+              <span className="text-sm text-cic-muted">{total} total</span>
+            </p>
+            <SegmentBar segments={segments} label={title} tall />
+            <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm" aria-label={`${title} legend`}>
+              {segments.map((s) => (
+                <li key={s.label} className="flex items-center gap-1.5">
+                  <span aria-hidden="true" className="size-3 rounded-sm ring-1 ring-black/10" style={{ background: s.color }} />
+                  {s.label} <span className="font-semibold tabular-nums">{s.count}</span>
+                  <span className="text-cic-muted">({total ? Math.round((s.count / total) * 100) : 0}%)</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      })}
     </div>
   )
 }

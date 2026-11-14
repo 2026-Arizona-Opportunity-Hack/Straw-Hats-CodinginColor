@@ -104,15 +104,15 @@ CIC staff run the program from `/admin`. In mock mode, pick **Admin** on the log
 
 | Page | What CIC staff can do |
 |---|---|
-| Overview | Headline numbers, students needing attention, recent submissions, quick actions |
-| Schools & classes | Search classes, see completion and learning gain per class, create a class, assign or remove instructors |
-| People & roles | See everyone and what each role can access; change roles (confirmation required; admins can't remove their own access) |
-| Impact & learning | Donor-ready report: reach by school, before/after growth per module, instructors and their courses, student progress, CSV export |
+| Overview | Headline numbers, issues raised by instructors (reply or resolve), and hiring (applications by stage, recent hires) |
+| Schools & classes | Search classes, see completion and learning gain per class, create a class, assign or remove instructors, archive classes (automatic when their term ends) |
+| People & roles | See everyone and what each role can access; change roles (not for reviewers; admins can't remove their own access); archive and restore people |
+| Impact & learning | Donor-ready report: overall progress, reach by school, before/after growth per module, instructors and their courses, student progress, CSV export |
 | Settings & API | Create API keys for the read API (shown once, stored as SHA-256 hashes) and revoke them |
 
 Metric definitions live in `src/admin/metrics.ts` and on the Impact page. Learning gain is a student's best post-test % minus their first pretest %, per module.
 
-**Database needs.** On a real Supabase project the admin pages need admin policies that `0001` doesn't have yet: read `class_instructors`, `enrollments` and `class_modules`; manage `class_instructors` and `api_keys`. Until they exist, the pages say what's missing instead of showing zeros.
+**Database needs.** On a real Supabase project the admin pages need admin policies that `0001` doesn't have yet: read `class_instructors`, `enrollments` and `class_modules`; manage `class_instructors` and `api_keys`; update `classes`. Archiving needs an `archived_at` column on `classes` and `profiles`, and the Overview cards need `instructor_issues` and `job_applications` tables. Until they exist, the pages say what's missing instead of showing zeros.
 
 **Demo data.** `supabase/seed.sql` adds 3 schools, 3 classes, 2 instructors and 16 students with realistic progress. Logins use password `cic-learn-demo`: `admin@cic.demo`, `teacher@cic.demo`, `ana.lopez@cic.demo`, `reviewer@cic.demo`.
 
