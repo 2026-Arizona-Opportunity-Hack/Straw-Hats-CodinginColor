@@ -4,9 +4,10 @@ import { RosterUpload } from './ClassSetup';
 import { makeLearners, type ClassGroup, type Course, type Learner } from './model';
 import { attemptFor, classProgress, percent, points } from './progress';
 import {
-  AssignmentsTab, ClassTabBar, CurriculumTab, DashboardTab, GradesTab, RosterTab,
+  ClassTabBar, CurriculumTab, DashboardTab, GradesTab, RosterTab,
 } from './ClassTabs';
 import type { ClassTabId } from './classTabIds';
+import { AssignmentsTab } from './assignments/AssignmentsTab';
 import type { RosterRow } from './roster';
 import { copyText, Dialog, Empty, PageHeader, Panel } from './ui';
 
@@ -33,8 +34,11 @@ export function ClassList({ groups, courses }: { groups: ClassGroup[]; courses: 
   </>;
 }
 
-export function ClassDashboard({ group, course, onSave, justCreated, tab }: {
+export function ClassDashboard({ group, course, onSave, justCreated, tab, detail, otherClasses }: {
   group: ClassGroup; course?: Course; onSave: (group: ClassGroup) => boolean; justCreated: boolean; tab: ClassTabId;
+  /** Item inside the tab, e.g. an assignment id. */
+  detail?: string;
+  otherClasses: ClassGroup[];
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [dialog, setDialog] = useState<'cards' | 'roster' | 'assignment' | null>(null);
@@ -58,7 +62,7 @@ export function ClassDashboard({ group, course, onSave, justCreated, tab }: {
     <ClassTabBar groupId={group.id} active={tab} />
     {tab === 'dashboard' && <DashboardTab group={group} course={course} />}
     {tab === 'curriculum' && <CurriculumTab group={group} course={course} onEditAssignment={editAssignment} />}
-    {tab === 'assignments' && <AssignmentsTab group={group} course={course} />}
+    {tab === 'assignments' && <AssignmentsTab group={group} course={course} otherClasses={otherClasses} assignmentId={detail} onSave={onSave} />}
     {tab === 'grades' && <GradesTab group={group} course={course} onSelect={setSelected} />}
     {tab === 'roster' && <RosterTab group={group} course={course} onSave={onSave} onImport={openImport} onCards={openCards} />}
     {details && <Dialog wide title={details.learner.name + ' · Activity details'} onClose={() => setSelected(null)}>

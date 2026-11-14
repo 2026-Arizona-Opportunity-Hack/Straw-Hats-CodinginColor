@@ -1,3 +1,5 @@
+import { LOOP_DEMO_HTML } from '../api/fixtures';
+import { newAssignment, newQuestion, type Assignment } from './assignments/model';
 import type { Activity, Course, InstructorData, Learner } from './model';
 
 const article: Activity = {
@@ -71,6 +73,36 @@ const learners: Learner[] = names.map((name, index) => {
   };
 });
 
+const daysFromNow = (days: number) => {
+  const date = new Date(Date.now() + days * 86_400_000);
+  date.setHours(23, 59, 0, 0);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+};
+
+const maryvaleAssignments: Assignment[] = [
+  {
+    ...newAssignment('quiz'), id: 'quiz-variables', title: 'Variables quick check', published: true, moduleId: 'variables', dueAt: daysFromNow(2),
+    instructions: 'Five minutes, one attempt. Answer on your own.',
+    quiz: { shuffle: true, showAnswers: 'after_submit', questions: [
+      { ...newQuestion('single'), id: 'q1', prompt: 'After score = 0 and score = score + 1, what is score?', choices: ['0', '1', '2'], correct: [1] },
+      { ...newQuestion('truefalse'), id: 'q2', prompt: 'A variable name can start with a number.', correct: [1] },
+      { ...newQuestion('short'), id: 'q3', prompt: 'Which function shows a value on the screen?', accepted: ['print', 'print()'] },
+    ] },
+  },
+  {
+    ...newAssignment('link'), id: 'link-reading', title: 'Read: for loops in Python', published: true, moduleId: 'loops', points: 0, dueAt: daysFromNow(4),
+    instructions: 'Read the "for Statements" section before Thursday.', link: { url: 'https://docs.python.org/3/tutorial/controlflow.html#for-statements' },
+  },
+  {
+    ...newAssignment('html'), id: 'html-loops', title: 'Loop counter game', published: true, moduleId: 'loops', points: 5, dueAt: daysFromNow(6),
+    instructions: 'Play until you get it right.', html: { html: LOOP_DEMO_HTML, reportsScore: true },
+  },
+  {
+    ...newAssignment('written'), id: 'written-reflection', title: 'Reflection: where do you see loops?', moduleId: 'loops', points: 10,
+    written: { prompts: ['Describe something in your day that repeats like a loop.', 'How would you write it as a for loop?'] },
+  },
+];
+
 export const demoData: InstructorData = {
   courses: [Python, Web],
   staff: [
@@ -79,8 +111,8 @@ export const demoData: InstructorData = {
     { id: 'reviewer', name: 'Demo reviewer', role: 'reviewer', classIds: [] },
   ],
   classes: [
-    { id: 'maryvale', name: 'Maryvale · Period 3', school: 'Maryvale High School', courseId: 'python', moduleIds: ['variables', 'loops'], joinCode: 'MARY3', learners },
-    { id: 'desert-edge', name: 'Desert Edge · After school', school: 'Desert Edge High School', courseId: 'web', moduleIds: ['html'], joinCode: 'DESRT8', learners: [
+    { id: 'maryvale', name: 'Maryvale · Period 3', school: 'Maryvale High School', courseId: 'python', moduleIds: ['variables', 'loops'], joinCode: 'MARY3', learners, assignments: maryvaleAssignments },
+    { id: 'desert-edge', name: 'Desert Edge · After school', school: 'Desert Edge High School', courseId: 'web', moduleIds: ['html'], joinCode: 'DESRT8', assignments: [], learners: [
       { id: 'demo-9', name: 'Alex Reed', passcode: '880419', baseline: null, attempts: [], hints: [], lastActive: null },
       { id: 'demo-10', name: 'Noor Cruz', passcode: '880420', baseline: null, attempts: [], hints: [], lastActive: null },
     ] },

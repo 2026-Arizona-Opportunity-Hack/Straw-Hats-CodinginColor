@@ -78,6 +78,9 @@ Before opening a PR: `npm run build && npm run lint`.
 Instructors and reviewers use the workspace in `src/instructor/` inside the main app, under the shared sidebar: `/instructor#/classes`, `/instructor#/curriculum`, `/instructor#/review`, and `/reviewer` for external reviewers.
 `src/instructor/InstructorRoute.tsx` mounts it and passes the signed-in role.
 Its page styles live in `src/instructor/styles.css` (`ic-*` classes); reuse them when connecting data so the layout stays consistent.
+Inside a class, tabs are Dashboard, Curriculum, Assignments, Grades and Roster (`#/classes/<id>/<tab>`).
+Assignments (`src/instructor/assignments/`) can be quizzes (multiple choice, select all, true/false, short answer, number), links and embeds, interactive HTML pages, written responses or code exercises.
+Instructors can create, edit, duplicate, publish, delete, export to a `.json` file, and import from that file, from another class, or from pasted quiz text in the Aiken format (`A.` choices plus an `ANSWER: B` line).
 It still uses fictional data saved in the browser; connecting it to `src/api/instructor/` and Supabase is the next step.
 
 `npm run dev:instructor` (port 5176) still runs it standalone with its own sidebar and profile picker.

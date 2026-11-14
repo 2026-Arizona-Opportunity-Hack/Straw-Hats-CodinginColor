@@ -2,8 +2,8 @@
 // Each tab is its own URL (#/classes/<id>/<tab>) so back, reload and links work.
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { ArrowRight, BookOpen, Printer, Search, Trash2, Upload, UserPlus } from 'lucide-react';
-import { activityTypes, makeLearners, questionTypes, type ClassGroup, type Course } from './model';
-import { assignedModules, attemptFor, classProgress, percent, points, statuses } from './progress';
+import { makeLearners, type ClassGroup, type Course } from './model';
+import { assignedModules, classProgress, percent, points, statuses } from './progress';
 import { classTabs, type ClassTabId } from './classTabIds';
 import { Empty } from './ui';
 
@@ -160,33 +160,6 @@ export function GradesTab({ group, course, onSelect }: { group: ClassGroup; cour
         </table>
       </div> : <Empty>No students match this filter.</Empty>}
       <p className="ic-note ic-section-gap">Select a name to see every attempt, code submission and hint.</p>
-    </section>
-  </div>;
-}
-
-export function AssignmentsTab({ group, course }: { group: ClassGroup; course?: Course }) {
-  const modules = assignedModules(group, course);
-  const items = modules.flatMap(module => module.lessons.flatMap(lesson => lesson.activities
-    .filter(activity => questionTypes.has(activity.type) || activity.type === 'code')
-    .map(activity => ({ module, activity }))));
-  return <div className="ic-tab-page">
-    <section className="ic-tile">
-      <header className="ic-tile-heading"><div><h2>Assignments</h2><p className="ic-note">Work students submit: checks, worksheets, code, tests and exit questions.</p></div></header>
-      {items.length ? <div className="ic-table-wrap" tabIndex={0} role="region" aria-label="Assignments table">
-        <table className="ic-data-table">
-          <thead><tr>{['Assignment', 'Module', 'Type', 'Submitted', 'Avg score'].map(text => <th scope="col" key={text}>{text}</th>)}</tr></thead>
-          <tbody>{items.map(({ module, activity }) => {
-            const attempts = group.learners.map(learner => attemptFor(learner, activity.id)).filter(attempt => attempt?.submitted);
-            const scores = attempts.map(attempt => attempt!.score).filter((score): score is number => score !== null);
-            return <tr key={activity.id}>
-              <td><strong>{activity.title}</strong></td><td>{module.title}</td>
-              <td><span className="ic-status">{activityTypes[activity.type]}</span></td>
-              <td><div className="ic-progress-entry"><progress aria-label={activity.title + ' submissions'} value={attempts.length} max={group.learners.length || 1} />{attempts.length}/{group.learners.length}</div></td>
-              <td>{percent(scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null)}</td>
-            </tr>;
-          })}</tbody>
-        </table>
-      </div> : <Empty>No assignments in the assigned modules yet.</Empty>}
     </section>
   </div>;
 }
