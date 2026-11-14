@@ -73,13 +73,14 @@ Fill them in to use a real Supabase project, then apply `supabase/migrations/` i
 
 Before opening a PR: `npm run build && npm run lint`.
 
-### Instructor UI baseline
+### Instructor workspace
 
-Run `npm run dev:instructor` after installing the root dependencies, then open [the instructor workspace](http://localhost:5176/). Run `npm run build:instructor` to build the standalone preview.
+Instructors and reviewers use the workspace in `src/instructor/` inside the main app, under the shared sidebar: `/instructor#/classes`, `/instructor#/curriculum`, `/instructor#/review`, and `/reviewer` for external reviewers.
+`src/instructor/InstructorRoute.tsx` mounts it and passes the signed-in role.
+Its page styles live in `src/instructor/styles.css` (`ic-*` classes); reuse them when connecting data so the layout stays consistent.
+It still uses fictional data saved in the browser; connecting it to `src/api/instructor/` and Supabase is the next step.
 
-The sidebar and page styles live in `src/instructor/InstructorWorkspace.tsx` and `src/instructor/styles.css`. The class setup, roster, curriculum block editor, program overview, access settings, and reviewer views use those same styles. When connecting new data or actions, reuse the existing markup and `ic-*` classes to preserve the layout.
-
-This standalone workspace uses fictional rosters and browser-local storage. The join link, passcodes, access controls, and materials drafting are demonstrations. The main app on port 5173 uses the team's shared routes and data interfaces.
+`npm run dev:instructor` (port 5176) still runs it standalone with its own sidebar and profile picker.
 
 ## Code layout and owners
 
@@ -93,7 +94,7 @@ Frontend code calls only the functions in `src/api/`; each one returns mock data
 | `src/api/student/` | Student data functions | Shivraj |
 | `src/api/instructor/` | Instructor, admin and reviewer data functions | Ruthvik |
 | `src/student/` | Student pages: courses, module player | Jacky |
-| `src/instructor/`, `src/reviewer/` | Instructor and reviewer pages | Ken |
+| `src/instructor/` | Instructor workspace and reviewer view | Ken |
 | `src/admin/` | Admin pages | Aryan |
 | `supabase/migrations/` | `0001` is the shared contract; `1xxx` Shivraj, `2xxx` Ruthvik (append-only) | Shivraj + Ruthvik |
 

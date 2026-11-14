@@ -1,10 +1,8 @@
 // Owner: Aryan. Add routes here; page components live in each owner's folder.
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AdminAnalytics, AdminClasses, AdminHome, AdminSettings, AdminUsers } from './admin/AdminPages.tsx'
-import { CourseLibrary } from './instructor/CourseLibrary.tsx'
-import { InstructorHome } from './instructor/InstructorHome.tsx'
+import { InstructorRoute } from './instructor/InstructorRoute.tsx'
 import { LoginPage } from './LoginPage.tsx'
-import { ReviewerHome } from './reviewer/ReviewerHome.tsx'
 import { RequireRole } from './shared/auth/RequireRole.tsx'
 import { AppLayout } from './shared/ui/AppLayout.tsx'
 import { ModulePlayer } from './student/ModulePlayer.tsx'
@@ -26,11 +24,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'instructor',
-        element: <RequireRole roles={['instructor', 'admin']}><InstructorHome /></RequireRole>,
-      },
-      {
-        path: 'instructor/library',
-        element: <RequireRole roles={['instructor', 'admin']}><CourseLibrary /></RequireRole>,
+        element: <RequireRole roles={['instructor', 'admin']}><InstructorRoute /></RequireRole>,
       },
       {
         path: 'admin',
@@ -54,7 +48,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'reviewer',
-        element: <RequireRole roles={['reviewer', 'admin']}><ReviewerHome /></RequireRole>,
+        element: <RequireRole roles={['reviewer', 'admin']}><InstructorRoute /></RequireRole>,
       },
       { path: '*', element: <p>Page not found.</p> },
     ],

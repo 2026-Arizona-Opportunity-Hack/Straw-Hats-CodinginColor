@@ -32,6 +32,10 @@ body:has(.ic-app) { margin: 0; }
 .ic-app button, .ic-app input[type=checkbox], .ic-app select { cursor: pointer; }
 .ic-app button:disabled { cursor: default; opacity: .5; }
 .ic-app svg { flex-shrink: 0; }
+/* Embedded in the main app layout: the app supplies sidebar, page padding and font. */
+.ic-app.ic-embedded { display: block; min-height: 0; background: transparent; font-family: inherit; }
+/* Programmatic focus on page titles (for screen readers) should not draw a box. */
+.ic-app #ic-page-title:focus { outline: none; }
 .ic-app pre { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--ic-canvas); border: 1px solid var(--ic-border); border-radius: 7px; padding: 12px; }
 
 .ic-sidebar {
@@ -75,7 +79,8 @@ body:has(.ic-app) { margin: 0; }
 .ic-fit { justify-self: start; }
 .ic-section-gap { margin-top: 15px !important; }
 .ic-panel { min-width: 0; padding: 20px; border: 1px solid var(--ic-border); border-radius: 11px; background: var(--ic-paper); }
-.ic-main > .ic-panel + .ic-panel, .ic-main > .ic-two-col { margin-top: 16px; }
+.ic-main > .ic-panel + .ic-panel, .ic-main > .ic-two-col,
+.ic-embedded > .ic-panel + .ic-panel, .ic-embedded > .ic-two-col { margin-top: 16px; }
 .ic-panel-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 14px; }
 .ic-panel-heading h2 { margin: 0; }
 .ic-app .ic-note, .ic-app .ic-empty { color: var(--ic-muted); font-size: 13px; }
@@ -153,7 +158,12 @@ body:has(.ic-app) { margin: 0; }
 .ic-warning-row { background: var(--ic-alert-bg); color: var(--ic-alert); }
 .ic-mastery-met { background: var(--ic-tint); color: var(--ic-green); }
 .ic-progress-entry { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
-.ic-progress-entry progress { width: 55px; accent-color: var(--ic-green); }
+.ic-progress-entry progress { width: 55px; }
+/* Draw progress bars ourselves: a CSS border reset (Tailwind preflight) drops Chrome's native look. */
+.ic-app progress { appearance: none; height: 8px; border: 0; border-radius: 999px; overflow: hidden; background: var(--ic-border); color: var(--ic-green); }
+.ic-app progress::-webkit-progress-bar { background: var(--ic-border); border-radius: 999px; }
+.ic-app progress::-webkit-progress-value { background: var(--ic-green); border-radius: 999px; }
+.ic-app progress::-moz-progress-bar { background: var(--ic-green); border-radius: 999px; }
 .ic-status { display: inline-block; padding: 2px 6px; border: 1px solid var(--ic-border); border-radius: 5px; font-size: 12px; font-weight: 700; color: var(--ic-muted); background: var(--ic-canvas); }
 .ic-status.is-published { color: var(--ic-green); background: var(--ic-tint); }
 .ic-status.is-stuck { color: var(--ic-alert); background: var(--ic-alert-bg); }
@@ -250,8 +260,12 @@ body:has(.ic-app) { margin: 0; }
 }
 @media print {
   .ic-app:has(.ic-login-cards) { display: block; color: black; background: white; }
-  .ic-app:has(.ic-login-cards) > :not(.ic-main),
+  .ic-app:not(.ic-embedded):has(.ic-login-cards) > :not(.ic-main),
   .ic-main:has(.ic-login-cards) > :not(.ic-dialog),
+  .ic-embedded:has(.ic-login-cards) > :not(.ic-dialog),
+  /* Embedded: hide the main app's sidebar and mobile header when printing login cards. */
+  body:has(.ic-embedded .ic-login-cards) #root aside,
+  body:has(.ic-embedded .ic-login-cards) #root > div > header,
   .ic-dialog:has(.ic-login-cards) > header,
   .ic-dialog:has(.ic-login-cards) .ic-dialog-content > :not(.ic-login-cards),
   .ic-dialog:has(.ic-login-cards)::backdrop { display: none; }
