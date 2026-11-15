@@ -14,7 +14,7 @@ export function InstructorRoute() {
   const { profile } = useAuth()
   const { hash } = useLocation()
   const role: StaffRole = profile?.role === 'admin' || profile?.role === 'reviewer' ? profile.role : 'instructor'
-  if (!supabase || !profile) return <InstructorWorkspace role={role} hash={hash} />
+  if (!supabase || !profile) return <InstructorWorkspace role={role} hash={hash} authorId={profile?.id} />
   return <LiveWorkspace role={role} hash={hash} userId={profile.id} name={profile.display_name} />
 }
 
@@ -55,7 +55,7 @@ function LiveWorkspace({ role, hash, userId, name }: { role: StaffRole; hash: st
   return <>
     {syncError && <p role="alert" className="mb-4 rounded-lg bg-warn-soft px-4 py-3 text-sm font-semibold text-warn">{syncError}</p>}
     {/* Remount with fresh data after a reload. */}
-    <InstructorWorkspace key={dataUpdatedAt} role={role} hash={hash} store={store} />
+    <InstructorWorkspace key={dataUpdatedAt} role={role} hash={hash} authorId={userId} store={store} />
   </>
 }
 
