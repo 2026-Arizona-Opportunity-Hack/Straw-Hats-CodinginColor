@@ -117,7 +117,7 @@ CIC staff run the program from `/admin`. In mock mode, sign in as staff with use
 |---|---|
 | Overview | Headline numbers, issues raised by instructors (reply or resolve), and hiring (applications by stage, recent hires) |
 | Schools & classes | Search classes, see completion and learning gain per class, create a class, assign or remove instructors, archive classes (automatic when their term ends) |
-| People & roles | See everyone and what each role can access; change roles (not for reviewers; admins can't remove their own access); archive and restore people |
+| People & roles | See everyone and filter by role. **Add person** creates an instructor, student or admin with an email and temporary password (migrations `3002`, `3003`); copy or email the sign-in, and they change it from **Change password** in the sidebar. Add existing students to any class (`3004`). Change roles (not for reviewers; admins can't remove their own access); archive and restore people |
 | Impact & learning | Donor-ready report: overall progress, reach by school, before/after growth per module, instructors and their courses, student progress, CSV export |
 | Settings & API | Create API keys for the read API (shown once, stored as SHA-256 hashes) and revoke them |
 

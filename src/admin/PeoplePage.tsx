@@ -1,23 +1,18 @@
-// Owner: Aryan. Everyone with an account, what each role can reach, and role changes.
+// Owner: Aryan. Everyone with an account, role filters and changes, adding people, and adding students to classes.
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, Users } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { Backpack, Check, Copy, GraduationCap, Mail, RefreshCw, Search, ShieldCheck, UserPlus, Users, X } from 'lucide-react'
+import { useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import type { Role } from '../shared/types/db.ts'
-import { Button, Card, DataTable, EmptyState, Input, PageHeader, Select, Td, Th } from '../shared/ui/index.tsx'
-import { changeRole } from './api.ts'
+import { Button, DataTable, EmptyState, Field, FormStatus, Input, PageHeader, Select, Td, Th } from '../shared/ui/index.tsx'
+import { addPerson, changeRole, enrollStudent, type NewPerson } from './api.ts'
 import { ArchiveButton, LoadState } from './common.tsx'
 import { ORG_KEY, useOrg } from './hooks.ts'
+import { archivedReason } from './metrics.ts'
 
 const ROLES: Role[] = ['admin', 'instructor', 'student', 'reviewer']
 const ROLE_LABEL: Record<Role, string> = { admin: 'CIC Admin', instructor: 'Instructor', student: 'Student', reviewer: 'External Reviewer' }
-const ACCESS: Record<Role, { can: string; cannot: string }> = {
-  admin: { can: 'Everything: curriculum, classes, all student progress, roles, API keys.', cannot: 'Remove their own admin access.' },
-  instructor: { can: 'Their own classes: roster, modules, progress, submissions, learning gain.', cannot: "See other instructors' classes or change roles." },
-  student: { can: 'Their assigned modules and their own progress and results.', cannot: 'See other students or anything unassigned.' },
-  reviewer: { can: 'Browse and preview all CIC curriculum.', cannot: 'Edit anything or see any student record.' },
-}
 
 export function PeoplePage() {
   const { data, isLoading, error } = useOrg()
@@ -29,6 +24,7 @@ export function PeoplePage() {
   if (!data) return <><PageHeader title="People & roles" /><LoadState isLoading={isLoading} error={error} /></>
 
   const className = new Map(data.classes.map((c) => [c.id, c.name]))
+  const openClasses = data.classes.filter((c) => !archivedReason(c))
   const active = data.people.filter((p) => !p.archived_at)
   const archivedCount = data.people.length - active.length
   const counts = Object.fromEntries(ROLES.map((r) => [r, active.filter((p) => p.role === r).length])) as Record<Role, number>
@@ -54,28 +50,25 @@ export function PeoplePage() {
 
   return (
     <>
-      <PageHeader title="People & roles" subtitle="Everyone with a CIC Learn account and what they can access." />
+      <PageHeader
+        title="People & roles"
+        subtitle="Everyone with a CIC Learn account."
+        actions={<AddPersonDialog classes={openClasses} />}
+      />
 
-      <section aria-labelledby="roles-heading" className="mb-8">
-        <h2 id="roles-heading" className="sr-only">Roles and access</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {ROLES.map((r) => (
-            <Link
-              key={r}
-              to={role === r ? '/admin/users' : `/admin/users?role=${r}`}
-              aria-current={role === r ? 'true' : undefined}
-              className="dot-hover soft-card rounded-2xl border border-divider bg-white p-4 transition-transform hover:-translate-y-0.5 hover:border-brand aria-[current=true]:border-brand aria-[current=true]:bg-brand-tint"
-            >
-              <p className="flex items-baseline justify-between">
-                <span className="font-bold text-brand">{ROLE_LABEL[r]}s</span>
-                <span className="text-2xl font-bold tabular-nums">{counts[r]}</span>
-              </p>
-              <p className="mt-2 text-xs text-cic-muted"><strong className="text-black">Can:</strong> {ACCESS[r].can}</p>
-              <p className="mt-1 text-xs text-cic-muted"><strong className="text-black">Cannot:</strong> {ACCESS[r].cannot}</p>
-            </Link>
-          ))}
-        </div>
-      </section>
+      <nav aria-label="Filter by role" className="mb-8 flex flex-wrap gap-2">
+        {ROLES.map((r) => (
+          <Link
+            key={r}
+            to={role === r ? '/admin/users' : `/admin/users?role=${r}`}
+            aria-current={role === r ? 'true' : undefined}
+            className="flex items-center gap-2.5 rounded-full border border-divider bg-white py-1.5 pl-4 pr-1.5 text-sm font-semibold transition-colors hover:border-brand aria-[current=true]:border-brand aria-[current=true]:bg-brand aria-[current=true]:text-white"
+          >
+            {ROLE_LABEL[r]}s
+            <span className="min-w-7 rounded-full bg-brand-tint px-2 py-0.5 text-center tabular-nums text-brand">{counts[r]}</span>
+          </Link>
+        ))}
+      </nav>
 
       <section aria-labelledby="dir-heading" className="mb-10">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -114,7 +107,14 @@ export function PeoplePage() {
                   <tr key={p.id}>
                     <Td className="font-semibold">{p.display_name}</Td>
                     <Td>{p.school ?? <span className="text-cic-muted">CIC</span>}</Td>
-                    <Td className="max-w-60">{cls.length ? cls.join(', ') : <span className="text-cic-muted">—</span>}</Td>
+                    <Td className="max-w-72">
+                      <div className="flex flex-col items-start gap-1.5">
+                        {cls.length ? cls.join(', ') : <span className="text-cic-muted">—</span>}
+                        {p.role === 'student' && !p.archived_at && (
+                          <AddToClass studentId={p.id} name={p.display_name} classes={openClasses.filter((c) => !data.enrollments.some((e) => e.class_id === c.id && e.student_id === p.id))} />
+                        )}
+                      </div>
+                    </Td>
                     <Td>
                       <div className="flex flex-wrap items-center gap-2">
                         {p.role === 'reviewer' || p.archived_at ? (
@@ -132,15 +132,189 @@ export function PeoplePage() {
           </DataTable>
         )}
       </section>
-
-      <Card title="Adding instructors and reviewers" className="max-w-3xl">
-        <ol className="list-decimal space-y-1 pl-5 text-sm">
-          <li>In the Supabase dashboard, open <strong>Authentication → Users → Add user</strong> and enter their work email.</li>
-          <li>They appear in the directory above as a Student. Change their role here.</li>
-          <li>Students don't need this: instructors add them with the roster CSV import.</li>
-        </ol>
-      </Card>
     </>
+  )
+}
+
+/** Readable temporary password: no 0/O or 1/l/I to mix up when read aloud. */
+const tempPassword = () =>
+  Array.from(crypto.getRandomValues(new Uint8Array(10)), (b) => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('')
+
+/** Opens the admin's mail app with the sign-in details and a reminder to change the password. */
+const signInEmail = (p: NewPerson) =>
+  `mailto:${p.email}?subject=${encodeURIComponent('Your CIC Learn sign-in')}&body=${encodeURIComponent(
+    `Hi ${p.display_name},\n\nYou now have a CIC Learn account.\n\nSign in at: ${window.location.origin}/login\nEmail: ${p.email}\nTemporary password: ${p.password}\n\nAfter signing in, choose "Change password" in the menu to set your own.\n\nCoding in Color`,
+  )}`
+
+const ADD_ROLES = [
+  { value: 'instructor', label: 'Instructor', icon: GraduationCap },
+  { value: 'student', label: 'Student', icon: Backpack },
+  { value: 'admin', label: 'Admin', icon: ShieldCheck },
+] as const
+
+function AddPersonDialog({ classes }: { classes: { id: string; name: string }[] }) {
+  const qc = useQueryClient()
+  const dialog = useRef<HTMLDialogElement>(null)
+  const [role, setRole] = useState<NewPerson['role']>('instructor')
+  const [password, setPassword] = useState(tempPassword)
+  const [done, setDone] = useState<NewPerson | null>(null)
+  const [copied, setCopied] = useState(false)
+  const add = useMutation({
+    mutationFn: addPerson,
+    onSuccess: (_, p) => {
+      setDone(p)
+      return qc.invalidateQueries({ queryKey: ORG_KEY })
+    },
+  })
+
+  function reset() {
+    setDone(null)
+    setCopied(false)
+    setPassword(tempPassword())
+    add.reset()
+  }
+
+  function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>
+    if (role === 'admin' && !window.confirm(`Make ${f.display_name.trim()} a CIC Admin?\n\nAdmins can see every student record and change anyone's access.`)) return
+    add.mutate({ display_name: f.display_name.trim(), email: f.email.trim(), password, role, school: f.school.trim(), class_id: f.class_id ?? '' })
+  }
+
+  async function copy(p: NewPerson) {
+    await navigator.clipboard.writeText(`CIC Learn sign-in\n${window.location.origin}/login\nEmail: ${p.email}\nTemporary password: ${p.password}`)
+    setCopied(true)
+  }
+
+  return (
+    <>
+      <Button onClick={() => dialog.current?.showModal()}>
+        <UserPlus aria-hidden="true" /> Add person
+      </Button>
+      <dialog
+        ref={dialog}
+        aria-labelledby="add-person-title"
+        onClose={reset}
+        className="m-auto w-[min(34rem,calc(100%-2rem))] overflow-hidden rounded-3xl bg-white p-0 shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-sm"
+      >
+        <div className="brand-panel flex items-center justify-between px-6 py-5 text-white">
+          <h2 id="add-person-title" className="text-xl" style={{ color: '#fff' }}>{done ? 'Ready to sign in' : 'Add a person'}</h2>
+          <button type="button" onClick={() => dialog.current?.close()} className="grid size-9 place-items-center rounded-full hover:bg-white/15" aria-label="Close">
+            <X aria-hidden="true" className="size-5" />
+          </button>
+        </div>
+
+        {done ? (
+          <div className="flex flex-col gap-5 p-6">
+            <div className="rounded-2xl bg-gradient-to-br from-brand to-brand-accent p-px">
+              <div className="rounded-[15px] bg-white p-5">
+                <p className="text-lg font-bold">{done.display_name}</p>
+                <p className="mb-4 text-sm font-semibold text-brand">{ROLE_LABEL[done.role]}</p>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                  <dt className="text-cic-muted">Email</dt>
+                  <dd className="break-all font-mono">{done.email}</dd>
+                  <dt className="text-cic-muted">Password</dt>
+                  <dd className="font-mono text-base font-bold tracking-wider">{done.password}</dd>
+                </dl>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="secondary" onClick={() => void copy(done)}>
+                {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />} {copied ? 'Copied' : 'Copy'}
+              </Button>
+              <a href={signInEmail(done)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand px-4 text-sm font-semibold text-white hover:bg-brand-dark">
+                <Mail aria-hidden="true" className="size-4" /> Email it
+              </a>
+            </div>
+            <button type="button" onClick={reset} className="self-center text-sm font-semibold text-brand hover:underline">Add another person</button>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="flex flex-col gap-4 p-6">
+            <div role="radiogroup" aria-label="Role" className="grid grid-cols-3 gap-2">
+              {ADD_ROLES.map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={role === value}
+                  onClick={() => setRole(value)}
+                  className="flex flex-col items-center gap-2 rounded-2xl border-2 border-divider p-3 font-semibold transition-colors hover:border-brand sm:flex-row sm:gap-3 sm:text-left aria-checked:border-brand aria-checked:bg-brand-tint aria-checked:text-brand"
+                >
+                  <span className="grid size-9 place-items-center rounded-xl bg-brand text-white"><Icon aria-hidden="true" className="size-5" /></span>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <Field id="add-name" label="Full name">
+              <Input id="add-name" name="display_name" required maxLength={100} autoComplete="off" />
+            </Field>
+            <Field id="add-email" label="Email">
+              <Input id="add-email" name="email" type="email" required maxLength={254} autoComplete="off" />
+            </Field>
+            <Field id="add-password" label="Temporary password">
+              <div className="relative">
+                <Input id="add-password" required minLength={8} maxLength={72} autoComplete="off" spellCheck={false} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pr-11 font-mono tracking-wider" />
+                <button type="button" onClick={() => setPassword(tempPassword())} aria-label="Generate a new password" className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-md text-brand hover:bg-brand-tint">
+                  <RefreshCw aria-hidden="true" className="size-4" />
+                </button>
+              </div>
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="add-school" label="School" optional>
+                <Input id="add-school" name="school" maxLength={120} />
+              </Field>
+              {role !== 'admin' && (
+                <Field id="add-class" label="Class" optional>
+                  <Select id="add-class" name="class_id" defaultValue="">
+                    <option value="">None yet</option>
+                    {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </Select>
+                </Field>
+              )}
+            </div>
+            <FormStatus error={add.error?.message} />
+            <Button type="submit" disabled={add.isPending} className="min-h-12 w-full">
+              {add.isPending ? 'Creating account…' : `Add ${role}`}
+            </Button>
+          </form>
+        )}
+      </dialog>
+    </>
+  )
+}
+
+/** "+ Add to class" on a student's row: picking a class enrolls them right away. */
+function AddToClass({ studentId, name, classes }: { studentId: string; name: string; classes: { id: string; name: string }[] }) {
+  const qc = useQueryClient()
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const enroll = useMutation({
+    mutationFn: (c: { id: string; name: string }) => enrollStudent(studentId, c.id),
+    onSuccess: (_, c) => {
+      setMsg({ ok: true, text: `Added to ${c.name}` })
+      return qc.invalidateQueries({ queryKey: ORG_KEY })
+    },
+    onError: (e) => setMsg({ ok: false, text: e.message }),
+  })
+  if (!classes.length) return null
+  const id = `enroll-${studentId}`
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <label htmlFor={id} className="sr-only">Add {name} to a class</label>
+      <Select
+        id={id}
+        value=""
+        disabled={enroll.isPending}
+        onChange={(e) => {
+          const c = classes.find((x) => x.id === e.target.value)
+          if (c) { setMsg(null); enroll.mutate(c) }
+        }}
+        className="h-8 w-40 border-dashed px-2 text-xs font-semibold text-brand"
+      >
+        <option value="" disabled>{enroll.isPending ? 'Adding…' : '+ Add to class'}</option>
+        {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+      </Select>
+      <span role="status" className="text-xs">{msg && <span className={msg.ok ? 'text-brand' : 'text-danger'}>{msg.text}</span>}</span>
+    </div>
   )
 }
 
