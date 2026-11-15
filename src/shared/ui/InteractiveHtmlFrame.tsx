@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { isolatedHtml, readFrameCompletion, readFrameHeight } from './isolatedHtml.ts'
+import './lesson.css'
 
 interface Props {
   html: string
@@ -9,12 +10,22 @@ interface Props {
   onComplete?: (score: number | undefined) => void
   /** Starting height; the frame then grows or shrinks to fit the page so it never scrolls inside. */
   height?: number
+  /** Wraps the frame in a small browser-window look, used on lesson cards. */
+  device?: boolean
 }
 
-export function InteractiveHtmlFrame({ html, css, title, allowScripts = false, onComplete, height = 640 }: Props) {
+export function InteractiveHtmlFrame({ html, css, title, allowScripts = false, onComplete, height = 640, device = false }: Props) {
   const srcDoc = useMemo(() => isolatedHtml(html, allowScripts, css), [html, css, allowScripts])
   // A new document needs a new browsing context so late messages from a prior run are rejected.
-  return <IsolatedFrame key={srcDoc} srcDoc={srcDoc} title={title} allowScripts={allowScripts} onComplete={onComplete} height={height} />
+  const frame = <IsolatedFrame key={srcDoc} srcDoc={srcDoc} title={title} allowScripts={allowScripts} onComplete={onComplete} height={height} />
+  if (!device) return frame
+  return <div className="cic-device">
+    <div className="cic-device-bar" aria-hidden="true">
+      <span className="cic-device-dot" /><span className="cic-device-dot" /><span className="cic-device-dot" />
+      <span className="cic-device-title">{title}</span>
+    </div>
+    {frame}
+  </div>
 }
 
 function IsolatedFrame({ srcDoc, title, allowScripts, onComplete, height }: {
