@@ -142,7 +142,15 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 
 The public root introduces AI Academy and Responsive Web Development using the existing CIC brand tokens and fonts. Log in and Sign up open the existing student and staff flows. Featured course links continue to a catalog search after student sign-in. Coming Soon mirrors planned subjects in Student Explore.
 
+## Admin data refresh
+
+Admin overview, classes, people, and analytics share one cached organization snapshot.
+Successful edits refresh it, and **Refresh data** reloads it on demand.
+The command palette requests organization data only when open.
+
 ## Log
+
+- 2026-11-15, Codex: replaced minute-by-minute admin polling with refresh after edits and on demand.
 
 - 2026-11-15, Codex: verified final-check modal focus, Escape and submission navigation in Chrome with local demo data.
 
