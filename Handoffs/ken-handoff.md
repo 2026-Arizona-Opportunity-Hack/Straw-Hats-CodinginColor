@@ -29,10 +29,11 @@ The student preview shows topic checks in reading order and keeps references in 
 The optional coding lab remains available from the preview.
 **Generate image** sends the instructor’s scene description to Seedream 5.0 Flash.
 The browser runs MediaPipe DeepLab after downloading the model and suggests editable masks and their bounding boxes for recognized objects.
+When a wide or tall image yields no annotations, the browser retries with overlapping square crops and combines their masks in the original image coordinates.
 Instructors can move points, change labels, remove annotations, or draw their own before approving or rejecting the image from the side panel.
 Approved figures and their editable annotations stay in the module draft. Each generated module has five attempts, including rejected images.
 Apply migration 2008 before enabling the hosted image route. Local Vite enforces its quota independently.
-Local QA buttons open preview, image review, and the image-limit state without paid AI requests. The sample photo uses the same browser annotation path.
+Local QA buttons open preview, image review, and the image-limit state without paid AI requests. Test image review uses the sample photo or a locally selected PNG or JPEG.
 Adding a module starts it unpublished.
 PPTX extraction runs in the browser, and only selected image previews go to the selected model.
 The default runs Terra, then Opus, then Jev, with at most one targeted Terra edit.
@@ -56,6 +57,14 @@ Preview answers run only in the open preview.
 Selecting a multiple-choice knowledge check answer gives feedback in both the student player and teacher preview.
 Hosted previews use the live response types, safe Markdown and slides support.
 The local preview can also run demo HTML activities and coding labs.
+
+## Curriculum workspace
+
+Instructors and admins open published lessons from **Curriculum** and can leave staff comments on individual blocks.
+Global edits are an explicit admin action, and class edits follow the class's own curriculum route.
+**CIC Library** shows curated workshop slide decks from published global courses. Admins manage the catalog by selecting **Include in CIC Library** on a Slides block and publishing its module.
+Migrations 2011 and 2012 add durable class-local scope and staff-only comment threads. Apply them in that order before deploying the workspace.
+See the [curriculum isolation audit](curriculum-isolation-audit-2026-11-15.md) for the current database boundaries and legacy global course links.
 
 ## Read & check
 
@@ -113,6 +122,10 @@ The roster mapping endpoint checks the signed-in Supabase profile and calls Jev 
 Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
 
 ## Log
+
+- 2026-11-15, Codex: recovered editable annotations on the full wide cat frame and added a file option to local image review QA.
+
+- 2026-11-15, Codex: restored Curriculum for instructors and admins with view-first navigation, staff comments, and database isolation for local copies.
 
 - 2026-11-15, Codex: added automatic browser image annotations and verified adjusting, approving, and rejecting them through local image QA.
 

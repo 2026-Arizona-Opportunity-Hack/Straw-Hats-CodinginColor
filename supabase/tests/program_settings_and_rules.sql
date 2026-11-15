@@ -14,8 +14,9 @@ insert into profiles (id, role, display_name) values
   ('81000000-0000-0000-0000-000000000005', 'instructor', 'Creator only')
 on conflict (id) do update set role = excluded.role;
 
-insert into courses (id, title, owner_id, published, delivery_mode) values
-  ('82000000-0000-0000-0000-000000000001', 'Rules QA', '81000000-0000-0000-0000-000000000001', true, 'instructor_led');
+insert into courses (id, title, owner_id, published, delivery_mode, is_library) values
+  ('82000000-0000-0000-0000-000000000001', 'Rules QA', '81000000-0000-0000-0000-000000000001', true, 'instructor_led', true);
+-- Rule differences are class-specific even when classes use one global template.
 insert into modules (id, course_id, position, title, concept, published) values
   ('83000000-0000-0000-0000-000000000001', '82000000-0000-0000-0000-000000000001', 1, 'Module 1', 'Variables', true),
   ('83000000-0000-0000-0000-000000000002', '82000000-0000-0000-0000-000000000001', 2, 'Module 2', 'Loops', true);

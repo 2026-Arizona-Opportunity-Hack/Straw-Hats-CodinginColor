@@ -100,6 +100,7 @@ function toActivity(row: Row): Activity {
   };
   if (content.format === 'open-ended') activity.format = 'open-ended';
   if (type === 'worksheet') activity.discussionEnabled = content.discussion_enabled === true;
+  if (type === 'slides') activity.cicLibraryDeck = content.cic_library_deck === true;
   return activity;
 }
 
@@ -112,8 +113,9 @@ export function activityContent(activity: Activity): Json {
   switch (activity.type) {
     case 'content': return { ...base, markdown: activity.markdown,
       ...(activity.presentation ? { presentation: activity.presentation } : {}), ...(activity.figure ? { figure: activity.figure } : {}) };
-    case 'video':
-    case 'slides': return { ...base, url: activity.url, caption: activity.title, markdown: activity.markdown };
+    case 'video': return { ...base, url: activity.url, caption: activity.title, markdown: activity.markdown };
+    // Publishing merges JSON, so explicitly write false when a deck is removed.
+    case 'slides': return { ...base, url: activity.url, caption: activity.title, markdown: activity.markdown, cic_library_deck: activity.cicLibraryDeck === true };
     case 'check': return { ...base, prompt: first?.prompt ?? '', choices: first ? choices(first) : [], answer: first ? answerId(first) : undefined, markdown: activity.markdown };
     case 'exit': return { ...base, prompt: first?.prompt ?? '', choices: first ? choices(first) : [], markdown: activity.markdown };
     case 'worksheet': return {
@@ -238,7 +240,7 @@ async function selectAll(supabase: SupabaseClient, table: string, columns: strin
   }
 }
 
-const courseColumns = 'id, title, description, level, owner_id, is_library, copied_from, publication_revision, created_at, modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))';
+const courseColumns = 'id, title, description, level, owner_id, is_library, copied_from, published, publication_revision, created_at, local_curricula (course_id), modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))';
 
 function toCourse(c: Row): Course {
   const course: Course = {
@@ -251,8 +253,10 @@ function toCourse(c: Row): Course {
       })),
     })),
   };
+  if (typeof c.published === 'boolean') course.published = c.published;
   if (c.is_library) course.library = true;
   if (c.copied_from) course.copiedFrom = String(c.copied_from);
+  if (Array.isArray(c.local_curricula) ? c.local_curricula.length : c.local_curricula) course.local = true;
   return course;
 }
 

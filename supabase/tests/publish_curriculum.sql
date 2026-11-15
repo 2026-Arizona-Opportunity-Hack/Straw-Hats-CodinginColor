@@ -19,8 +19,11 @@ select publish_curriculum(
   '{}', '{}'
 );
 reset role;
-insert into course_enrollments (course_id, student_id) values
-  ('92000000-0000-0000-0000-000000000001', '91000000-0000-0000-0000-000000000002');
+-- Instructor-authored curricula are local: students enter through their class.
+insert into classes(id,name,school,course_id,join_code,created_by) values
+  ('96000000-0000-0000-0000-000000000001','Publish QA','Fictional school','92000000-0000-0000-0000-000000000001','QA-PUBLISH','91000000-0000-0000-0000-000000000001');
+insert into enrollments(class_id,student_id) values
+  ('96000000-0000-0000-0000-000000000001','91000000-0000-0000-0000-000000000002');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '91000000-0000-0000-0000-000000000001', true);
