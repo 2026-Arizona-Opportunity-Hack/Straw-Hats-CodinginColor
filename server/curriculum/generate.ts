@@ -1,4 +1,5 @@
 import { defaultDraftQuality, type CurriculumDraft, type DraftSource } from '../../src/shared/curriculum/draft.ts'
+import type { ReportProgress } from '../../src/shared/curriculum/progress.ts'
 import { completeDraft, DraftError } from './completion.ts'
 import { lookupReferences } from './references.ts'
 
@@ -22,10 +23,11 @@ function validateDraft(value: CurriculumDraft, citationIds: Set<string>) {
     && validList(lesson.citationIds, 3, 150) && lesson.citationIds.every(id => citationIds.has(id)))
 }
 
-export async function generateDraft(source: DraftSource, guide: string, key: string, signal: AbortSignal) {
+export async function generateDraft(source: DraftSource, guide: string, key: string, signal: AbortSignal, report?: ReportProgress) {
   const slides = source.kind === 'slide_deck' ? source.slides : []
   const images = source.kind === 'slide_deck' ? source.images : []
   const text = source.kind === 'lesson_plan' ? source.text : slides.map(slide => slide.text).join('\n')
+  report?.('references')
   const { sources, notes } = await lookupReferences(text, signal)
   const citationIds = new Set(sources.map(item => item.id))
   const instructions = guide + '\n\n'
@@ -41,7 +43,7 @@ export async function generateDraft(source: DraftSource, guide: string, key: str
     : { kind: source.kind, audience: source.audience, slides }
   const context = JSON.stringify({ source: sourceContext, references: sources })
   const content = await completeDraft({
-    quality: source.quality ?? defaultDraftQuality, key, signal, instructions, schema, guideVersion: guide.split('\n')[2],
+    quality: source.quality ?? defaultDraftQuality, key, signal, instructions, schema, report, guideVersion: guide.split('\n')[2],
     source: images.length ? [
       { type: 'text', text: context },
       ...images.flatMap(image => [

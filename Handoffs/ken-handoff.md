@@ -28,6 +28,7 @@ Review notes stay in the dialog, and adding a module starts it unpublished.
 PPTX extraction runs in the browser, and only selected image previews go to the selected model.
 GPT-6.1 Terra is the default. Claude Opus 5.5 is available under High quality.
 Both use the same five-minute function runtime and a dedicated capped OpenRouter key.
+The review dialog reports lookup, model wait, and validation stages with elapsed time.
 See the [README](../README.md#draft-curriculum-from-materials) for preview configuration.
 
 ## Student preview
@@ -81,6 +82,8 @@ The roster mapping endpoint checks the signed-in Supabase profile and calls Jev 
 Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
 
 ## Log
+
+- 2026-11-15, Codex: streamed curriculum generation stages to instructor draft review.
 
 - 2026-11-15, Ken: refreshed immediate knowledge check feedback against the current student player.
 

@@ -1,10 +1,12 @@
 import type { DraftReference, DraftResponse, DraftSource } from '../shared/curriculum/draft'
+import type { ReportProgress } from '../shared/curriculum/progress'
+import { requestCurriculum } from './requestCurriculum'
 import { supabase } from '../shared/supabase'
 import { blankQuestion, id, newActivity, newLesson, type Module } from './model'
 
 export type MaterialDraft = { module: Module; reviewNotes: string[]; references: DraftReference[] }
 
-export async function requestMaterialsDraft(source: DraftSource, signal: AbortSignal): Promise<MaterialDraft> {
+export async function requestMaterialsDraft(source: DraftSource, signal: AbortSignal, report: ReportProgress): Promise<MaterialDraft> {
   if (!supabase) {
     const text = source.kind === 'lesson_plan' ? source.text : source.slides.filter(slide => slide.text.trim())
       .map(slide => '## Slide ' + slide.number + '\n\n' + slide.text).join('\n\n')
@@ -18,14 +20,8 @@ export async function requestMaterialsDraft(source: DraftSource, signal: AbortSi
         practice: ['Try one example from the reading. What did you change?'], exitPrompt: 'What did you learn, and what would you try next?' }],
     })
   }
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) throw new Error('Sign in as an instructor to generate a draft.')
-  const response = await fetch('/api/curriculum/draft', {
-    method: 'POST', headers: { Authorization: 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
-    body: JSON.stringify(source), signal,
-  })
-  const body = await response.json().catch(() => null)
-  if (!response.ok || !body?.lessons) throw new Error(body?.error || 'Curriculum conversion is unavailable. Try again later.')
+  const body = await requestCurriculum<DraftResponse>(source, signal, report)
+  if (!body?.lessons) throw new Error('Curriculum conversion is unavailable. Try again later.')
   return materialDraft(body)
 }
 

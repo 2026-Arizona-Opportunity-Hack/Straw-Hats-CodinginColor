@@ -1,5 +1,7 @@
 import type { DraftQuality } from '../../src/shared/curriculum/draft.ts'
 
+import type { ReportProgress } from '../../src/shared/curriculum/progress.ts'
+
 export const draftTimeoutMs = 280_000
 const completionTimeoutMs = 265_000
 const openRouterUrl = 'https://openrouter.ai/api/v1'
@@ -38,12 +40,13 @@ async function verifyEndpoint(route: (typeof routes)[DraftQuality], signal: Abor
 
 type MessagePart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }
 
-export async function completeDraft({ quality, key, signal, guideVersion, instructions, source, schema }: {
+export async function completeDraft({ quality, key, signal, guideVersion, instructions, source, schema, report }: {
   quality: DraftQuality; key: string; signal: AbortSignal; guideVersion: string | undefined
-  instructions: string; source: string | MessagePart[]; schema: object
+  instructions: string; source: string | MessagePart[]; schema: object; report?: ReportProgress
 }) {
   const route = routes[quality]
   await verifyEndpoint(route, signal)
+  report?.('model')
   const started = Date.now()
   const completionSignal = AbortSignal.any([signal, AbortSignal.timeout(completionTimeoutMs)])
   const response = await fetch(openRouterUrl + '/chat/completions', {
@@ -71,6 +74,7 @@ export async function completeDraft({ quality, key, signal, guideVersion, instru
   const completion = await response.json().catch(() => null) as Completion | null
   completionSignal.throwIfAborted()
   console.info('curriculum draft', { model: completion?.model || route.model, guide: guideVersion, cost: completion?.usage?.cost, latencyMs: Date.now() - started })
+  report?.('validating')
   const choice = completion?.choices?.[0]
   if (choice?.finish_reason === 'length') {
     throw new DraftError('The draft exceeded the model’s output limit. Try splitting the source into smaller modules.', 502)

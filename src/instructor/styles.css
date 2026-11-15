@@ -616,3 +616,6 @@ body:has(.ic-app) { margin: 0; }
 .ic-review.is-collapsed { grid-template-columns: minmax(0, 1fr); }
 .ic-review > [hidden] { display: none; }
 @media (max-width: 890px) { .ic-review { grid-template-columns: minmax(0, 1fr); } }
+
+.ic-generation progress { width: 100%; max-width: 18rem; height: .6rem; accent-color: var(--ic-green); }
+.ic-generation span { font-variant-numeric: tabular-nums; }
