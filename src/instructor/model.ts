@@ -47,13 +47,17 @@ export type Course = {
   /** A class-local course remains local even after its source or last class is removed. */
   local?: boolean;
 };
+export type SavedAnswer = { prompt: string; value: string; code?: boolean };
 export type Attempt = {
   activityId: string;
   score: number | null;
   minutes: number;
   count: number;
   submitted: boolean;
-  response?: string;
+  response?: string | SavedAnswer[];
+  /** Latest saved response can be a practice try, distinct from the counted score. */
+  responseAttempt?: number;
+  scoreAttempt?: number;
   conceptScores?: Record<string, number>;
 };
 export type Learner = {

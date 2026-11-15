@@ -6,6 +6,7 @@ import { parseWebPracticeChecks } from '../shared/labs/webPracticeChecks';
 // what the signed-in person can read or change (supabase/migrations/2001_instructor_workspace.sql).
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Submission } from './assignments/grading';
+import { savedConceptScores, savedResponse } from './attemptResponses';
 import { normalizeAssignment, totalPoints, type Assignment, type AssignmentKind } from './assignments/model';
 import {
   activityTypes, type Activity, type ActivityType, type Attempt, type ClassGroup, type ClassRules, type Course, type InstructorData,
@@ -184,7 +185,7 @@ function toSubmission(row: Row): Submission {
 
 // ---- Progress ----
 
-type ActivityInfo = { type: string; moduleId: string };
+type ActivityInfo = { type: string; moduleId: string; content: Json; concepts: string[] };
 
 /**
  * Which tries count, matching the database rules in 1001_student_progress.sql
@@ -192,15 +193,15 @@ type ActivityInfo = { type: string; moduleId: string };
  * pretest counts try #1 only; post-test counts the best of the first N tries
  * (class_module_settings.max_posttest_tries, migration 2006); everything else counts the best try.
  */
-function countedScore(rows: Row[], info: ActivityInfo | undefined, maxTries: number | undefined): number | null {
-  const scored = (list: Row[]) => list.map(r => r.score).filter((v): v is number | string => v !== null && v !== undefined).map(Number);
+function countedAttempt(rows: Row[], info: ActivityInfo | undefined, maxTries: number | undefined): Row | undefined {
   const byTry = rows.slice().sort((a, b) => Number(a.attempt_no) - Number(b.attempt_no));
-  if (info?.type === 'pretest') return scored(byTry.slice(0, 1))[0] ?? null;
   // No rule for the module (a module outside the class's course): which tries count is unknown.
-  if (info?.type === 'posttest' && maxTries === undefined) return null;
-  const pool = info?.type === 'posttest' ? byTry.filter(r => Number(r.attempt_no) <= (maxTries as number)) : byTry;
-  const scores = scored(pool);
-  return scores.length ? Math.max(...scores) : null;
+  if (info?.type === 'posttest' && maxTries === undefined) return undefined;
+  const pool = info?.type === 'pretest' ? byTry.slice(0, 1)
+    : info?.type === 'posttest' ? byTry.filter(r => Number(r.attempt_no) <= (maxTries as number)) : byTry;
+  const scored = pool.filter(r => r.score !== null && r.score !== undefined && Number.isFinite(Number(r.score)) && Number(r.score) >= 0 && Number(r.score) <= 1);
+  // Stable sort preserves the earliest attempt when two counted scores tie.
+  return scored.sort((a, b) => Number(b.score) - Number(a.score))[0];
 }
 
 function learnersFor(classId: string, roster: Row[], attempts: Row[], activities: Map<string, ActivityInfo>, rules: ClassRules, progress: StaffModuleProgress[]): Learner[] {
@@ -210,13 +211,15 @@ function learnersFor(classId: string, roster: Row[], attempts: Row[], activities
     for (const attempt of mine) byActivity.set(String(attempt.activity_id), [...(byActivity.get(String(attempt.activity_id)) ?? []), attempt]);
     const list: Attempt[] = [...byActivity.entries()].map(([activityId, rows]) => {
       const info = activities.get(activityId);
-      const counted = countedScore(rows, info, info && rules.maxTries[info.moduleId]);
+      const counted = countedAttempt(rows, info, info && rules.maxTries[info.moduleId]);
       const latest = rows.slice().sort((a, b) => Number(b.attempt_no) - Number(a.attempt_no))[0];
       return {
         activityId, count: rows.length, submitted: rows.some(r => r.submitted_at),
-        score: counted === null ? null : counted * 100,
+        score: counted ? Number(counted.score) * 100 : null,
         minutes: Math.round(rows.reduce((sum, r) => sum + Number(r.time_on_task_ms ?? 0), 0) / 60_000),
-        response: typeof latest.response === 'string' ? latest.response : undefined,
+        response: savedResponse(latest.response, info?.type ?? '', info?.content ?? {}),
+        responseAttempt: Number(latest.attempt_no), scoreAttempt: counted ? Number(counted.attempt_no) : undefined,
+        conceptScores: counted ? savedConceptScores(counted.response, info?.concepts ?? []) : undefined,
       };
     });
     const last = mine.map(a => str(a.submitted_at)).filter(Boolean).sort().at(-1) ?? null;
@@ -308,8 +311,14 @@ export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, di
   const settings = toSettings(programSettings.data as Row[] | null);
 
   const courseList = (courses.data as Row[]).map(toCourse);
-  const activityInfo = new Map<string, ActivityInfo>(courseList.flatMap(course => course.modules.flatMap(m =>
-    m.lessons.flatMap(l => l.activities.map(a => [a.id, { type: a.type, moduleId: m.id }] as const)))));
+  const activityInfo = new Map<string, ActivityInfo>();
+  // Keep original input/choice IDs for saved responses, independently of builder round-trip fields.
+  for (const course of courses.data as Row[]) for (const module of arr(course.modules) as Row[])
+    for (const lesson of arr(module.lessons) as Row[]) for (const activity of arr(lesson.activities) as Row[]) {
+      const content = (activity.content ?? {}) as Json;
+      activityInfo.set(String(activity.id), { type: str(activity.type), moduleId: String(module.id), content,
+        concepts: questionsFrom(content, str(activity.concept)).map(question => question.concept) });
+    }
   const classList: ClassGroup[] = (classes.data as Row[]).map(c => {
     const rules = rulesFor(String(c.id), moduleSettings, settings);
     const released = (arr(c.class_modules) as Row[]).filter(m => Date.parse(str(m.released_at)) <= Date.now()).map(m => String(m.module_id));

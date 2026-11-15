@@ -157,6 +157,7 @@ With Supabase staff sign-in and a Jev provider configured, **Suggest matches** s
 Assignments (`src/instructor/assignments/`) are built from blocks in any order: text, links and videos, interactive HTML pages, questions (multiple choice, select all, true/false, short answer, number), written responses and code exercises, so a video can be followed by questions about it.
 Instructors can create, edit, duplicate, publish, delete, export to a `.json` file, and import from that file, from another class, or from pasted quiz text in the Aiken format (`A.` choices plus an `ANSWER: B` line).
 The Grades tab is a gradebook with needs-grading, missing, late and not-due states, rubrics, file uploads and CSV export.
+Student activity details show saved worksheet answers, question choices, exit reflections and code. The latest response and counted score identify their attempts when they differ; concept mastery follows the counted assessment, excluding later practice tries.
 With Supabase configured, all of this is live data (`src/instructor/liveStore.ts`).
 
 **Curriculum.** Instructors and admins can browse global courses and the classes they can access. Courses open in view mode.

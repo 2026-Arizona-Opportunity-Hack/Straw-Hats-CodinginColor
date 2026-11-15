@@ -7,6 +7,7 @@ import {
   ClassTabBar, CurriculumTab, DashboardTab, GradesTab, RosterTab,
 } from './ClassTabs';
 import type { ClassTabId } from './classTabIds';
+import { AttemptResponse } from './AttemptResponse';
 import { AssignmentsTab } from './assignments/AssignmentsTab';
 import type { RosterRow } from './roster';
 import { copyText, Dialog, Empty, PageHeader, Panel } from './ui';
@@ -103,7 +104,7 @@ export function ClassDashboard({ group, course, onSave, onAddStudents, justCreat
         const attempt = attemptFor(details.learner, activity.id);
         return <li key={activity.id}><div><strong>{activity.title}</strong>
           <p className="ic-note">{attempt?.submitted ? `${attempt.count} attempt(s) · ${attempt.minutes} min · Score ${percent(attempt.score)}` : 'Not submitted'}</p>
-          {attempt?.response && <pre><code>{attempt.response}</code></pre>}
+          <AttemptResponse attempt={attempt} />
         </div></li>;
       })}</ul>
       <h3>Hint log</h3>

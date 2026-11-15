@@ -105,6 +105,12 @@ Migration 1006 scopes opt-in worksheet notes to a class and reveals up to 15 aft
 Instructors can review and hide notes for classes they manage.
 The Cat Photo App demo activation script opts in Maryvale without sharing prior submissions.
 
+## Saved student responses
+
+Class activity details now show saved worksheet answers, question choices, exit reflections and code as plain text with their prompts. The loader uses original input and choice IDs and ignores undeclared payload fields, answer keys and reference solutions.
+The latest response is labeled with its attempt number; if the score counts a different attempt, that number is shown separately. Concept mastery uses the same counted attempt as the overall score: first pretest, best eligible post-test, earliest tied score. Later practice does not replace counted concept scores.
+Verified with fictional loader/model/render fixtures and a local browser screenshot in `docs/screenshots/saved-student-responses.png`; no hosted student records were read or changed. No migration is needed.
+
 ## Maryvale Cat Photo App assignment
 
 Migration 2007 links selected curriculum activities to separate completion entries in Assignment grades.
@@ -161,6 +167,8 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 - 2026-11-15, Ken: refreshed immediate knowledge check feedback against the current student player.
 
 - 2026-11-15, Ken: added anonymous classmate notes and teacher moderation.
+
+- 2026-11-15, Codex: restored structured activity responses and counted-attempt concept mastery; verified safe text rendering and later-practice isolation.
 
 - 2026-11-15, Ken: removed reading submissions and excluded reading from curriculum completion totals.
 
