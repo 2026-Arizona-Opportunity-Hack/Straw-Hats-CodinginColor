@@ -80,7 +80,7 @@ export function SegmentBar({ segments, label, tall }: { segments: Segment[]; lab
           key={s.label}
           title={`${s.label}: ${s.count}`}
           className="grid place-items-center font-bold"
-          style={{ width: `${(s.count / total) * 100}%`, background: s.color, color: s.ink ?? '#fff' }}
+          style={{ width: `${(s.count / total) * 100}%`, background: `linear-gradient(135deg, color-mix(in srgb, ${s.color} 70%, white), ${s.color} 60%)`, boxShadow: 'inset 0 1px 0 rgb(255 255 255 / 0.35)', color: s.ink ?? '#fff' }}
         >
           {s.count / total >= 0.08 ? s.count : ''}
         </div>

@@ -9,7 +9,7 @@ import { LoadState, StatusBadge } from './common.tsx'
 import { useOrg } from './hooks.ts'
 import { GrowthRows, ImpactNumber, JourneyLegend, JourneyPips, OverallProgress, StatusBar, StatusLegend, type Pip } from './impact.tsx'
 import {
-  analyze, fmtGain, fmtMinutes, fmtPct, mean, modulesInScope, PASS_PCT, STUCK_DAYS, timeAgo,
+  analyze, fmtGain, fmtMinutes, fmtPct, mean, modulesInScope, PASS_PCT, timeAgo,
   type GroupSummary, type OrgData, type Status, type StudentSummary,
 } from './metrics.ts'
 
@@ -23,7 +23,6 @@ const SECTIONS = [
   ['growth', 'Learning growth'],
   ['instructors', 'Instructors'],
   ['progress', 'Student progress'],
-  ['attention', 'Needs attention'],
   ['students', 'Every student'],
 ] as const
 
@@ -149,7 +148,6 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
   const maxStudents = Math.max(1, ...schools.map((s) => s.students))
 
   const rows: GroupSummary[] = { class: a.byClass, school: a.bySchool, module: a.byModule }[by]
-  const attention = a.students.filter((s) => s.status === 'stuck' || s.status === 'not_started')
   const students = [...a.students].sort((x, y) => x.name.localeCompare(y.name))
   const pipsFor = (s: StudentSummary): { title: string; state: Pip }[] =>
     modulesInScope(data, s.classId).map((mid) => {
@@ -352,31 +350,7 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
         </DataTable>
       </section>
 
-      {/* 7. Needs attention */}
-      <section id="attention" aria-labelledby="attention-h" className="scroll-mt-32">
-        <h2 id="attention-h" className="text-2xl">Students needing attention <span className="text-cic-muted">({attention.length})</span></h2>
-        <p className="mb-4 mt-1 text-sm text-cic-muted">Stuck = no activity for {STUCK_DAYS}+ days, or 3+ incorrect tries on one activity. Their instructor can help them resume.</p>
-        {attention.length === 0 ? (
-          <EmptyState title="Nobody is stuck" description="Every student in this view has started and is moving." />
-        ) : (
-          <DataTable caption="Students who are stuck or have not started">
-            <thead><tr><Th>Student</Th><Th>Class</Th><Th>Status</Th><Th>Why</Th><Th>Last active</Th></tr></thead>
-            <tbody>
-              {attention.map((s) => (
-                <tr key={`${s.classId}-${s.studentId}`}>
-                  <Td className="font-semibold">{s.name}</Td>
-                  <Td>{a.classOf.get(s.classId)?.name}</Td>
-                  <Td><StatusBadge status={s.status} /></Td>
-                  <Td>{s.reason}</Td>
-                  <Td className="text-cic-muted">{timeAgo(s.lastActivity)}</Td>
-                </tr>
-              ))}
-            </tbody>
-          </DataTable>
-        )}
-      </section>
-
-      {/* 8. Every student */}
+      {/* 7. Every student */}
       <section id="students" aria-labelledby="students-h" className="scroll-mt-32">
         <h2 id="students-h" className="text-2xl">Every student <span className="text-cic-muted">({students.length})</span></h2>
         <div className="mb-4 mt-2"><JourneyLegend /></div>

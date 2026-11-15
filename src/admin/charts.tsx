@@ -16,12 +16,18 @@ export function GainChart({ title, data }: { title: string; data: { label: strin
     <figure aria-label={title} style={{ height: Math.max(160, rows.length * 52 + 40) }} className="w-full">
       <ResponsiveContainer>
         <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 60, left: 8, bottom: 4 }}>
+          <defs>
+            <linearGradient id="gain-fill" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#4fb98a" />
+              <stop offset="100%" stopColor={GREEN} />
+            </linearGradient>
+          </defs>
           <CartesianGrid horizontal={false} stroke="#e3e3e3" />
           <XAxis type="number" tick={axis} tickLine={false} axisLine={false} />
           <YAxis type="category" dataKey="label" width={170} tick={axis} tickLine={false} axisLine={false} />
           <ReferenceLine x={0} stroke="#595959" />
           <Tooltip {...tooltip} formatter={(v) => [gainLabel(v), 'Learning gain']} />
-          <Bar isAnimationActive={false} dataKey="gain" name="Learning gain" fill={GREEN} radius={[0, 4, 4, 0]} maxBarSize={24}>
+          <Bar isAnimationActive={false} dataKey="gain" name="Learning gain" fill="url(#gain-fill)" radius={[0, 12, 12, 0]} maxBarSize={24}>
             <LabelList dataKey="gain" position="right" formatter={gainLabel} style={{ fill: '#000', fontSize: 12 }} />
           </Bar>
         </BarChart>
