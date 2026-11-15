@@ -170,12 +170,13 @@ export interface NewPerson {
   display_name: string
   email: string
   password: string
-  role: 'student' | 'instructor' | 'admin'
+  role: 'instructor' | 'admin' | 'reviewer'
   school: string
   class_id: string
 }
 
 const ADD_ERRORS: Record<string, string> = {
+  USE_STUDENT_ROSTER: 'Add students through their class roster. They do not need email accounts.',
   EMAIL_TAKEN: 'Someone already has an account with that email.',
   BAD_EMAIL: "That email address doesn't look right.",
   BAD_PASSWORD: 'The password needs 8 to 72 characters.',
@@ -183,7 +184,7 @@ const ADD_ERRORS: Record<string, string> = {
   BAD_SCHOOL: 'The school name is too long (up to 120 characters).',
 }
 
-/** Creates a sign-in account (migrations 3002, 3003); students are enrolled in the class, instructors teach it. */
+/** Creates a staff account; students are added through their class roster. */
 export async function addPerson(p: NewPerson): Promise<void> {
   const { error } = await db().rpc('admin_create_user', {
     p_email: p.email,

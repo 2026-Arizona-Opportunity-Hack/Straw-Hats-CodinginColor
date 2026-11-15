@@ -1,6 +1,6 @@
 // Owner: Aryan. Everyone with an account, role filters and changes, adding people, and putting students and instructors in classes.
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Backpack, Check, Copy, GraduationCap, Mail, RefreshCw, Search, ShieldCheck, UserPlus, Users } from 'lucide-react'
+import { Check, Copy, GraduationCap, Mail, RefreshCw, Search, ShieldCheck, UserPlus, Users } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
@@ -152,7 +152,7 @@ const signInEmail = (p: NewPerson) =>
 
 const ADD_ROLES = [
   { value: 'instructor', label: 'Instructor', icon: GraduationCap },
-  { value: 'student', label: 'Student', icon: Backpack },
+  { value: 'reviewer', label: 'Reviewer', icon: Users },
   { value: 'admin', label: 'Admin', icon: ShieldCheck },
 ] as const
 
@@ -222,6 +222,7 @@ function AddPersonDialog({ classes }: { classes: { id: string; name: string }[] 
           </div>
         ) : (
           <form onSubmit={submit} className="flex flex-col gap-4 p-6">
+            <p className="text-sm text-cic-muted">Add students from their class roster using their name only. Their login card replaces an email account.</p>
             <div role="radiogroup" aria-label="Role" className="grid grid-cols-3 gap-2">
               {ADD_ROLES.map(({ value, label, icon: Icon }) => (
                 <button
@@ -255,7 +256,7 @@ function AddPersonDialog({ classes }: { classes: { id: string; name: string }[] 
               <Field id="add-school" label="School" optional>
                 <Input id="add-school" name="school" maxLength={120} />
               </Field>
-              {role !== 'admin' && (
+              {role === 'instructor' && (
                 <Field id="add-class" label="Class" optional>
                   <Select id="add-class" name="class_id" defaultValue="">
                     <option value="">None yet</option>
