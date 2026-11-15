@@ -4,7 +4,7 @@ import { ClassSetup } from './ClassSetup';
 import { ClassDashboard, ClassList } from './Classes';
 import { isClassTab } from './classTabIds';
 import { CourseBuilder, CourseReviewer, CurriculumList } from './Curriculum';
-import { publishModule, type Activity, type ClassGroup, type Course, type Module, type StaffRole } from './model';
+import { copyCourse, publishModule, type Activity, type ClassGroup, type Course, type Module, type StaffRole } from './model';
 import { AccessSettings, ProgramOverview } from './Operations';
 import { browserInstructorStore, loadCourseDrafts, saveCourseDraft, type InstructorStore } from './store';
 import { PageHeader } from './ui';
@@ -13,7 +13,7 @@ import './styles.css';
 
 const routes = [
   { path: 'classes', label: 'Classes', icon: GraduationCap },
-  { path: 'curriculum', label: 'Curriculum', icon: BookOpen },
+  { path: 'curriculum', label: 'CIC library', icon: BookOpen },
   { path: 'review', label: 'Reviewer preview', icon: Eye },
   { path: 'overview', label: 'Program overview', icon: BarChart3 },
   { path: 'access', label: 'Access settings', icon: Settings },
@@ -84,10 +84,11 @@ export function InstructorWorkspace({
     requestAnimationFrame(() => document.getElementById('ic-save-error')?.focus());
   }
 
-  function save(next: typeof data) {
+  /** `previous` is what the store already holds; it defaults to what is on screen. */
+  function save(next: typeof data, previous: typeof data = data) {
     let pending: void | Promise<void>;
     try {
-      pending = store.save(next, data);
+      pending = store.save(next, previous);
     } catch {
       showError('Could not save these changes in this browser. Free up browser storage or remove large images and try again.');
       return false;
@@ -99,16 +100,23 @@ export function InstructorWorkspace({
     return true;
   }
 
-  function saveClass(group: ClassGroup, created = false) {
-    const current = draftsLocal ? store.load() : data;
+  /**
+   * `imported`: a course the class just got from the library. It is already saved, but this
+   * render's `data` predates it, so add it here or the class would point at a missing course.
+   */
+  function saveClass(group: ClassGroup, created = false, imported?: Course) {
+    const loaded = draftsLocal ? store.load() : data;
+    const current = imported && !loaded.courses.some(course => course.id === imported.id)
+      ? { ...loaded, courses: [...loaded.courses, imported] } : loaded;
     const classes = created ? [...current.classes, group] : current.classes.map(item => item.id === group.id ? group : item);
     const staff = created && profile.role === 'instructor'
       ? current.staff.map(person => person.id === profile.id ? { ...person, classIds: [...person.classIds, group.id] } : person)
       : current.staff;
-    if (!save({ ...current, classes, staff })) return false;
+    // Compare against `current` so the already-saved imported course is not written again.
+    if (!save({ ...current, classes, staff }, current)) return false;
     if (created) {
       setNewClass(group.id);
-      window.location.hash = '/classes/' + group.id;
+      window.location.assign('#/classes/' + group.id);
     }
     return true;
   }
@@ -166,36 +174,84 @@ export function InstructorWorkspace({
     }) ? draft : false;
   }
 
+  /** Makes the instructor's own editable copy of a library course; the library is never changed. */
+  async function importCourse(source: Course): Promise<Course> {
+    if (store.importCourse) {
+      const copy = await store.importCourse(source);
+      // Already saved by the database; show it without writing it again.
+      setData(current => ({ ...current, courses: [...current.courses, copy] }));
+      return copy;
+    }
+    const copy = copyCourse(source);
+    const current = store.load();
+    if (!save({ ...current, courses: [...current.courses, copy] })) throw new Error('Could not save the copy in this browser.');
+    return copy;
+  }
+
   function saveLibrary(blocks: Activity[]) {
     const current = store.load();
     return save({ ...current, savedBlocks: { ...current.savedBlocks, [author]: blocks } });
   }
 
+  /**
+   * A class on a shared library course cannot be edited in place: give the class its own
+   * copy (same module order) and point the class at it.
+   */
+  async function makeClassEditable(group: ClassGroup, source: Course) {
+    const copy = await importCourse(source);
+    const moduleIds = source.modules.flatMap((module, index) => group.moduleIds.includes(module.id) && copy.modules[index] ? [copy.modules[index].id] : []);
+    if (!saveClass({ ...group, courseId: copy.id, moduleIds }, false, copy)) throw new Error('Could not update the class.');
+    window.location.assign(`#/classes/${group.id}/curriculum/edit`);
+  }
+
+  /** This author's unpublished edits to a course: in the browser store offline, in browser drafts online. */
+  const draftOf = (courseId: string) => draftsLocal ? data.courseDrafts?.[draftKey(courseId)] : liveDrafts[courseId];
+
+  /** The builder for a published course or a private draft; null when neither exists. */
+  const builderFor = (courseId: string, inClass?: { className: string; backTo: string }) => {
+    const released = data.courses.find(item => item.id === courseId);
+    const initial = draftOf(courseId) ?? released;
+    if (!initial) return null;
+    return <CourseBuilder key={draftKey(courseId)} initial={initial} released={released ?? { ...initial, modules: [] }}
+      localAuthoring={draftsLocal} onSave={saveDraft} onRelease={release}
+      assigned={new Set(data.classes.filter(item => item.courseId === courseId).flatMap(item => item.moduleIds))}
+      library={library} onSaveLibrary={saveLibrary} inClass={inClass} />;
+  };
+
   const group = section === 'classes' ? visibleClasses.find(group => group.id === item) : undefined;
   const course = data.courses.find(course => course.id === (group?.courseId ?? item));
-  const draftCourse = draftsLocal ? (item ? data.courseDrafts?.[draftKey(item)] : undefined) : (item ? liveDrafts[item] : undefined);
-  const assigned = new Set(data.classes.filter(group => group.courseId === course?.id).flatMap(group => group.moduleIds));
   const content = (() => {
     if (!navigation.some(({ path }) => path === section)) return <PageHeader title="Page unavailable for this role" back={{ label: 'Back to workspace', to: home }} />;
     if (section === 'classes') {
-      if (item === 'new') return <ClassSetup courses={data.courses} classes={data.classes} onCreate={group => saveClass(group, true)} />;
-      if (group) return <ClassDashboard key={group.id} group={group} course={course} onSave={saveClass} justCreated={newClass === group.id} tab={isClassTab(subpage) ? subpage : 'dashboard'} detail={detail} otherClasses={visibleClasses} />;
+      if (item === 'new') return <ClassSetup courses={data.courses} classes={data.classes} onCreate={(group, imported) => saveClass(group, true, imported)} onImport={importCourse} />;
+      if (group) return <ClassDashboard key={group.id} group={group} course={course} onSave={saveClass} justCreated={newClass === group.id} tab={isClassTab(subpage) ? subpage : 'dashboard'} detail={detail} otherClasses={visibleClasses}
+        editor={subpage === 'curriculum' && detail === 'edit' && course && !course.library ? builderFor(course.id, { className: group.name, backTo: `#/classes/${group.id}/curriculum` }) : undefined}
+        onMakeEditable={course?.library ? () => makeClassEditable(group, course) : undefined} />;
       if (!item) return <ClassList groups={visibleClasses} courses={data.courses} />;
     }
     if (section === 'curriculum') {
-      const editable = draftCourse ?? course;
-      if (editable) return <CourseBuilder key={draftKey(editable.id)} initial={editable}
-        released={course ?? { ...editable, modules: [] }} localAuthoring={draftsLocal} onSave={saveDraft} onRelease={release} assigned={assigned}
-        library={library} onSaveLibrary={saveLibrary} />;
+      // Instructors edit a course inside its class; only admins open the builder from here (library upkeep).
+      if (item && profile.role === 'admin') {
+        const builder = builderFor(item);
+        if (builder) return builder;
+      }
+      if (course) return <PageHeader title={course.title} description="Open a class that uses this course and edit it from the class's Curriculum tab." back={{ label: 'CIC library', to: '#/curriculum' }} />;
       if (!item) {
-        const courses = data.courses.map(item => draftsLocal ? data.courseDrafts?.[draftKey(item.id)] ?? item : liveDrafts[item.id] ?? item);
+        const courses = data.courses.map(item => draftOf(item.id) ?? item);
+        // Live drafts of courses that were never published exist only in this browser.
         const privateCourses = Object.values(liveDrafts).filter(draft => !data.courses.some(item => item.id === draft.id));
-        return <CurriculumList courses={[...courses, ...privateCourses]} onCreate={createCourse} />;
+        return <CurriculumList courses={[...courses, ...privateCourses]} onCreate={createCourse}
+          canEditLibrary={profile.role === 'admin'} libraryOnly={profile.role !== 'admin'} />;
       }
     }
     if (section === 'review') {
-      if (course?.modules.some(module => module.published)) return <CourseReviewer key={course.id} course={course} />;
-      if (!item) return <CurriculumList key="reviewer" courses={data.courses} reviewer />;
+      // Instructors reach this page from the CIC library's Preview, so they go back there.
+      const fromLibrary = profile.role !== 'reviewer';
+      if (course?.modules.some(module => module.published)) return <CourseReviewer key={course.id} course={course}
+        back={fromLibrary ? { label: 'CIC library', to: '#/curriculum' } : undefined} />;
+      if (!item && fromLibrary) return <CurriculumList courses={data.courses} libraryOnly canEditLibrary={profile.role === 'admin'} />;
+      // Reviewers check shared curriculum; per-class copies are not theirs to review.
+      if (!item) return <CurriculumList key="reviewer" courses={data.courses.filter(course => !course.copiedFrom)} reviewer />;
     }
     if (section === 'overview') return <ProgramOverview groups={data.classes} courses={data.courses} />;
     if (section === 'access') return <AccessSettings staff={data.staff} groups={data.classes} onSave={staff => save({ ...(draftsLocal ? store.load() : data), staff })} />;

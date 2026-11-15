@@ -14,6 +14,8 @@ The course revision prevents a stale draft from replacing a newer publication.
 
 PR #12 adds inline HTML blocks and an HTML-first lesson canvas.
 Use the explicit preview to run self-contained HTML.
+Without scripts (live data), previews embed the page right away instead; the Run step is only for the local demo, where authored scripts execute.
+Frames size themselves to the page (no inner scrollbar): `isolatedHtml` injects one platform height script, and with authored scripts off the CSP allows only that script by its sha256, so authored scripts and inline handlers stay blocked. The sandbox is `allow-scripts` without `allow-same-origin`, so the frame keeps an opaque origin.
 Authored scripts run only in the loopback mock demo, in a frame with an opaque origin.
 Keep real student data out of the demo while outbound navigation is under review.
 Use the [CIC Learn lesson style guide](../docs/lesson-style-guide.md) as model instructions for future lesson-plan or slide-deck conversion.

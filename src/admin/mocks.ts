@@ -130,6 +130,12 @@ export function buildMockOrg(now = Date.now()): OrgData {
     activities,
     attempts,
     people,
+    // Mock-only stand-ins for program_settings and class_module_settings (the live app reads them from the database).
+    settings: { inactive_days: 3 },
+    classModuleSettings: classes.flatMap((k) => modules.filter((m) => m.course_id === k.course_id)
+      .map((m) => ({ class_id: k.id, module_id: m.id, pass_mark: 0.7, max_posttest_tries: 3 }))),
+    courseEnrollments: [],
+    selfPacedAttempts: [],
   }
 }
 

@@ -42,16 +42,29 @@ export const MOCK_COURSES: Course[] = [
     owner_id: null,
     published: true,
   },
+  {
+    id: 'course-ai-academy',
+    title: 'AI Academy (Self-paced)',
+    description: 'Learn what AI is and how to use it well, at your own pace.',
+    level: 'beginner',
+    delivery_mode: 'self_paced',
+    is_library: true,
+    copied_from: null,
+    owner_id: null,
+    published: true,
+  },
 ]
 
 export const MOCK_MODULES: Module[] = [
   { id: 'mod-variables', course_id: 'course-intro-python', position: 1, title: 'Variables', concept: 'variables', published: true },
   { id: 'mod-loops', course_id: 'course-intro-python', position: 2, title: 'Loops', concept: 'loops', published: true },
+  { id: 'mod-ai-what', course_id: 'course-ai-academy', position: 1, title: 'What is AI?', concept: 'ai', published: true },
 ]
 
 export const MOCK_LESSONS: Lesson[] = [
   { id: 'lesson-variables-1', module_id: 'mod-variables', position: 1, title: 'Storing values', is_checkpoint: true },
   { id: 'lesson-loops-1', module_id: 'mod-loops', position: 1, title: 'Repeating with for', is_checkpoint: true },
+  { id: 'lesson-ai-what-1', module_id: 'mod-ai-what', position: 1, title: 'Machines that learn', is_checkpoint: true },
 ]
 
 export const MOCK_ACTIVITIES: Activity[] = [
@@ -105,6 +118,16 @@ export const MOCK_ACTIVITIES: Activity[] = [
       starter_code: 'for i in range(___):\n    print(i)\n',
       tests: [{ name: 'prints 1..5', assertion: "assert _stdout.split() == ['1','2','3','4','5']" }],
     },
+  },
+  {
+    id: 'act-ai-text',
+    lesson_id: 'lesson-ai-what-1',
+    position: 1,
+    type: 'content',
+    concept: 'ai',
+    points: 0,
+    counts_toward_unlock: false,
+    content: { markdown: '## What is AI?\nAI is software that learns patterns from examples instead of following only hand-written rules.' },
   },
 ]
 

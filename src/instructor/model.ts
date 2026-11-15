@@ -32,7 +32,14 @@ export type Activity = {
 };
 export type Lesson = { id: string; title: string; activities: Activity[]; htmlFirst?: boolean };
 export type Module = { id: string; title: string; published: boolean; revision?: number; lessons: Lesson[] };
-export type Course = { id: string; title: string; description: string; level: string; modules: Module[]; publicationRevision?: number };
+export type Course = {
+  id: string; title: string; description: string; level: string; modules: Module[];
+  publicationRevision?: number;
+  /** Shared library course: read-only, instructors import their own copy. */
+  library?: boolean;
+  /** The library course this one was copied from. */
+  copiedFrom?: string;
+};
 export type Attempt = {
   activityId: string;
   score: number | null;
@@ -51,6 +58,21 @@ export type Learner = {
   hints: { concept: string; text: string }[];
   lastActive: string | null;
 };
+/** CIC-wide thresholds from the program_settings table (migration 2006). */
+export type ProgramSettings = {
+  /** More than this many days without submitted work counts as inactive. */
+  inactiveDays: number;
+  /** A graded assignment under this percentage is a low score. */
+  lowScorePct: number;
+};
+/**
+ * The rules one class works by, from class_module_settings and program_settings (migration 2006).
+ * Keyed by module id; pass marks are 0-100 like every score in the workspace.
+ */
+export type ClassRules = ProgramSettings & {
+  passMark: Record<string, number>;
+  maxTries: Record<string, number>;
+};
 export type ClassGroup = {
   id: string;
   name: string;
@@ -63,6 +85,11 @@ export type ClassGroup = {
   assignments?: Assignment[];
   /** Student work on those assignments, with the instructor's grades. */
   submissions?: Submission[];
+  /**
+   * Loaded from the database with the class. Missing only on a class created in this browser
+   * and not reloaded yet; progress numbers that need a rule then show as not assessed.
+   */
+  rules?: ClassRules;
 };
 export type StaffRole = 'instructor' | 'admin' | 'reviewer';
 export type StaffProfile = { id: string; name: string; role: StaffRole; classIds: string[] };
@@ -70,12 +97,32 @@ export type InstructorData = {
   courses: Course[];
   classes: ClassGroup[];
   staff: StaffProfile[];
+  /** From program_settings when loaded from Supabase. */
+  settings?: ProgramSettings;
   courseDrafts?: Record<string, Course>;
   savedBlocks?: Record<string, Activity[]>;
 };
 
 export function copyBlock(block: Activity): Activity {
   return { ...structuredClone(block), id: id() };
+}
+
+/** An editable copy of a library course with new ids, so edits never touch the library. */
+export function copyCourse(source: Course): Course {
+  const course = structuredClone(source);
+  delete course.library;
+  return {
+    ...course, id: id(), copiedFrom: source.id,
+    modules: course.modules.map(module => ({
+      ...module, id: id(), revision: undefined,
+      lessons: module.lessons.map(lesson => ({ ...lesson, id: id(), activities: lesson.activities.map(copyBlock) })),
+    })),
+  };
+}
+
+/** Courses an instructor can assign to a class: their own published modules, never the library itself. */
+export function assignableCourses(courses: Course[]) {
+  return publishedCourses(courses.filter(course => !course.library));
 }
 
 // Replace only the selected release. Draft changes in other modules stay private.
