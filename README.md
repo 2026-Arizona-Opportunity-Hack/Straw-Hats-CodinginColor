@@ -145,11 +145,11 @@ PowerPoint import extracts visible slide text and speaker notes in presentation 
 
 **Standard** uses GPT-6.1 Terra. **High quality** uses Claude Opus 5.5. Both use high reasoning and get up to 265 seconds for generation within a 300-second Vercel Function. Each generation uses the model chosen by the instructor.
 
-For a preview, configure the existing Supabase project variables and a dedicated, capped `OPENROUTER_CURRICULUM_API_KEY` in the Vercel server environment. Use a workspace with **ZDR only** and Safety Retention excluded. The API checks eligibility before sending lesson materials. Use `vercel dev` to run the API locally alongside the app. Plain Vite in mock mode offers a local preview without calling OpenRouter.
+For a preview, configure the existing Supabase project variables and a dedicated, capped `OPENROUTER_CURRICULUM_API_KEY` in the Vercel server environment. Use a workspace with **ZDR only** and Safety Retention excluded. The API checks eligibility before sending lesson materials. Use `vercel dev` to run the API locally alongside the app. Local Vite defaults to sample mode. To use the real converter with local demo data, set the capped `OPENROUTER_CURRICULUM_API_KEY` in your ignored `.env.local` and run `CIC_LOCAL_CURRICULUM=1 npm run dev -- --host 127.0.0.1`. Local generation uses the same converter and verified references. The opt-in serves requests from the local app.
 
 **Who is this for?** describes the learners and their experience. **Additional instructions** can ask for a focus, practice activity, or resource such as W3Schools. A W3Schools request prioritizes relevant approved tutorials, with reviewed summaries and links in the verified references.
 
-In draft review, choose a lesson and select **Add a coding lab** to ask GPT-6.1 Sol for an HTML/CSS practice block. Try the starter and the reference solution with **Check your work**. **Add as draft** keeps the starter and checks in the module for editing. The lab uses the same capped key and shows server stages with elapsed time. Plain Vite offers a local sample lab.
+In draft review, choose a lesson and select **Add a coding lab** to ask GPT-6.1 Sol for an HTML/CSS practice block. Try the starter and the reference solution with **Check your work**. **Add as draft** keeps the starter and checks in the module for editing. The lab uses the same capped key and shows server stages with elapsed time. Sample mode offers a local example lab.
 
 ### Interactive HTML activities
 

@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest'
 import { includeDraftLab } from './draftLab'
 import { newLesson, newActivity } from './model'
 
-vi.mock('../shared/supabase', () => ({ supabase: null }))
+vi.mock('../shared/supabase', () => ({ supabase: null, isLocalDemo: false }))
 
 it('adds the starter and checks to the chosen lesson without persisting the solution or modifying the original draft', () => {
   const first = newLesson('Review')
