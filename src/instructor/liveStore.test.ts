@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { describe, expect, it } from 'vitest';
 import { newAssignment } from './assignments/model';
-import { importLibraryCourse, loadLiveData, saveLiveClass, saveLiveData } from './liveStore';
+import { activityContent, importLibraryCourse, loadLiveData, saveLiveClass, saveLiveData } from './liveStore';
 import type { ClassGroup, Course, InstructorData } from './model';
 
 type Call = { table: string; op: string; payload?: unknown; filters: [string, ...unknown[]][] };
@@ -140,6 +140,29 @@ describe('library courses', () => {
     expect(calls[1].filters).toContainEqual(['eq', 'id', 'copy-1']);
     expect(copy).toMatchObject({ id: 'copy-1', copiedFrom: 'lib-1' });
     expect(copy.library).toBeUndefined();
+  });
+
+  it('round-trips deck curation and writes false to clear a previously curated deck', async () => {
+    const slides = { title: 'Workshop deck', url: 'https://docs.google.com/presentation/d/example/view', cic_library_deck: true };
+    const { client } = fakeSupabase(withSettings(call => ({
+      data: call.table === 'courses'
+        ? [{ id: 'library', published: true, modules: [{ id: 'm1', lessons: [{ id: 'l1', activities: [
+          { id: 's1', type: 'slides', content: slides },
+          { id: 's2', type: 'slides', content: { title: 'Other deck', cic_library_deck: 'true' } },
+          { id: 'v1', type: 'video', content: { title: 'Video', cic_library_deck: true } },
+        ] }] }] }]
+        : [],
+      error: null,
+    })));
+    const { courses: [course] } = await loadLiveData(client, 'admin', 'T');
+    const [curated, unmarked, video] = course.modules[0].lessons[0].activities;
+    expect(course.published).toBe(true);
+    expect(curated.cicLibraryDeck).toBe(true);
+    expect(unmarked.cicLibraryDeck).toBe(false);
+    expect(video.cicLibraryDeck).toBeUndefined();
+    expect(activityContent(curated)).toMatchObject({ cic_library_deck: true });
+    expect(activityContent({ ...curated, cicLibraryDeck: false })).toMatchObject({ cic_library_deck: false });
+    expect(activityContent({ ...video, cicLibraryDeck: true })).not.toHaveProperty('cic_library_deck');
   });
 });
 
