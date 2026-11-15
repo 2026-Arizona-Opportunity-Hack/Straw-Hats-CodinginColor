@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { test } from 'vitest'
 import { copyBlock, publishModule } from '../src/instructor/model.ts'
 
 const block = { id: 'original', title: 'Quiz', type: 'check', markdown: '', url: '', questions: [{ prompt: 'Pick one', choices: ['A', 'B'], answer: 0, concept: '' }] }
