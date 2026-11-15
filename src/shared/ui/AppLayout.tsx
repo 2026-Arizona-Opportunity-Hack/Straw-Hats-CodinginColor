@@ -7,7 +7,6 @@ import {
   GraduationCap,
   KeyRound,
   LayoutDashboard,
-  Eye,
   LogOut,
   Menu,
   School,
@@ -35,8 +34,7 @@ const NAV: Record<Role, NavItem[]> = {
   student: [{ to: '/student', label: 'My courses', icon: GraduationCap }],
   instructor: [
     { to: '/instructor', section: 'classes', defaultSection: true, label: 'Classes', icon: LayoutDashboard },
-    { to: '/instructor', section: 'curriculum', label: 'Curriculum', icon: BookOpen },
-    { to: '/instructor', section: 'review', label: 'Reviewer preview', icon: Eye },
+    { to: '/instructor', section: 'curriculum', label: 'CIC library', icon: BookOpen },
   ],
   admin: [
     { to: '/admin', label: 'Overview', icon: LayoutDashboard },
@@ -144,7 +142,7 @@ export function AppLayout() {
       )}
       <div className="flex items-center gap-3">
         <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-white/15 text-sm font-bold text-white ring-2 ring-white/30">
-          {profile.display_name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
+          {profile.display_name.replace(/\(.*?\)/g, '').match(/\p{L}+/gu)?.map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
         </span>
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-white">{profile.display_name}</p>

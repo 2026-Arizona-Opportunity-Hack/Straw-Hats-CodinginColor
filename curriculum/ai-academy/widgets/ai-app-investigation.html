@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AI App Investigation</title>
+<style>
+/* AI Academy look: shared by all five pages. Motion is CSS only and stops under prefers-reduced-motion. */
+:root{--night:#17123b;--night-2:#2b1f78;--accent:#4338ca;--accent-strong:#312e81;--accent-soft:#eef0ff;--spark:#22d3ee;--spark-soft:#a5f3fc;--on-night:#d4d2f5;--ink:#16142b;--muted:#47455e;--line:#c4c2da;--bg:#fff;--page:#f4f4fb;--panel:#ecebf8;--ok:#14532d;--ok-bg:#e4f4e9;--ok-line:#15803d;--no:#8a1c1c;--no-bg:#fcebeb;--gold:#facc15;--focus:#c2410c;--shadow:0 1px 2px rgba(23,18,59,.06),0 6px 18px -8px rgba(23,18,59,.18);--out:cubic-bezier(.2,.8,.2,1);--pop:cubic-bezier(.3,1.6,.5,1);color-scheme:light}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--page);color:var(--ink);font:1.0625rem/1.55 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+main{max-width:52rem;margin:0 auto;padding:16px 16px 28px}
+h1{font-size:1.75rem;line-height:1.2;font-weight:800;letter-spacing:-.01em;margin:.25rem 0 0}
+h2{font-size:1.2rem;line-height:1.3;margin:1.5rem 0 .5rem}
+p{margin:.5rem 0}
+ul,ol{margin:.5rem 0;padding-left:1.4rem}
+.hero{position:relative;isolation:isolate;overflow:hidden;margin:-16px -16px 16px;padding:22px 16px 24px;background:linear-gradient(135deg,var(--night) 0%,var(--night-2) 70%,#3a2b9e 100%);color:#fff;border-radius:0 0 22px 22px}
+.hero::before{content:"";position:absolute;inset:-48px;z-index:-1;background:radial-gradient(circle,rgba(165,180,252,.32) 1.3px,transparent 1.8px) 0 0/24px 24px;animation:drift 5s var(--out) backwards}
+.hero::after{content:"";position:absolute;z-index:-1;top:-60px;right:-40px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.28),transparent 68%)}
+.circuit{position:absolute;z-index:-1;right:0;bottom:0;width:min(46%,260px);height:auto;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.circuit .tr{stroke:rgba(165,243,252,.32);stroke-width:2}
+.circuit .pulse{stroke:var(--spark);stroke-width:2.5;stroke-dasharray:12 88;stroke-dashoffset:100;opacity:0;animation:trace 2.4s .4s linear 2}
+.circuit .pads{fill:var(--night);stroke:rgba(165,243,252,.6);stroke-width:2}
+.kicker{display:flex;align-items:center;gap:8px;margin:0;font-size:1rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--spark-soft)}
+.kicker::before{content:"";width:10px;height:10px;border-radius:2px;background:var(--spark);transform:rotate(45deg);box-shadow:0 0 10px rgba(34,211,238,.8)}
+.lede{color:var(--muted)}
+.note{background:var(--bg);border:1px solid var(--line);border-left:6px solid var(--accent);border-radius:14px;padding:12px 14px;margin:12px 0;box-shadow:var(--shadow)}
+.note>:first-child{margin-top:0}.note>:last-child{margin-bottom:0}
+fieldset{background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:12px 14px 14px;margin:0 0 16px;min-width:0;box-shadow:var(--shadow)}
+legend{float:left;width:100%;padding:0;margin:0 0 4px;font-weight:700;line-height:1.4}
+legend+*{clear:both}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(8.5rem,1fr));gap:8px;margin-top:8px}
+.opt{display:flex;align-items:center;gap:10px;min-height:48px;padding:8px 12px;border:2px solid var(--line);border-radius:12px;cursor:pointer;background:var(--bg);line-height:1.3;transition:border-color .2s,background-color .2s,transform .2s var(--out)}
+.opt input{width:22px;height:22px;margin:0;flex:none;accent-color:var(--accent);cursor:pointer}
+.opt:hover{border-color:var(--accent)}
+.opt:active{transform:scale(.98)}
+.opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.opt:has(.r:checked),.opt:has(.m:checked){border-color:var(--ok-line);background:var(--ok-bg);animation:pop .45s var(--pop)}
+.opt:has(.w:checked),.opt:has(.x:checked){border-color:var(--no);background:var(--no-bg);animation:shake .4s ease-in-out}
+.opt:has(.r:checked)::after,.opt:has(.m:checked)::after{content:"";flex:none;margin:0 4px 0 auto;width:9px;height:16px;border:solid var(--ok-line);border-width:0 3px 3px 0;transform:translateY(-2px) rotate(45deg);animation:badge .35s .1s var(--pop) backwards}
+.opt:has(.w:checked)::after,.opt:has(.x:checked)::after{content:"\00D7"/"";flex:none;margin-left:auto;font-size:1.5rem;font-weight:700;line-height:1;color:var(--no)}
+input:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.opt:has(input:focus-visible){outline:3px solid var(--focus);outline-offset:2px}
+.fb{display:none;position:relative;margin:10px 0 0;padding:10px 12px 10px 44px;border-radius:10px;border-left:6px solid;animation:fb-in .35s var(--out)}
+.fb>.ic{position:absolute;left:12px;top:11px;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.fb>.ic path{stroke-dasharray:1 1;animation:draw .45s .15s var(--out) backwards}
+.fb.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+.fb.no{background:var(--no-bg);color:var(--no);border-color:var(--no)}
+.fb.maybe{background:var(--accent-soft);color:var(--accent-strong);border-color:var(--accent)}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+fieldset:has(.r:checked)>.fb.ok,fieldset:has(.w:checked)>.fb.no{display:block}
+main>:not(.hero):not(.score):not(.progress):not(.confetti){animation:rise .5s var(--out) backwards}
+main>:nth-child(2){animation-delay:.06s}main>:nth-child(3){animation-delay:.12s}main>:nth-child(4){animation-delay:.18s}main>:nth-child(5){animation-delay:.24s}main>:nth-child(6){animation-delay:.3s}main>:nth-child(n+7){animation-delay:.36s}
+.confetti{display:none;position:absolute;left:0;right:0;bottom:50%;z-index:5;height:360px;overflow:hidden;pointer-events:none}
+.confetti i{position:absolute;left:50%;bottom:0;width:8px;height:14px;margin-left:-4px;border-radius:2px;background:var(--c);opacity:0;animation:burst 1.8s var(--d,0s) cubic-bezier(.15,.7,.3,1)}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}}
+@keyframes drift{from{transform:translate(-48px,-24px)}}
+@keyframes trace{0%{opacity:0;stroke-dashoffset:100}10%,85%{opacity:1}100%{opacity:0;stroke-dashoffset:0}}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.05)}100%{transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+@keyframes badge{from{transform:translateY(-2px) rotate(45deg) scale(0)}}
+@keyframes fb-in{from{opacity:0;transform:translateY(-6px)}}
+@keyframes draw{from{stroke-dashoffset:1}}
+@keyframes burst{0%{opacity:1;transform:translate(0,0) rotate(0) scale(.5)}35%{opacity:1;transform:translate(calc(var(--x)*.8),var(--y)) rotate(calc(var(--r)*.5)) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(var(--x),calc(var(--y) + 120px)) rotate(var(--r)) scale(1)}}
+@media (hover:hover){.opt:hover{transform:translateY(-1px)}}
+@media (max-width:420px){h1{font-size:1.5rem}.circuit{width:52%;opacity:.7}}
+body{counter-reset:done;--t1:0;--t2:0;--t3:0;--t4:0;--t5:0;--t6:0;--t7:0;--t8:0;--t9:0;--t10:0;--t11:0;--t12:0;--p1:pa;--p2:pa;--p3:pa;--p4:pa;--p5:pa;--p6:pa;--p7:pa;--p8:pa;--p9:pa;--p10:pa;--p11:pa;--p12:pa}
+body:has(section:nth-of-type(1)>.task:nth-of-type(1) input:checked){--t1:1;--p1:pb}body:has(section:nth-of-type(1)>.task:nth-of-type(2) input:checked){--t2:1;--p2:pb}body:has(section:nth-of-type(1)>.task:nth-of-type(3) input:checked){--t3:1;--p3:pb}
+body:has(section:nth-of-type(2)>.task:nth-of-type(1) input:checked){--t4:1;--p4:pb}body:has(section:nth-of-type(2)>.task:nth-of-type(2) input:checked){--t5:1;--p5:pb}body:has(section:nth-of-type(2)>.task:nth-of-type(3) input:checked){--t6:1;--p6:pb}
+body:has(section:nth-of-type(3)>.task:nth-of-type(1) input:checked){--t7:1;--p7:pb}body:has(section:nth-of-type(3)>.task:nth-of-type(2) input:checked){--t8:1;--p8:pb}body:has(section:nth-of-type(3)>.task:nth-of-type(3) input:checked){--t9:1;--p9:pb}
+body:has(section:nth-of-type(4)>.task:nth-of-type(1) input:checked){--t10:1;--p10:pb}body:has(section:nth-of-type(4)>.task:nth-of-type(2) input:checked){--t11:1;--p11:pb}body:has(section:nth-of-type(4)>.task:nth-of-type(3) input:checked){--t12:1;--p12:pb}
+.progress{position:relative;margin:20px 0 0;padding:14px 16px 16px;border-radius:14px;background:linear-gradient(135deg,var(--night),var(--night-2));color:#fff;font-weight:700;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;box-shadow:var(--shadow)}
+.progress .c{animation:var(--p1) .45s var(--pop),var(--p2) .45s var(--pop),var(--p3) .45s var(--pop),var(--p4) .45s var(--pop),var(--p5) .45s var(--pop),var(--p6) .45s var(--pop),var(--p7) .45s var(--pop),var(--p8) .45s var(--pop),var(--p9) .45s var(--pop),var(--p10) .45s var(--pop),var(--p11) .45s var(--pop),var(--p12) .45s var(--pop);transform-origin:left center}
+.progress .c::after{content:counter(done) " of 12 steps done"}
+.progress .all{display:none;color:var(--gold)}
+body:not(:has(.task input:not(:checked))) .progress .all{display:inline;animation:pop .5s var(--pop)}
+body:not(:has(.task input:not(:checked))) .confetti{display:block}
+.bar{position:absolute;left:0;right:0;bottom:0;height:6px;border-radius:0 0 14px 14px;overflow:hidden;background:rgba(255,255,255,.14)}
+.bar b{display:block;height:100%;background:linear-gradient(90deg,var(--spark),#4ade80);transform-origin:left center;transform:scaleX(calc((var(--t1) + var(--t2) + var(--t3) + var(--t4) + var(--t5) + var(--t6) + var(--t7) + var(--t8) + var(--t9) + var(--t10) + var(--t11) + var(--t12)) / 12));transition:transform .6s var(--out)}
+body:not(:has(.task input:not(:checked))) .bar b{background:var(--gold)}
+.warn{border:2px solid var(--no);border-left-width:6px;background:var(--no-bg);color:var(--no);border-radius:14px;padding:12px 14px;margin:12px 0}
+.warn p{margin:0}
+.warn ul{margin:6px 0 0}
+.task{display:flex;align-items:flex-start;gap:12px;min-height:48px;padding:10px 12px;margin:8px 0 0;border:2px solid var(--line);border-radius:12px;background:var(--bg);cursor:pointer;transition:background-color .25s,border-color .25s,transform .2s var(--out)}
+.task:hover{border-color:var(--accent)}
+.task:active{transform:scale(.99)}
+.task input{width:24px;height:24px;margin:2px 0 0;flex:none;accent-color:var(--ok-line);cursor:pointer}
+.task:has(input:focus-visible){outline:3px solid var(--focus);outline-offset:2px}
+.task input:checked{counter-increment:done;animation:pop-box .4s var(--pop)}
+.task:has(input:checked){background:var(--panel);border-color:var(--line)}
+.t .x{background:linear-gradient(currentColor,currentColor) no-repeat 0 58%/0 2px;transition:background-size .45s var(--out)}
+.task:has(input:checked) .t{color:var(--muted)}
+.task:has(input:checked) .t .x{background-size:100% 2px}
+.task:has(input:checked) small .x{transition-delay:.2s}
+.task small{display:block;font-size:1rem;color:var(--muted)}
+fieldset.prompts{margin:12px 0 0}
+fieldset.prompts .opts{grid-template-columns:1fr}
+fieldset.prompts .opt{font-style:italic}
+.hint{margin:6px 0 0;color:var(--muted)}
+section{margin-bottom:8px}
+@keyframes pa{40%{transform:scale(1.1)}}
+@keyframes pb{40%{transform:scale(1.1)}}
+@keyframes pop-box{40%{transform:scale(1.3)}}
+@media (hover:hover){.task:hover{transform:translateY(-1px)}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}.confetti{display:none!important}}
+</style>
+</head>
+<body>
+<main>
+<header class="hero">
+<svg class="circuit" viewBox="0 0 240 120" aria-hidden="true" focusable="false"><g class="tr"><path d="M0 34h58l18 18h70l16-16h78"/><path d="M24 100h52l20-20h60l18 18h66"/><path d="M128 0v18l16 16"/></g><g class="pulse"><path pathLength="100" d="M0 34h58l18 18h70l16-16h78"/><path pathLength="100" d="M24 100h52l20-20h60l18 18h66"/></g><g class="pads"><circle cx="146" cy="52" r="4"/><circle cx="76" cy="100" r="4"/><circle cx="156" cy="80" r="4"/><circle cx="144" cy="34" r="4"/></g></svg>
+<p class="kicker">AI Academy - Module 1 project</p>
+<h1>AI App Investigation</h1>
+</header>
+<p class="lede">You have about 35 minutes. Research and test one AI app, then share what you found. Check off each step as you go.</p>
+<div class="warn" role="note">
+<p><strong>Stay safe: never type personal information into an AI tool.</strong></p>
+<ul><li>No full name, address, phone number, school name, passwords or photos of yourself or friends.</li><li>Use only the apps your teacher says are OK.</li></ul>
+</div>
+
+<section>
+<h2>1. Pick your app</h2>
+<label class="task"><input type="checkbox"><span class="t"><span class="x">Choose one AI application.</span><small><span class="x">Examples: a chatbot, a voice assistant, a translation app or a photo app.</span></small></span></label>
+<label class="task"><input type="checkbox"><span class="t"><span class="x">Write down its purpose: what is it for?</span></span></label>
+<label class="task"><input type="checkbox"><span class="t"><span class="x">Write down three key features.</span></span></label>
+</section>
+
+<section>
+<h2>2. Test three kinds of prompts</h2>
+<p>Pick one prompt from each group. For each test, write the prompt and a 1-2 sentence summary of the answer.</p>
+
+<fieldset class="prompts">
+<legend>Fact-checking: is the information accurate?</legend>
+<div class="opts">
+<label class="opt"><input type="radio" name="p1"> What are the three laws of motion?</label>
+<label class="opt"><input type="radio" name="p1"> What is the Pythagorean Theorem used for?</label>
+<label class="opt"><input type="radio" name="p1"> When did World War II end and who were the major powers involved?</label>
+</div>
+<p class="hint">Tip: check the answer against your textbook or another trusted source.</p>
+</fieldset>
+<label class="task"><input type="checkbox"><span class="t"><span class="x">I tested a fact-checking prompt and saved a summary of the response.</span></span></label>
+
+<fieldset class="prompts">
+<legend>Creative writing: can it write something new and clear?</legend>
+<div class="opts">
+<label class="opt"><input type="radio" name="p2"> Can you write a short story about a robot that learns to feel emotions?</label>
+<label class="opt"><input type="radio" name="p2"> Can you help me write a poem about climate change in the style of Dr. Seuss?</label>
+<label class="opt"><input type="radio" name="p2"> Rewrite this paragraph to sound more professional.</label>
+</div>
+<p class="hint">Tip: for the rewrite, paste a paragraph you wrote about a school topic - nothing personal.</p>
+</fieldset>
+<label class="task"><input type="checkbox"><span class="t"><span class="x">I tested a creative prompt and saved a summary of the response.</span></span></label>
+
+<fieldset class="prompts">
+<legend>Capabilities and limits: what can and can't it do?</legend>
+<div class="opts">
+<label class="opt"><input type="radio" name="p3"> Can you explain how you were trained?</label>
+<label class="opt"><input type="radio" name="p3"> Do you have access to real-time news?</label>
+<label class="opt"><input type="radio" name="p3"> Can you tell me who won the Super Bowl last weekend?</label>
+</div>
+<p class="hint">Tip: does the app admit what it does not know, or does it guess?</p>
+</fieldset>
+<label class="task"><input type="checkbox"><span class="t"><span class="x">I tested a capability question and saved a summary of the response.</span></span></label>
+</section>
+
+<section>
+<h2>3. Judge what you saw</h2>
+<label class="task"><input type="checkbox"><span class="t"><span class="x">Name one strength.</span><small><span class="x">What did the app do well?</span></small></span></label>
+<label class="task"><input type="checkbox"><span class="t"><span class="x">Name one limitation.</span><small><span class="x">Where was it wrong, unclear or missing context?</span></small></span></label>
+<label class="task"><input type="checkbox"><span class="t"><span class="x">Write one question you still have.</span></span></label>
+</section>
+
+<section>
+<h2>4. Turn in and share</h2>
+<label class="task"><input type="checkbox"><span class="t"><span class="x">Turn in one page or a shared document before class ends.</span><small><span class="x">Include: app and purpose, three features, prompts and short summaries, one strength, one limitation, one question.</span></small></span></label>
+<label class="task"><input type="checkbox"><span class="t"><span class="x">Prepare a one-minute comparison for the class.</span></span></label>
+<label class="task"><input type="checkbox"><span class="t"><span class="x">Double-check: nothing personal went into the AI tool or your notes.</span></span></label>
+</section>
+
+<div class="progress" aria-live="polite"><span class="bar" aria-hidden="true"><b></b></span><span class="confetti" aria-hidden="true"><i style="--x:140px;--y:-150px;--r:240deg;--c:#22d3ee;--d:0s"></i><i style="--x:160px;--y:-206px;--r:-330deg;--c:#a78bfa;--d:0.04s"></i><i style="--x:153px;--y:-257px;--r:420deg;--c:#facc15;--d:0.08s"></i><i style="--x:70px;--y:-299px;--r:-510deg;--c:#f472b6;--d:0.12s"></i><i style="--x:30px;--y:-268px;--r:600deg;--c:#4ade80;--d:0s"></i><i style="--x:-35px;--y:-283px;--r:-240deg;--c:#ffffff;--d:0.04s"></i><i style="--x:-70px;--y:-284px;--r:330deg;--c:#22d3ee;--d:0.08s"></i><i style="--x:-130px;--y:-272px;--r:-420deg;--c:#a78bfa;--d:0.12s"></i><i style="--x:-188px;--y:-191px;--r:510deg;--c:#facc15;--d:0s"></i><i style="--x:-140px;--y:-165px;--r:-600deg;--c:#f472b6;--d:0.04s"></i><i style="--x:-160px;--y:-221px;--r:240deg;--c:#4ade80;--d:0.08s"></i><i style="--x:-153px;--y:-272px;--r:-330deg;--c:#ffffff;--d:0.12s"></i><i style="--x:-70px;--y:-254px;--r:420deg;--c:#22d3ee;--d:0s"></i><i style="--x:-30px;--y:-283px;--r:-510deg;--c:#a78bfa;--d:0.04s"></i><i style="--x:35px;--y:-298px;--r:600deg;--c:#facc15;--d:0.08s"></i><i style="--x:70px;--y:-299px;--r:-240deg;--c:#f472b6;--d:0.12s"></i><i style="--x:130px;--y:-227px;--r:330deg;--c:#4ade80;--d:0s"></i><i style="--x:188px;--y:-206px;--r:-420deg;--c:#ffffff;--d:0.04s"></i></span><span class="c"></span><span class="all">All done, great work!</span></div>
+</main>
+</body>
+</html>

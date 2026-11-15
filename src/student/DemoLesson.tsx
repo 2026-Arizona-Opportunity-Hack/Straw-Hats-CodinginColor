@@ -6,16 +6,15 @@ import { practiceAttempt, previewActivity } from '../instructor/studentPreview'
 import { CodeLab } from '../shared/labs/CodeLab'
 import { previewCatPhotoChecks } from '../shared/labs/catPhoto'
 import { Card } from '../shared/ui/index.tsx'
-import { ActivityBlock } from './LessonContent'
+import { ActivityBlock, LessonLayout } from './LessonContent'
 
 export function DemoLesson({ lesson, attemptKey }: { lesson: Lesson; attemptKey?: string }) {
-  return <article className="ic-panel ic-stack">
-    <h2>{lesson.title}</h2>
+  return <LessonLayout title={lesson.title}>
     {lesson.activities.map((activity, index) => {
       const storageKey = attemptKey ? attemptKey + ':' + activity.id : undefined
       return <StudentBlock key={storageKey ?? activity.id} activity={activity} lessonId={lesson.id} index={index} storageKey={storageKey} />
     })}
-  </article>
+  </LessonLayout>
 }
 
 function StudentBlock({ activity, lessonId, index, storageKey }: { activity: Activity; lessonId: string; index: number; storageKey?: string }) {

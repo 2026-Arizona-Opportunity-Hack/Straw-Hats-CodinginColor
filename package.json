@@ -12,6 +12,7 @@
     "dev:instructor": "vite src/instructor --strictPort --port 5176",
     "build:instructor": "tsc -b && vite build src/instructor",
     "dev:runner": "node python-runner/server.mjs",
+    "curriculum": "node scripts/build-curriculum.mjs",
     "test": "vitest run"
   },
   "dependencies": {
@@ -30,7 +31,8 @@
     "react-dom": "^19.3.1",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.18.5",
-    "recharts": "^2.15.4"
+    "recharts": "^2.15.4",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",

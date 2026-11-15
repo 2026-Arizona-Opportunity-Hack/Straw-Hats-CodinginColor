@@ -7,6 +7,7 @@ import type { VerifyWebLab } from '../../shared/labs/CodeLab.tsx'
 import type { DiscussionState } from '../../shared/types/activities.ts'
 
 const curriculumBackend = import.meta.env.VITE_LIVE_STUDENT_CURRICULUM === 'true' ? supabase : null
+const mockCheckAnswers = new Map([['act-var-check', 'b']])
 
 export interface ModuleWithContent extends Module {
   lessons: (Lesson & { activities: Activity[] })[]
@@ -118,6 +119,11 @@ export async function recordAttempt(input: AttemptInput): Promise<AttemptResult>
     p_response: input.response ?? {},
     p_time_on_task_ms: input.time_on_task_ms,
   }))
+  const mockAnswer = mockCheckAnswers.get(input.activity_id)
+  if (mockAnswer && input.response && typeof input.response === 'object' && 'choice_id' in input.response) {
+    const isCorrect = input.response.choice_id === mockAnswer
+    return mockDelay({ is_correct: isCorrect, score: isCorrect ? 1 : 0 })
+  }
   return mockDelay({ is_correct: null, score: input.client_score ?? null })
 }
 
