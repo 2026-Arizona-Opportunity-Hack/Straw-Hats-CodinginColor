@@ -2,8 +2,20 @@
 // Lazy-loaded so students and instructors on Chromebooks never download the admin code or chart library.
 import { lazy, Suspense, type ComponentType } from 'react'
 
+/** Loads an admin page together with the ⌘K command bar shown above it. */
 function lazyPage(load: () => Promise<{ default: ComponentType }>) {
-  const Page = lazy(load)
+  const Page = lazy(() =>
+    Promise.all([load(), import('./CommandPalette.tsx')]).then(([page, { CommandPalette }]) => ({
+      default: () => (
+        <>
+          <div className="mb-6 flex justify-end">
+            <CommandPalette />
+          </div>
+          <page.default />
+        </>
+      ),
+    })),
+  )
   return function AdminPage() {
     return (
       <Suspense fallback={<p role="status" className="text-cic-muted">Loading…</p>}>

@@ -16,13 +16,13 @@
 import type { ActivityType } from '../shared/types/activities.ts'
 import type { StudentProgress } from '../shared/types/db.ts'
 
-export const STUCK_DAYS = 7
+const STUCK_DAYS = 7
 export const PASS_PCT = 70
 
 export type Status = StudentProgress['status']
 
 export interface OrgData {
-  classes: { id: string; name: string; school: string; course_id: string; join_code: string; created_at?: string }[]
+  classes: { id: string; name: string; school: string; course_id: string; join_code: string; created_at?: string; archived_at?: string | null }[]
   courses: { id: string; title: string; delivery_mode: 'self_paced' | 'instructor_led' }[]
   classInstructors: { class_id: string; instructor_id: string }[]
   enrollments: { class_id: string; student_id: string }[]
@@ -39,7 +39,7 @@ export interface OrgData {
     submitted_at: string | null
     time_on_task_ms: number
   }[]
-  people: { id: string; role: 'student' | 'instructor' | 'admin' | 'reviewer'; display_name: string; school: string | null }[]
+  people: { id: string; role: 'student' | 'instructor' | 'admin' | 'reviewer'; display_name: string; school: string | null; archived_at?: string | null }[]
 }
 
 interface StudentModule {
@@ -224,11 +224,31 @@ function summarize(
 interface Filters {
   school?: string
   classId?: string
+  /** Include archived classes (manually archived or past their term). */
+  includeArchived?: boolean
+}
+
+/** School term a date falls in: Spring Jan–May, Summer Jun–Jul, Fall Aug–Dec. */
+export function termOf(iso: string) {
+  const d = new Date(iso)
+  const y = d.getFullYear()
+  const m = d.getMonth()
+  const [season, endMonth] = m <= 4 ? ['Spring', 5] : m <= 6 ? ['Summer', 7] : ['Fall', 12]
+  return { label: `${season} ${y}`, ends: new Date(y, endMonth, 1) }
+}
+
+/** Why a class is archived, or null if active. Classes archive themselves once their term ends. */
+export function archivedReason(c: OrgData['classes'][number], now = Date.now()): string | null {
+  if (c.archived_at) return 'Archived by admin'
+  if (c.created_at && termOf(c.created_at).ends.getTime() <= now) return `${termOf(c.created_at).label} term ended`
+  return null
 }
 
 /** Everything the admin pages show, computed from one snapshot of org data. */
 export function analyze(raw: OrgData, f: Filters = {}) {
-  const classes = raw.classes.filter((c) => (!f.school || c.school === f.school) && (!f.classId || c.id === f.classId))
+  const classes = raw.classes.filter(
+    (c) => (f.includeArchived || !archivedReason(c)) && (!f.school || c.school === f.school) && (!f.classId || c.id === f.classId),
+  )
   const keep = new Set(classes.map((c) => c.id))
   const d: OrgData = {
     ...raw,
@@ -282,4 +302,21 @@ export function timeAgo(iso: string | null, now = Date.now()) {
 export function timeAgoOrDate(iso: string, now = Date.now()) {
   const days = (now - new Date(iso).getTime()) / 86_400_000
   return days < 30 ? timeAgo(iso, now) : new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+const WEEK = 7 * 86_400_000
+
+/** Submissions and distinct active learners per week, oldest first, ending now. */
+export function weeklyActivity(attempts: OrgData['attempts'], weeks = 6, now = Date.now()) {
+  return Array.from({ length: weeks }, (_, i) => {
+    const end = now - (weeks - 1 - i) * WEEK
+    const inWeek = attempts.filter((a) => a.submitted_at && +new Date(a.submitted_at) > end - WEEK && +new Date(a.submitted_at) <= end)
+    return { submissions: inWeek.length, learners: new Set(inWeek.map((a) => a.student_id)).size }
+  })
+}
+
+
+export function greeting(now = new Date()) {
+  const h = now.getHours()
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
 }

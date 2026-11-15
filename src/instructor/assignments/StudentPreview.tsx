@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { InteractiveHtmlFrame } from '../../shared/ui/InteractiveHtmlFrame';
 import { formatDue, pointsLabel } from './display';
+import { RubricView } from './Rubric';
 import {
-  gradeQuiz, isHttpsUrl, linkEmbed, questionCorrect, questionKinds, questionsOf, totalPoints,
+  blockPoints, fileTypeGroups, gradeQuiz, hasRubricSupport, isHttpsUrl, linkEmbed, questionCorrect, questionKinds, questionsOf, totalPoints,
   type Assignment, type Block, type QuizQuestion, type QuizResponse,
 } from './model';
 
@@ -15,7 +16,7 @@ export function StudentPreview({ assignment }: { assignment: Assignment }) {
   const [done, setDone] = useState<Record<string, number | null>>({});
   const questions = questionsOf(assignment);
   const result = checked ? gradeQuiz(questions, responses) : null;
-  const handGraded = assignment.blocks.filter(b => b.type === 'written' || b.type === 'code').length;
+  const handGraded = assignment.blocks.filter(b => b.type === 'written' || b.type === 'code' || b.type === 'file').length;
   const numbers = new Map(questions.map((q, i) => [q.id, i + 1]));
 
   return <section className="ic-tile ic-stack ic-student-preview" aria-label="Student preview">
@@ -30,11 +31,12 @@ export function StudentPreview({ assignment }: { assignment: Assignment }) {
       if (blank && !window.confirm(`${blank} question${blank === 1 ? ' is' : 's are'} unanswered. Submit anyway?`)) return;
       setChecked(true);
     }}>
-      {assignment.blocks.map(block => <PreviewBlock key={block.id} block={block} title={assignment.title} checked={checked}
+      {assignment.blocks.map(block => <div key={block.id} className="ic-stack ic-preview-block"><PreviewBlock block={block} title={assignment.title} checked={checked}
         number={block.type === 'question' ? numbers.get(block.question.id) ?? 0 : 0}
         response={block.type === 'question' ? responses[block.question.id] : undefined}
         onRespond={(qid, value) => setResponses(r => ({ ...r, [qid]: value }))}
-        done={done[block.id]} onDone={score => setDone(d => ({ ...d, [block.id]: score }))} />)}
+        done={done[block.id]} onDone={score => setDone(d => ({ ...d, [block.id]: score }))} />
+        {hasRubricSupport(block) && block.rubric?.length ? <RubricView rubric={block.rubric} /> : null}</div>)}
       {!assignment.blocks.length && <p className="ic-note">This assignment has no content yet.</p>}
       {result ? <div className="ic-row">
         <p className="ic-success" role="status">Auto-graded: {result.earned} of {pointsLabel(result.possible)} ({Math.round(result.percent)}%){handGraded ? ` · ${handGraded} item${handGraded === 1 ? '' : 's'} for the instructor to grade` : ''}</p>
@@ -67,11 +69,32 @@ function PreviewBlock({ block, number, title, checked, response, onRespond, done
     </div> : <p className="ic-note">Page not added yet.</p>;
     case 'question': return <PreviewQuestion q={block.question} number={number} checked={checked} response={response} onRespond={value => onRespond(block.question.id, value)} />;
     case 'written': return <label className="ic-question-card"><span className="ic-preserve">{block.prompt || 'Prompt not written yet.'}</span>
-      <textarea rows={4} placeholder="Write your answer…" /><span className="ic-note">{pointsLabel(block.points)} · graded by your instructor</span></label>;
+      <textarea rows={4} placeholder="Write your answer…" /><span className="ic-note">{pointsLabel(blockPoints(block))} · graded by your instructor</span></label>;
+    case 'file': return <FileUploadPreview block={block} />;
     case 'code': return <label className="ic-question-card"><span className="ic-preserve">{block.prompt || 'Task not written yet.'}</span>
       <textarea className="ic-code-input" rows={7} spellCheck={false} defaultValue={block.starter} />
-      <span className="ic-note">{pointsLabel(block.points)} · students run this in the browser; the code runner is being built.</span></label>;
+      <span className="ic-note">{pointsLabel(blockPoints(block))} · students run this in the browser; the code runner is being built.</span></label>;
   }
+}
+
+function FileUploadPreview({ block }: { block: Extract<Block, { type: 'file' }> }) {
+  const [files, setFiles] = useState<File[]>([]);
+  const [error, setError] = useState('');
+  const accept = block.fileTypes.flatMap(group => fileTypeGroups[group].accept);
+  return <div className="ic-question-card ic-stack">
+    <span className="ic-preserve">{block.prompt || 'Upload instructions not written yet.'}</span>
+    <label>Choose file{block.maxFiles > 1 ? 's' : ''}<input type="file" multiple={block.maxFiles > 1} accept={accept.join(',')} onChange={event => {
+      const chosen = [...(event.currentTarget.files ?? [])];
+      const problem = chosen.length > block.maxFiles ? `Choose up to ${block.maxFiles} file${block.maxFiles === 1 ? '' : 's'}.`
+        : chosen.find(f => !accept.some(ext => f.name.toLowerCase().endsWith(ext))) ? `Allowed types: ${accept.join(', ')}.`
+        : chosen.find(f => f.size > block.maxSizeMb * 1024 * 1024) ? `Each file must be under ${block.maxSizeMb} MB.` : '';
+      setError(problem);
+      setFiles(problem ? [] : chosen);
+    }} /></label>
+    {error && <p className="ic-error" role="alert">{error}</p>}
+    {files.length > 0 && <ul className="ic-file-list">{files.map(f => <li key={f.name}>{f.name} · {Math.max(1, Math.round(f.size / 1024))} KB</li>)}</ul>}
+    <span className="ic-note">{pointsLabel(blockPoints(block))} · {accept.join(' ')} · up to {block.maxFiles} file{block.maxFiles === 1 ? '' : 's'}, {block.maxSizeMb} MB each. In this preview, files are checked but not uploaded.</span>
+  </div>;
 }
 
 function PreviewQuestion({ q, number, checked, response, onRespond }: {

@@ -1,3 +1,4 @@
+import type { Submission } from './assignments/grading';
 import type { Assignment } from './assignments/model';
 
 export const activityTypes = {
@@ -55,6 +56,8 @@ export type ClassGroup = {
   learners: Learner[];
   /** Class-level assignments (quizzes, links, pages, written, code). */
   assignments?: Assignment[];
+  /** Student work on those assignments, with the instructor's grades. */
+  submissions?: Submission[];
 };
 export type StaffRole = 'instructor' | 'admin' | 'reviewer';
 export type StaffProfile = { id: string; name: string; role: StaffRole; classIds: string[] };

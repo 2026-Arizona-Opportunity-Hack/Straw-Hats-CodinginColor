@@ -1,6 +1,6 @@
 // Owner: Aryan. Sidebar on desktop, collapsible menu on phones. Brand: CIC Dark Green navigation.
 import { useState } from 'react'
-import { Link, Outlet, useLocation } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
   BookOpen,
@@ -70,7 +70,13 @@ function Brand({ to, onClick }: { to: string; onClick?: () => void }) {
 }
 
 export function AppLayout() {
-  const { profile, signOut } = useAuth()
+  const { profile, signOut, realRole, previewRole, setPreviewRole } = useAuth()
+  const navigate = useNavigate()
+  const preview = (role: Role | null) => {
+    setPreviewRole(role)
+    setOpen(false)
+    navigate(homePathFor(role ?? 'admin'))
+  }
   const [open, setOpen] = useState(false)
   const home = profile ? homePathFor(profile.role) : '/login'
   const location = useLocation()
@@ -113,10 +119,27 @@ export function AppLayout() {
     </nav>
   )
 
-  const footer = profile && (
+  /** Rendered in both the desktop sidebar and the phone menu, so ids get a per-place suffix. */
+  const footer = (where: 'side' | 'menu') => profile && (
     <div className="mt-auto border-t border-white/20 pt-4">
       {isMockMode && (
         <p className="mb-3 inline-block rounded bg-warn-soft px-2 py-0.5 text-xs font-semibold text-warn">Mock data</p>
+      )}
+      {realRole === 'admin' && !previewRole && (
+        <div className="mb-4">
+          <label htmlFor={`preview-role-${where}`} className="mb-1 block text-xs font-bold uppercase tracking-widest text-sidebar-muted">Preview as</label>
+          <select
+            id={`preview-role-${where}`}
+            value=""
+            onChange={(e) => preview(e.target.value as Role)}
+            className="h-10 w-full rounded-lg border border-white/30 bg-white/10 px-2 text-sm font-semibold text-white [&>option]:text-black"
+          >
+            <option value="" disabled>Choose a role…</option>
+            <option value="student">Student</option>
+            <option value="instructor">Instructor</option>
+            <option value="reviewer">External Reviewer</option>
+          </select>
+        </div>
       )}
       <div className="flex items-center gap-3">
         <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-white/15 text-sm font-bold text-white ring-2 ring-white/30">
@@ -124,7 +147,7 @@ export function AppLayout() {
         </span>
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-white">{profile.display_name}</p>
-          <p className="text-xs text-sidebar-muted">{ROLE_LABEL[profile.role]}</p>
+          <p className="text-xs text-sidebar-muted">{ROLE_LABEL[profile.role]}{previewRole && ' (preview)'}</p>
         </div>
       </div>
       <button
@@ -138,7 +161,7 @@ export function AppLayout() {
   )
 
   return (
-    <div className="min-h-screen bg-canvas text-black lg:grid lg:grid-cols-[248px_1fr]">
+    <div className="min-h-screen bg-canvas text-black lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:font-semibold focus:text-brand focus:shadow"
@@ -149,7 +172,7 @@ export function AppLayout() {
       <aside className="brand-panel sticky top-0 hidden h-screen flex-col gap-8 p-4 lg:flex [&_:focus-visible]:outline-white">
         <Brand to={home} onClick={() => setOpen(false)} />
         {nav}
-        {footer}
+        {footer('side')}
       </aside>
 
       <header className="brand-panel sticky top-0 z-30 flex items-center justify-between px-4 py-3 lg:hidden [&_:focus-visible]:outline-white">
@@ -170,11 +193,21 @@ export function AppLayout() {
       {open && (
         <div id="mobile-nav" className="brand-panel sticky top-16 z-20 flex flex-col gap-4 p-4 shadow-lg lg:hidden [&_:focus-visible]:outline-white">
           {nav}
-          {footer}
+          {footer('menu')}
         </div>
       )}
 
       <main id="main" tabIndex={-1} className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+        {previewRole && (
+          <div role="status" className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warn bg-warn-soft px-4 py-3 text-sm">
+            <p>
+              <strong>Previewing as {ROLE_LABEL[previewRole]}.</strong> You're still signed in as an admin, so data and permissions are yours.
+            </p>
+            <button type="button" onClick={() => preview(null)} className="rounded-lg bg-brand px-3 py-1.5 font-semibold text-white hover:bg-brand-dark">
+              Exit preview
+            </button>
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

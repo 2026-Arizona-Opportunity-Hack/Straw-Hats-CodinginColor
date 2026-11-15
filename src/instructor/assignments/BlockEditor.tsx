@@ -2,13 +2,14 @@
 // questions of every kind, written prompts and code exercises.
 import { useState } from 'react';
 import {
-  AlignLeft, ArrowDown, ArrowUp, CheckSquare, CircleDot, Code2, Copy, FileText, Globe, Hash, MonitorPlay, ToggleLeft, Trash2, Type,
+  AlignLeft, ArrowDown, ArrowUp, CheckSquare, CircleDot, Code2, Copy, FileText, FileUp, Globe, Hash, MonitorPlay, ToggleLeft, Trash2, Type,
 } from 'lucide-react';
 import { InteractiveHtmlFrame } from '../../shared/ui/InteractiveHtmlFrame';
 import { pointsLabel } from './display';
+import { RubricEditor } from './Rubric';
 import {
-  blockName, blockPoints, cloneBlock, isHttpsUrl, linkEmbed, newBlock, newQuestion, questionKinds,
-  type Block, type BlockType, type QuestionKind, type QuizQuestion,
+  blockName, blockPoints, cloneBlock, fileTypeGroups, hasRubricSupport, isHttpsUrl, linkEmbed, MAX_UPLOAD_MB, newBlock, newQuestion, questionKinds, rubricTotal,
+  type Block, type BlockType, type FileTypeGroup, type QuestionKind, type QuizQuestion,
 } from './model';
 
 type AddOption = { label: string; icon: typeof Type; type: BlockType; questionKind?: QuestionKind };
@@ -28,6 +29,7 @@ const questionOptions: AddOption[] = [
 const workOptions: AddOption[] = [
   { label: 'Written response', icon: FileText, type: 'written' },
   { label: 'Code exercise', icon: Code2, type: 'code' },
+  { label: 'File upload', icon: FileUp, type: 'file' },
 ];
 
 export function BlockEditor({ blocks, title, onChange }: { blocks: Block[]; title: string; onChange: (blocks: Block[]) => void }) {
@@ -55,7 +57,8 @@ export function BlockEditor({ blocks, title, onChange }: { blocks: Block[]; titl
       <legend>{blockName(blocks, index)}</legend>
       <div className="ic-question-toolbar">
         {block.type === 'question' && <QuestionTypeSelect question={block.question} onChange={question => set(index, { ...block, question })} />}
-        {block.type !== 'text' && block.type !== 'link' && <PointsField label={blockName(blocks, index)}
+        {hasRubricSupport(block) && block.rubric?.length ? <span className="ic-note">Points: <strong>{rubricTotal(block.rubric)}</strong> from the rubric</span>
+          : block.type !== 'text' && block.type !== 'link' && <PointsField label={blockName(blocks, index)}
           value={block.type === 'question' ? block.question.points : block.points}
           onChange={points => set(index, block.type === 'question' ? { ...block, question: { ...block.question, points } } : { ...block, points })} />}
         <span className="ic-row ic-push">
@@ -66,6 +69,7 @@ export function BlockEditor({ blocks, title, onChange }: { blocks: Block[]; titl
         </span>
       </div>
       <BlockFields block={block} title={title} onChange={next => set(index, next)} />
+      {hasRubricSupport(block) && <RubricEditor rubric={block.rubric} onChange={rubric => set(index, { ...block, rubric })} />}
     </fieldset>)}
     <div className="ic-add-blocks" role="group" aria-label="Add a block">
       {[['Content', contentOptions], ['Questions', questionOptions], ['Student work', workOptions]].map(([group, options]) => <div key={group as string} className="ic-add-group">
@@ -101,6 +105,7 @@ function BlockFields({ block, title, onChange }: { block: Block; title: string; 
     case 'written': return <div className="ic-field">
       <label>Prompt<textarea rows={3} aria-describedby={'hint-' + block.id} value={block.prompt} maxLength={5000} placeholder="What should students write about?" onChange={event => onChange({ ...block, prompt: event.target.value })} /></label>
       <p className="ic-note" id={'hint-' + block.id}>Students answer in their own words. You grade this by hand.</p></div>;
+    case 'file': return <FileFields block={block} onChange={onChange} />;
     case 'code': return <>
       <label>Task<textarea rows={3} value={block.prompt} maxLength={5000} placeholder="Write a function that adds two numbers." onChange={event => onChange({ ...block, prompt: event.target.value })} /></label>
       <label>Starter code<textarea className="ic-code-input" rows={6} spellCheck={false} value={block.starter} onChange={event => onChange({ ...block, starter: event.target.value })} /></label>
@@ -125,6 +130,29 @@ function LinkFields({ block, title, onChange }: { block: Extract<Block, { type: 
     {valid && (embed
       ? <iframe className="ic-video" src={embed} title={block.caption || title || 'Linked resource'} loading="lazy" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
       : <p className="ic-note">Students get a button that opens <a href={block.url} target="_blank" rel="noopener noreferrer">{new URL(block.url).hostname}</a> in a new tab.</p>)}
+  </>;
+}
+
+function FileFields({ block, onChange }: { block: Extract<Block, { type: 'file' }>; onChange: (block: Block) => void }) {
+  const toggle = (group: FileTypeGroup, on: boolean) =>
+    onChange({ ...block, fileTypes: on ? [...block.fileTypes, group] : block.fileTypes.filter(g => g !== group) });
+  return <>
+    <label>What to upload<textarea rows={2} value={block.prompt} maxLength={5000} placeholder="Upload your essay as a PDF." onChange={event => onChange({ ...block, prompt: event.target.value })} /></label>
+    <fieldset className="ic-file-types">
+      <legend>Allowed file types</legend>
+      {(Object.keys(fileTypeGroups) as FileTypeGroup[]).map(group => <label key={group} className="ic-checkbox">
+        <input type="checkbox" checked={block.fileTypes.includes(group)} onChange={event => toggle(group, event.target.checked)} />
+        <span className="ic-file-type"><span>{fileTypeGroups[group].label}</span><span className="ic-note">{fileTypeGroups[group].accept.join(' ')}</span></span>
+      </label>)}
+    </fieldset>
+    <div className="ic-row">
+      <label className="ic-inline-field">Files allowed<select value={block.maxFiles} onChange={event => onChange({ ...block, maxFiles: Number(event.target.value) })}>
+        {[1, 2, 3, 5, 10].map(n => <option key={n} value={n}>{n}</option>)}
+      </select></label>
+      <label className="ic-inline-field">Max size per file<select value={block.maxSizeMb} onChange={event => onChange({ ...block, maxSizeMb: Number(event.target.value) })}>
+        {[5, 10, 25].filter(n => n <= MAX_UPLOAD_MB).map(n => <option key={n} value={n}>{n} MB</option>)}
+      </select></label>
+    </div>
   </>;
 }
 

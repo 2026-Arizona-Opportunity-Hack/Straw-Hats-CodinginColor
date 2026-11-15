@@ -11,6 +11,7 @@ export const assignmentKinds = {
   html: { label: 'Interactive page', detail: 'Your own HTML activity, with optional questions' },
   written: { label: 'Written response', detail: 'Prompts students answer in their own words' },
   code: { label: 'Code exercise', detail: 'Python with starter code and tests' },
+  file: { label: 'File upload', detail: 'Students turn in a PDF, document, image or zip' },
 } as const;
 
 export type AssignmentKind = keyof typeof assignmentKinds;
@@ -41,13 +42,46 @@ export type QuizQuestion = {
   tolerance: number;
 };
 
+/** One level of a rubric criterion, e.g. "Excellent: clear example, 5 points". */
+export type RubricRating = { id: string; label: string; description: string; points: number };
+export type RubricCriterion = { id: string; title: string; description: string; ratings: RubricRating[] };
+
+/** File types an upload block can accept, by group. */
+export const fileTypeGroups = {
+  pdf: { label: 'PDF', accept: ['.pdf'] },
+  document: { label: 'Word, Google Docs export, text', accept: ['.doc', '.docx', '.odt', '.rtf', '.txt', '.md'] },
+  slides: { label: 'Slides', accept: ['.ppt', '.pptx', '.odp', '.key'] },
+  image: { label: 'Images', accept: ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.heic'] },
+  code: { label: 'Code', accept: ['.py', '.ipynb', '.js', '.html', '.css', '.java', '.c', '.cpp'] },
+  zip: { label: 'Zip', accept: ['.zip'] },
+} as const;
+export type FileTypeGroup = keyof typeof fileTypeGroups;
+/** Upper limit enforced by the storage bucket (supabase/migrations/2003). */
+export const MAX_UPLOAD_MB = 25;
+
 export type Block =
   | { id: string; type: 'text'; text: string }
   | { id: string; type: 'link'; url: string; caption: string }
   | { id: string; type: 'html'; html: string; reportsScore: boolean; points: number }
   | { id: string; type: 'question'; question: QuizQuestion }
-  | { id: string; type: 'written'; prompt: string; points: number }
-  | { id: string; type: 'code'; prompt: string; starter: string; tests: string; points: number };
+  | { id: string; type: 'written'; prompt: string; points: number; rubric?: RubricCriterion[] }
+  | { id: string; type: 'code'; prompt: string; starter: string; tests: string; points: number; rubric?: RubricCriterion[] }
+  | { id: string; type: 'file'; prompt: string; fileTypes: FileTypeGroup[]; maxFiles: number; maxSizeMb: number; points: number; rubric?: RubricCriterion[] };
+
+/** Blocks the instructor grades by hand, and so can carry a rubric. */
+export type RubricBlock = Extract<Block, { type: 'written' | 'code' | 'file' }>;
+export const hasRubricSupport = (block: Block): block is RubricBlock => block.type === 'written' || block.type === 'code' || block.type === 'file';
+
+export function newRating(label = '', points = 0): RubricRating {
+  return { id: id(), label, description: '', points };
+}
+
+export function newCriterion(title = ''): RubricCriterion {
+  return { id: id(), title, description: '', ratings: [newRating('Excellent', 5), newRating('Developing', 3), newRating('Missing', 0)] };
+}
+
+export const criterionMax = (c: RubricCriterion) => c.ratings.reduce((max, r) => Math.max(max, r.points || 0), 0);
+export const rubricTotal = (rubric: RubricCriterion[] = []) => rubric.reduce((sum, c) => sum + criterionMax(c), 0);
 
 export type BlockType = Block['type'];
 
@@ -58,6 +92,7 @@ export const blockLabels: Record<BlockType, string> = {
   question: 'Question',
   written: 'Written response',
   code: 'Code exercise',
+  file: 'File upload',
 };
 
 export type ShowAnswers = 'after_submit' | 'after_due' | 'never';
@@ -96,6 +131,7 @@ export function newBlock(type: BlockType, questionKind: QuestionKind = 'single')
     case 'question': return { id: id(), type, question: newQuestion(questionKind) };
     case 'written': return { id: id(), type, prompt: '', points: 5 };
     case 'code': return { id: id(), type, prompt: '', starter: '', tests: '', points: 5 };
+    case 'file': return { id: id(), type, prompt: '', fileTypes: ['pdf', 'document'], maxFiles: 1, maxSizeMb: 10, points: 10 };
   }
 }
 
@@ -105,6 +141,7 @@ const templateBlocks: Record<AssignmentKind, () => Block[]> = {
   html: () => [newBlock('html')],
   written: () => [newBlock('written')],
   code: () => [newBlock('code')],
+  file: () => [newBlock('file')],
 };
 
 export function newAssignment(kind: AssignmentKind): Assignment {
@@ -130,7 +167,9 @@ export function duplicateAssignment(source: Assignment, title = source.title + '
 
 export function blockPoints(block: Block) {
   if (block.type === 'question') return block.question.points || 0;
-  if (block.type === 'written' || block.type === 'code' || block.type === 'html') return block.points || 0;
+  // With a rubric, the block is worth the sum of each criterion's top rating.
+  if (hasRubricSupport(block) && block.rubric?.length) return rubricTotal(block.rubric);
+  if (block.type === 'written' || block.type === 'code' || block.type === 'html' || block.type === 'file') return block.points || 0;
   return 0;
 }
 
@@ -206,6 +245,17 @@ export function publishProblem(a: Assignment): string | null {
     if (block.type === 'html' && !block.html.trim()) return where + 'paste or upload the HTML page.';
     if (block.type === 'written' && !block.prompt.trim()) return where + 'add a prompt.';
     if (block.type === 'code' && !block.prompt.trim()) return where + 'describe the coding task.';
+    if (block.type === 'file') {
+      if (!block.prompt.trim()) return where + 'say what students should upload.';
+      if (!block.fileTypes.length) return where + 'allow at least one file type.';
+    }
+    if (hasRubricSupport(block)) {
+      for (const [ci, criterion] of (block.rubric ?? []).entries()) {
+        if (!criterion.title.trim()) return where + `give rubric criterion ${ci + 1} a name.`;
+        if (!criterion.ratings.length) return where + `add at least one rating to "${criterion.title}".`;
+        if (criterion.ratings.some(r => !r.label.trim())) return where + `name every rating in "${criterion.title}".`;
+      }
+    }
     if (block.type === 'question') {
       const problem = questionProblem(block.question);
       if (problem) return where + problem;
