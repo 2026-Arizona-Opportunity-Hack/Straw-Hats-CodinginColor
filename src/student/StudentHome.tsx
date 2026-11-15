@@ -8,6 +8,7 @@ import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { Button, FormStatus, Input } from '../shared/ui/index.tsx'
 import { ALL_LANGUAGES, languageOf, type Language } from './languages.ts'
 import { PublishedDemoList } from './PublishedDemo'
+import { PlacementCard } from './placement/PlacementCard.tsx'
 import './student.css'
 
 const vars = (l: Language, extra: Record<string, string> = {}) => ({ '--hue': l.hue, '--tint': l.tint, ...extra }) as CSSProperties
@@ -202,6 +203,8 @@ export function StudentHome() {
           <Stat label="Average growth" value={avgGain == null ? '—' : `${avgGain >= 0 ? '+' : ''}${avgGain} pts`} tone="bg-brand" />
         </dl>
       </header>
+
+      <PlacementCard />
 
       {state?.added && <p role="status" className="mt-6 rounded-xl bg-brand-tint px-4 py-3 font-semibold text-brand">{state.added} is now in your courses.</p>}
 
