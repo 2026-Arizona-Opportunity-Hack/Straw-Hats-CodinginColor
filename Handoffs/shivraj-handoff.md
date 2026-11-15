@@ -53,9 +53,9 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 
 ### Student sign-up and sign-in (1003)
 
-- Login page has a Student / Teacher-or-staff switch. Students get Google sign-in and email + password (`src/student/auth/StudentAuthCard.tsx`, `src/api/student/auth.ts`).
-- `student_sign_up(email, password, display_name, school, class_code)` is callable signed out. It creates a confirmed account, a student profile and, with a code, a class enrollment, all in one transaction. Errors: `BAD_EMAIL`, `BAD_PASSWORD`, `BAD_NAME`, `BAD_CLASS_CODE`, `EMAIL_TAKEN`.
-- A trigger on `auth.users` gives **every** new account a student profile (Google included). Staff are promoted by an admin.
+- Login page has a Student / Teacher-or-staff switch. Students use login cards or generated usernames (1013); Google sign-in is for educators. Legacy email/password accounts still work.
+- `student_sign_up(email, password, display_name, school, class_code)` is internal only after 3006. It creates a confirmed account and optional enrollment for the trusted username/staff RPCs.
+- The 1013 Auth trigger assigns Google accounts the reviewer role; other new accounts start as students. Admins provision other staff roles.
 - `join_class(code)` joins later. Progress from a self-chosen copy of the same course moves into the class.
 - Google needs setup in Google Cloud and the Supabase dashboard (redirect URI `https://aeatfaxavfppeauncbts.supabase.co/auth/v1/callback`). The client secret goes in the dashboard only.
 
@@ -110,6 +110,8 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 - **Finish module** lands on the course page with `state.finishedModule`; `ModuleFinished.tsx` shows a banner there: confetti and the final-check score, then *Start the next module*, *Find your next course* (all done), or, when the pass mark is missed, the score needed, the tries left and *Retake the final check*. `Celebration.tsx` holds the shared confetti. `ModuleStatus` now carries `pass_mark`.
 - **Explore** (`StudentExplore.tsx`, `explore.css`): course cards with description, level and module count, subject chips and search. A card opens a `<dialog>` preview with the module list (`catalog_modules()`, 1012) and *Add course* (self-paced), a class-code form (with a class), *Open course* (already added) or *Coming soon*.
 - Course page back link goes to My courses once the course is added, else to Explore.
+- Course activity popovers link **Review** and **Go to content** to the chosen activity's `?step=N`, counted across all lessons in module order.
+  The module player still limits the target to the first unfinished required card; locked modules expose no activity links.
 - Shared step names: `src/student/steps.ts`. Shared course progress hook: `src/student/useMyCourseProgress.ts`.
 
 ### Functions the app calls (`supabase.rpc`)
@@ -191,11 +193,18 @@ Put each sentence on its own line.
 - 2026-11-15, Codex: preserved initial reading order and added per-student/module browser bookmarks; verified first entry, return visits and clamped step links in the local demo, with navigation/storage regression tests.
 - 2026-11-15, Shivraj: student usernames + educator Google sign-in (1013), final-check lock, generated parallel warm-ups/final checks with an AI endpoint and checks fallback (1014). Touches Aryan's People & roles and Ken's `liveStore.ts` publish.
 - 2026-11-15, Shivraj: rebuilt Explore as course cards with a module preview and Add course (1012); course page back link goes to My courses. Touches Jacky's `StudentExplore.tsx` and `StudentCourse.tsx`.
+- 2026-11-15, Codex: replaced wall-clock submission time with an idle-aware activity clock and tested idle, focus, and successive saves.
 - 2026-11-15, Shivraj: added the module-complete banner on the course page (touches Jacky's `StudentCourse.tsx`).
 - 2026-11-15, Shivraj: added check explanations and right-answer reveal (1011) and merged the 1009 and 2006 versions of `_course_state` (2009).
 - 2026-11-14 7:30 PM, Ruthvik: confirmed with `migration list` that 1001 and 1002 are applied to the hosted DB. Items 4 (builder reads `activity_keys`) and 5 (scoring rules in instructor progress) are done on `ruthvik/class-tabs`.
+- 2026-11-15, Ken (Codex): course activity links retain the selected step; five rendered regressions and local browser checks cover later-lesson review, first reading, unfinished and inaccessible targets, and locked modules.
+  Also checked explicit links with reading bookmarks and the final-check navigation lock from the reconciled reading-order branch.
 - 2026-11-15, Codex: connected imported login cards to student Auth sessions and their original roster rows; hosted activation remains pending.
 - 2026-11-14, Shivraj: created. Migrations 1001 (grading, unlock rules, self-chosen courses) and 1002 (answer mover trigger, assigned modules only), both tested locally, not yet applied.
 
 - 2026-11-15, Codex: reconciled login cards with PR #75; preserved generated username accounts, legacy email access and staff Google sign-in.
-- 2026-11-15, Codex: replaced wall-clock submission time with an idle-aware activity clock and tested idle, focus, and successive saves.
+
+- 2026-11-15, Codex: preserved 1013 username and educator Google onboarding while blocking direct personal-email student signup and email changes.
+  Append-only 3012 reconciles the 3006 guard using server-owned username markers; People & roles retains email-free student creation.
+  Tested anonymous PostgREST and Auth worker sessions separately from trusted SQL fixtures; hosted activation remains pending.
+  Local browser fixtures confirmed card/username/signup modes, educator Google visibility and email-free admin student provisioning.

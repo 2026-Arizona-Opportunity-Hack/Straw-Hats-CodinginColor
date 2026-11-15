@@ -7,7 +7,8 @@ export const statuses = ['Complete', 'In progress', 'Stuck', 'Not started'] as c
 const DAY = 86_400_000;
 
 export function assignedModules(group: ClassGroup, course?: Course) {
-  return course?.modules.filter(module => module.published && group.moduleIds.includes(module.id)) || [];
+  const ids = group.progressModuleIds ?? group.moduleIds;
+  return course?.modules.filter(module => module.published && ids.includes(module.id)) || [];
 }
 
 /** Whole days since the learner last submitted work, or null if they never did. */
@@ -36,15 +37,19 @@ export function classProgress(group: ClassGroup, course?: Course, moduleId?: str
   };
   const roster = group.learners.map(learner => {
     const submitted = learner.attempts.filter(attempt => attempt.submitted && moduleOf.has(attempt.activityId));
-    const completed = new Set(submitted.map(attempt => attempt.activityId)).size;
+    const canonical = learner.moduleProgress?.filter(row => modules.some(module => module.id === row.module_id));
+    const completed = canonical ? canonical.reduce((sum, row) => sum + row.done_count, 0) : new Set(submitted.map(attempt => attempt.activityId)).size;
+    const total = canonical ? canonical.reduce((sum, row) => sum + row.required_count, 0) : activities.length;
+    const allDone = canonical ? modules.length > 0 && canonical.length === modules.length && canonical.every(row => row.state === 'completed') : total > 0 && completed === total;
     const minutes = submitted.reduce((total, attempt) => total + attempt.minutes, 0);
-    const stuck = submitted.filter(stuckOn);
+    const stuck = submitted.filter(attempt => !canonical?.some(row => row.module_id === moduleOf.get(attempt.activityId) && row.state === 'completed') && stuckOn(attempt));
     const idle = idleDays(learner, now);
-    const inactiveDays = rules && idle !== null && idle > rules.inactiveDays ? idle : null;
-    const status = !completed ? statuses[3] : completed === activities.length ? statuses[0]
+    const inactiveDays = (!canonical || !allDone) && rules && idle !== null && idle > rules.inactiveDays ? idle : null;
+    const status = allDone ? statuses[0] : !completed ? statuses[3]
       : stuck.length || inactiveDays !== null ? statuses[2] : statuses[1];
 
-    const pairs = modules.flatMap(module => {
+    const pairs = canonical ? canonical.flatMap(row => row.pretest_score === null || row.posttest_best === null ? []
+      : [{ pre: row.pretest_score * 100, post: row.posttest_best * 100 }]) : modules.flatMap(module => {
       const items = module.lessons.flatMap(lesson => lesson.activities);
       const findScore = (type: 'pretest' | 'posttest') => {
         const ids = items.filter(item => item.type === type).map(item => item.id);
@@ -57,7 +62,7 @@ export function classProgress(group: ClassGroup, course?: Course, moduleId?: str
     const pre = average(pairs.map(pair => pair.pre));
     const post = average(pairs.map(pair => pair.post));
     const gain = pre === null || post === null ? null : post - pre;
-    return { learner, completed, total: activities.length, minutes, status, pre, post, gain, submitted, stuck, inactiveDays };
+    return { learner, completed, total, minutes, status, pre, post, gain, submitted, stuck, inactiveDays };
   });
   const concepts = [...new Set(activities.flatMap(item => item.questions.map(question => question.concept.trim())).filter(Boolean))];
   const mastery = concepts.map(concept => {
