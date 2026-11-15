@@ -244,7 +244,7 @@ it('uses the authenticated, retention-checked Sol route for a lab and rejects ac
     ],
   }
   const input = { kind: 'coding_lab', moduleTitle: example.moduleTitle, lessonTitle: example.lessons[0].title,
-    audience: 'Beginners', material: 'Create an HTML menu with a CSS file.', lessons: example.lessons }
+    audience: 'Beginners', additionalInstructions: 'Start with a small visible edit.', material: 'Create an HTML menu with a CSS file.', lessons: example.lessons }
   let returned = lab
   const calls = []
   vi.stubGlobal('fetch', async (url, init) => {
@@ -268,4 +268,48 @@ it('uses the authenticated, retention-checked Sol route for a lab and rejects ac
   expect(JSON.parse(calls[0].messages[1].content)).toEqual({ ...input, lessons: [{ title: input.lessonTitle, article: example.lessons[0].article }] })
   returned = { ...lab, starter: { ...starter, html: starter.html + '<script>console.log("active")</script>' } }
   expect((await POST(signedInRequest(input))).status).toBe(502)
+})
+
+it('supplies relevant official W3Schools references when requested in additional instructions', async () => {
+  const instructions = 'Use w3schools.org for CSS selectors and add a short prediction task. Also consider https://example.org/lesson.'
+  const source = { ...proposal, text: 'Teach CSS selectors', additionalInstructions: instructions }
+  const calls = []
+  vi.stubGlobal('fetch', async (url, init) => {
+    calls.push(url)
+    if (url === endpointsUrl) return catalog()
+    if (url.startsWith('https://developer.mozilla.org')) return mdn()
+    const input = JSON.parse(JSON.parse(init.body).messages[1].content)
+    expect(input.source).toEqual({ kind: source.kind, text: source.text, audience: source.audience })
+    expect(input.additionalInstructions).toBe(instructions)
+    expect(input.references[0]).toMatchObject({
+      id: 'w3schools-selectors', url: 'https://www.w3schools.com/css/css_selectors.asp',
+      excerpt: expect.stringContaining('class selector'),
+    })
+    return completion({ ...example, lessons: [{ ...example.lessons[0], citationIds: ['w3schools-selectors'] }] })
+  })
+  const result = await generateDraft(source, '# Guide', 'test', new AbortController().signal)
+  expect(calls).not.toContain('https://example.org/lesson')
+  expect(result.references).toEqual([{
+    id: 'w3schools-selectors', title: 'W3Schools · CSS Selectors', url: 'https://www.w3schools.com/css/css_selectors.asp',
+  }])
+})
+
+it('flags unavailable W3Schools topics and respects an instruction to avoid W3Schools', async () => {
+  const { lookupReferences } = await import('../server/curriculum/references.ts')
+  const signal = new AbortController().signal
+  vi.stubGlobal('fetch', async () => mdn())
+  const unmatched = await lookupReferences('Binary search trees', signal, 'Use W3Schools.')
+  expect(unmatched.notes).toContain('No approved W3Schools page matched this topic.')
+  const excluded = await lookupReferences('Teach CSS selectors', signal, 'Do not use W3Schools.')
+  expect(excluded.sources.map(ref => ref.id)).toEqual(['mdn-css'])
+})
+
+it('validates additional instructions for proposals and slide decks', async () => {
+  const { parseSource } = await import('../server/curriculum/source.ts')
+  const pptx = { kind: 'slide_deck', audience: '', slides, images: [] }
+  for (const source of [proposal, pptx]) {
+    expect(parseSource({ ...source, additionalInstructions: '  Add a prediction.  ' })?.additionalInstructions).toBe('Add a prediction.')
+    expect(parseSource({ ...source, additionalInstructions: 'x'.repeat(2001) })).toBeNull()
+    expect(parseSource({ ...source, additionalInstructions: 123 })).toBeNull()
+  }
 })

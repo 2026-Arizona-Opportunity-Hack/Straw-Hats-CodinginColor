@@ -1,4 +1,4 @@
-import { isDraftQuality, maxSelectedImages, maxSlideImageBytes, maxSlides, maxSourceText, type DraftSource } from '../../src/shared/curriculum/draft.ts'
+import { isDraftQuality, maxSelectedImages, maxSlideImageBytes, maxSlides, maxSourceText, parseInstructorInstructions, type DraftSource } from '../../src/shared/curriculum/draft.ts'
 
 function record(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -6,11 +6,13 @@ function record(value: unknown): value is Record<string, unknown> {
 
 export function parseSource(input: unknown): DraftSource | null {
   if (!record(input) || typeof input.audience !== 'string' || input.audience.length > 180) return null
-  const audience = input.audience.trim()
-  const quality = isDraftQuality(input.quality) ? { quality: input.quality } : {}
+  const additionalInstructions = parseInstructorInstructions(input.additionalInstructions)
+  if (additionalInstructions === null) return null
+  const info = { audience: input.audience.trim(), ...(additionalInstructions ? { additionalInstructions } : {}),
+    ...(isDraftQuality(input.quality) ? { quality: input.quality } : {}) }
   if (input.kind === 'lesson_plan') {
     if (typeof input.text !== 'string' || !input.text.trim() || input.text.length > maxSourceText) return null
-    return { kind: 'lesson_plan', text: input.text.trim(), audience, ...quality }
+    return { kind: 'lesson_plan', text: input.text.trim(), ...info }
   }
   if (input.kind !== 'slide_deck' || !Array.isArray(input.slides) || !input.slides.length || input.slides.length > maxSlides
     || !Array.isArray(input.images) || input.images.length > maxSelectedImages) return null
@@ -39,7 +41,7 @@ export function parseSource(input: unknown): DraftSource | null {
     images.push({ id: image.id, slideNumber: image.slideNumber, dataUrl: image.dataUrl })
   }
   if (!images.length && !slides.some(slide => slide.text.trim() || slide.notes.trim())) return null
-  return { kind: 'slide_deck', audience, slides, images, ...quality }
+  return { kind: 'slide_deck', slides, images, ...info }
 }
 
 function validImage(dataUrl: string) {

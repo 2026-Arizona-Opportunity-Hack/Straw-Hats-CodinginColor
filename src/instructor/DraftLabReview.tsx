@@ -8,8 +8,8 @@ import { requestCodingLab, labActivity, type DraftLab } from './draftLab'
 import { labPayload } from './labPayload'
 import type { Module } from './model'
 
-export function DraftLabReview({ module, material, audience, selected, onChange, onBusy }: {
-  module: Module; material: string; audience: string; selected: DraftLab | null
+export function DraftLabReview({ module, material, audience, additionalInstructions, selected, onChange, onBusy }: {
+  module: Module; material: string; audience: string; additionalInstructions: string; selected: DraftLab | null
   onChange: (lab: DraftLab | null) => void; onBusy: (busy: boolean) => void
 }) {
   const [lessonId, setLessonId] = useState(() => module.lessons.at(-1)?.id ?? '')
@@ -30,7 +30,7 @@ export function DraftLabReview({ module, material, audience, selected, onChange,
     setWorking(true)
     onBusy(true)
     const input: CodingLabRequest = {
-      kind: 'coding_lab', moduleTitle: module.title, lessonTitle: lesson.title, audience, material,
+      kind: 'coding_lab', moduleTitle: module.title, lessonTitle: lesson.title, audience, material, additionalInstructions,
       lessons: module.lessons.map(item => ({ title: item.title, article: item.activities.find(activity => activity.type === 'content')?.markdown ?? '' })),
     }
     try {

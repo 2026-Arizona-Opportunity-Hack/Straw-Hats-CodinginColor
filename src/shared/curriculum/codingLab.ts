@@ -5,6 +5,7 @@ export type CodingLabRequest = {
   moduleTitle: string
   lessonTitle: string
   audience: string
+  additionalInstructions?: string
   material: string
   lessons: { title: string; article: string }[]
 }

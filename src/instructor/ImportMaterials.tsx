@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { defaultDraftQuality, draftQualities, isDraftQuality, maxDraftRequest, maxSelectedImages, maxSourceText, type DraftSource } from '../shared/curriculum/draft'
+import { useEffect, useId, useRef, useState } from 'react'
+import { defaultDraftQuality, draftQualities, isDraftQuality, maxDraftRequest, maxInstructorInstructions, maxSelectedImages, maxSourceText, type DraftSource } from '../shared/curriculum/draft'
 import type { GenerationStage } from '../shared/curriculum/progress'
 import { DraftLabReview } from './DraftLabReview'
 import { includeDraftLab, type DraftLab } from './draftLab'
@@ -18,6 +18,9 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
 }) {
   const [text, setText] = useState('')
   const [audience, setAudience] = useState('')
+  const [additionalInstructions, setAdditionalInstructions] = useState('')
+  const audienceHint = useId()
+  const instructionsHint = useId()
   const [quality, setQuality] = useState(defaultDraftQuality)
   const [draft, setDraft] = useState<MaterialDraft | null>(null)
   const [lab, setLab] = useState<DraftLab | null>(null)
@@ -45,7 +48,7 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
       </ul></section>}
       {draft.module.lessons.map(lesson => <details key={lesson.id}><summary>{lesson.title}</summary><LessonPreview lesson={lesson} /></details>)}
       <DraftLabReview module={draft.module} material={labMaterial} audience={audience.trim()}
-        selected={lab} onChange={setLab} onBusy={setLabBusy} />
+        additionalInstructions={additionalInstructions.trim()} selected={lab} onChange={setLab} onBusy={setLabBusy} />
       <div className="ic-form-footer">
         <button type="button" className="ic-button" onClick={() => { setDraft(null); setLab(null); setLabBusy(false) }}>Back to materials</button>
         <button type="button" className="ic-button ic-primary" disabled={labBusy} onClick={() => onDraft(includeDraftLab(draft.module, lab))}>Add as draft</button>
@@ -60,13 +63,14 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
       setBusy(true)
       setError('')
       try {
+        const preferences = { audience: audience.trim(), additionalInstructions: additionalInstructions.trim(), quality }
         const source: DraftSource = deck
-          ? { kind: 'slide_deck', audience: audience.trim(), quality,
+          ? { kind: 'slide_deck', ...preferences,
             slides: deck.slides.map(slide => deck.images.some(image => image.slideNumber === slide.number && !selected.includes(image.id))
               ? { ...slide, reviewFlags: [...slide.reviewFlags, 'Review images that were left out of model analysis.'] } : slide),
             images: deck.images.filter(image => selected.includes(image.id)),
           }
-          : { kind: 'lesson_plan', text: text.trim(), audience: audience.trim(), quality }
+          : { kind: 'lesson_plan', text: text.trim(), ...preferences }
         if (new Blob([JSON.stringify(source)]).size > maxDraftRequest) throw new Error('Choose fewer images or split the source.')
         const result = await requestMaterialsDraft(source, request.signal, setStage)
         if (!request.signal.aborted) setDraft(result)
@@ -139,8 +143,20 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
         </fieldset>}
         {!ready && <p className="ic-note">This deck has no extractable text. Select an image or supply the lesson text.</p>}
       </section>}
-      {converter && <label>Audience (optional)<input value={audience} maxLength={180} disabled={busy}
-        onChange={event => setAudience(event.target.value)} /></label>}
+      {converter && <>
+        <div>
+          <label>Who is this for? (optional)<input value={audience} maxLength={180} disabled={busy}
+            placeholder="High school students new to CSS" aria-describedby={audienceHint}
+            onChange={event => setAudience(event.target.value)} /></label>
+          <p className="ic-note" id={audienceHint}>Describe the learners and what they already know.</p>
+        </div>
+        <div>
+          <label>Additional instructions (optional)<textarea rows={3} value={additionalInstructions} maxLength={maxInstructorInstructions} disabled={busy}
+            placeholder="Use W3Schools to explain CSS selectors. Add a short practice task." aria-describedby={instructionsHint}
+            onChange={event => setAdditionalInstructions(event.target.value)} /></label>
+          <p className="ic-note" id={instructionsHint}>Say what to emphasize, include, or use as a reference.</p>
+        </div>
+      </>}
       {converter && <label>Draft quality<select value={quality} disabled={busy} onChange={event => {
         const value = event.target.value
         if (isDraftQuality(value)) setQuality(value)
