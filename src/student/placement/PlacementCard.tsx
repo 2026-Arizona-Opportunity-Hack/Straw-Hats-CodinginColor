@@ -1,7 +1,7 @@
 // Owner: Shivraj. Student home card for the starter quiz.
 // First visit (never taken, never skipped): sends the student to the quiz.
 // Taken: shows the recommended course. Skipped: offers the quiz again.
-// "Don't show again" hides the card until the student retakes the quiz (1015).
+// "Don't show again" hides the card until the student retakes the quiz (3013).
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CSSProperties } from 'react'
 import { Link, Navigate } from 'react-router-dom'

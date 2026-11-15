@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { ArrowRight, BookOpen, Check, Library } from 'lucide-react';
+import { copiedModuleIds } from './classCurriculum';
 import type { ClassGroup, Course } from './model';
 import { assignableCourses, id, makeLearners, publishedCourses } from './model';
 import type { RosterRow } from './roster';
@@ -25,7 +26,7 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
   const [moduleIds, setModuleIds] = useState(available[0]?.modules.map(module => module.id) || []);
   const [error, setError] = useState('');
   const stepHeading = useRef<HTMLHeadingElement>(null);
-  const attempt = useRef<{ group: ClassGroup; written: ClassGroup; courseId: string; imported?: Course } | null>(null);
+  const attempt = useRef<{ group: ClassGroup; written: ClassGroup; source: Course; imported?: Course } | null>(null);
   const valid = rows.filter(row => !row.issue).map(row => row.name);
   const course = available.find(course => course.id === courseId);
   const selectedModules = course?.modules.filter(module => moduleIds.includes(module.id)) || [];
@@ -63,12 +64,13 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
     setError('');
     try {
       const previous = attempt.current;
-      let imported = previous?.courseId === course.id ? previous.imported : undefined;
-      if (course.library && !imported) imported = await onImport(course);
-      // The import keeps module order, so map the chosen modules by position.
-      const target = imported ?? course;
-      const targetModules = course.modules.flatMap((module, index) =>
-        moduleIds.includes(module.id) && target.modules[index] ? [target.modules[index].id] : []);
+      const retry = previous?.source.id === course.id ? previous : null;
+      const source = retry?.source ?? courses.find(item => item.id === course.id) ?? course;
+      let imported = retry?.imported;
+      if (source.library && !imported) imported = await onImport(source);
+      const target = imported ?? source;
+      const chosen = selectedModules.map(module => module.id);
+      const targetModules = imported ? copiedModuleIds(source, imported, chosen) : chosen;
       let joinCode = previous?.group.joinCode;
       if (!joinCode) {
         do { joinCode = id().slice(0, 6).toUpperCase(); } while (classes.some(group => group.joinCode === joinCode));
@@ -86,7 +88,7 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
         moduleIds: [...new Set([...(previous?.written.moduleIds ?? []), ...targetModules])],
         learners: [...new Map([...(previous?.written.learners ?? []), ...learners].map(learner => [learner.id, learner])).values()],
       };
-      attempt.current = { group, written, courseId: course.id, imported };
+      attempt.current = { group, written, source, imported };
       await onCreate(group, imported, previous?.written);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : 'Could not create the class. Try again.');

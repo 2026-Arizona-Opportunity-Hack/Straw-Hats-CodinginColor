@@ -1,4 +1,4 @@
-// Owner: Aryan. Impact & learning analytics: what CIC shows donors and uses itself.
+// Owner: Aryan. Internal impact and learning analytics, with a separate partner export.
 // Story first (headline numbers, reach, growth, instructors, student progress), detail after.
 import { BarChart3, Download, HeartHandshake } from 'lucide-react'
 import { type FormEvent } from 'react'
@@ -7,6 +7,7 @@ import { Button, Card, DataTable, EmptyState, Meter, PageHeader, Select, Td, Th 
 import { GainChart } from './charts.tsx'
 import { LoadState, StatusBadge } from './common.tsx'
 import { useOrg } from './hooks.ts'
+import { partnerImpactCsv, PARTNER_MIN_STUDENTS } from './partnerExport.ts'
 import { GrowthRows, ImpactNumber, JourneyLegend, JourneyPips, OverallProgress, StatusBar, StatusLegend, type Pip } from './impact.tsx'
 import {
   analyze, fmtGain, fmtMinutes, fmtPct, mean, modulesInScope, timeAgo,
@@ -39,17 +40,21 @@ function countStatuses(list: StudentSummary[]): Record<Status, number> {
 }
 
 /** Per-student, per-module rows for the current filters, downloaded as a CSV file. */
-function exportCsv(a: ReturnType<typeof analyze>, modTitle: Map<string, string>) {
+function exportInternalCsv(a: ReturnType<typeof analyze>, modTitle: Map<string, string>) {
   const statusOf = new Map(a.students.map((s) => [`${s.classId}|${s.studentId}`, s]))
-  const header = ['student', 'school', 'class', 'module', 'started', 'complete', 'pretest_pct', 'posttest_pct', 'learning_gain_pts', 'activities_done', 'activities_total', 'time_on_task_min', 'status']
+  const header = ['student', 'school', 'class', 'module', 'started', 'complete', 'pretest_pct', 'posttest_pct', 'learning_gain_pts', 'required_activities_done', 'required_activities_total', 'time_on_task_min', 'status']
   const round = (v: number | null) => (v == null ? '' : Math.round(v))
   const lines = a.studentModules.map((r) => {
     const c = a.classOf.get(r.classId)
     const s = statusOf.get(`${r.classId}|${r.studentId}`)
     return [s?.name, c?.school, c?.name, modTitle.get(r.moduleId), r.started, r.done, round(r.pre), round(r.post), round(r.gain), r.activitiesDone, r.activitiesTotal, Math.round(r.timeOnTaskMs / 60000), s?.status].map(cell).join(',')
   })
-  const url = URL.createObjectURL(new Blob([[header.join(','), ...lines].join('\n')], { type: 'text/csv;charset=utf-8' }))
-  const link = Object.assign(document.createElement('a'), { href: url, download: `CIC_ImpactReport_${new Date().toISOString().slice(0, 10)}.csv` })
+  downloadCsv([header.join(','), ...lines].join('\n'), 'CIC_InternalStudentProgress')
+}
+
+function downloadCsv(content: string, filename: string) {
+  const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' }))
+  const link = Object.assign(document.createElement('a'), { href: url, download: `${filename}_${new Date().toISOString().slice(0, 10)}.csv` })
   link.click()
   URL.revokeObjectURL(url)
 }
@@ -77,9 +82,22 @@ export function AnalyticsPage() {
     <>
       <PageHeader
         title="Impact & learning"
-        subtitle="What students are learning in Coding in Color classrooms, ready to share with donors and partners."
-        actions={<Button variant="secondary" onClick={() => exportCsv(a, modTitle)} disabled={!a.studentModules.length}><Download aria-hidden="true" /> Export CSV</Button>}
+        subtitle="Internal classroom analytics for Coding in Color."
+        actions={<>
+          <Button variant="secondary" onClick={() => exportInternalCsv(a, modTitle)} disabled={!a.studentModules.length}>
+            <Download aria-hidden="true" /> Internal student CSV
+          </Button>
+          <Button
+            onClick={() => downloadCsv(partnerImpactCsv(data), 'CIC_PartnerImpactSummary')}
+            aria-describedby="partner-csv-note"
+          >
+            <Download aria-hidden="true" /> Partner summary CSV
+          </Button>
+        </>}
       />
+      <p id="partner-csv-note" className="mb-4 text-sm text-cic-muted">
+        The partner CSV summarizes all active classes. Results involving fewer than {PARTNER_MIN_STUDENTS} students are left blank.
+      </p>
 
       <form onSubmit={applyFilters} aria-label="Filter the report" className="soft-card mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-divider bg-white p-4">
         <div className="flex flex-col gap-1.5">
@@ -168,7 +186,7 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
           <ImpactNumber value={a.schoolOptions.filter((s) => a.classes.some((c) => c.school === s)).length} label="Partner schools" hint={`${a.classes.length} ${a.classes.length === 1 ? 'class' : 'classes'}`} />
           <ImpactNumber value={instructorIds.length} label="Instructors" hint="Teaching CIC courses" />
           <ImpactNumber value={hours} label="Hours of learning" hint="Time students spent on lessons" />
-          <ImpactNumber value={modulesCompleted} label="Modules completed" hint={`${fmtPct(a.overall.completionPct)} of modules started`} />
+          <ImpactNumber value={modulesCompleted} label="Modules completed" hint={`${fmtPct(a.overall.completionPct)} of student/module opportunities`} />
           <ImpactNumber value={a.overall.avgGain ?? 0} label="Avg learning gain" hint={a.overall.avgGain == null ? 'Needs students with a pretest and a post-test' : `${fmtPct(a.overall.avgPre)} → ${fmtPct(a.overall.avgPost)} on tests`} format={(v) => (a.overall.avgGain == null ? '—' : fmtGain(v))} />
         </div>
         {a.selfPaced && a.selfPaced.students > 0 && (
@@ -176,7 +194,7 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
             Plus {a.selfPaced.students} self-paced {a.selfPaced.students === 1 ? 'learner' : 'learners'} taking courses on their own: {a.selfPaced.modulesDone} {a.selfPaced.modulesDone === 1 ? 'module' : 'modules'} completed ({fmtPct(a.selfPaced.completionPct)}), {fmtMinutes(a.selfPaced.timeOnTaskMs)} of learning, average gain {fmtGain(a.selfPaced.avgGain)}.
           </p>
         )}
-        <p className="mt-5 text-sm text-sidebar-muted">Every number is calculated from real student work in CIC Learn. Nothing is entered by hand.</p>
+        <p className="mt-5 text-sm text-sidebar-muted">Learning gain reflects {a.overall.assessmentPairs} matched student/module pairs. Every number is calculated from real student work in CIC Learn. Nothing is entered by hand.</p>
       </section>
 
       {/* Overall progress */}
@@ -224,9 +242,10 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
       <section id="growth" aria-labelledby="growth-h" className="scroll-mt-32">
         <h2 id="growth-h" className="text-2xl">Learning growth</h2>
         <p className="mb-4 mt-1 text-cic-muted">How far students moved from the pretest (before) to the post-test (after) in each module.</p>
+        <p className="mb-4 text-sm text-cic-muted">Pretest, post-test and gain averages use the same matched student/module pairs. A student contributes one pair for each module with both scores; unmatched scores are excluded.</p>
         <div className="grid gap-6 lg:grid-cols-5">
           <Card className="lg:col-span-3" title="Before → after, by module">
-            <GrowthRows rows={a.byModule.map((m) => ({ label: m.label, pre: m.avgPre, post: m.avgPost }))} />
+            <GrowthRows rows={a.byModule.map((m) => ({ label: m.label, pre: m.avgPre, post: m.avgPost, pairs: m.assessmentPairs }))} />
           </Card>
           <Card className="lg:col-span-2" title="Learning gain by class" description="Average percentage-point gain.">
             {a.byClass.some((r) => r.avgGain != null) ? (
@@ -333,7 +352,7 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
           <thead>
             <tr>
               <Th>{GROUPS[by]}</Th><Th className="text-right">Students</Th><Th>Completion</Th>
-              <Th className="text-right">Pretest</Th><Th className="text-right">Post-test</Th><Th className="text-right">Gain</Th>
+              <Th className="text-right">Matched pairs</Th><Th className="text-right">Pretest</Th><Th className="text-right">Post-test</Th><Th className="text-right">Gain</Th>
               {by !== 'module' && <><Th className="text-right">Stuck</Th><Th className="text-right">Not started</Th></>}
             </tr>
           </thead>
@@ -345,6 +364,7 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
                 </Td>
                 <Td className="text-right tabular-nums">{r.students}</Td>
                 <Td><Meter value={r.completionPct} label="Completion" /></Td>
+                <Td className="text-right tabular-nums">{r.assessmentPairs}</Td>
                 <Td className="text-right tabular-nums">{fmtPct(r.avgPre)}</Td>
                 <Td className="text-right tabular-nums">{fmtPct(r.avgPost)}</Td>
                 <Td className="text-right font-semibold tabular-nums">{fmtGain(r.avgGain)}</Td>
@@ -387,11 +407,11 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
         <ul className="mt-3 list-disc space-y-1 pl-5 text-cic-muted">
           <li><strong className="text-black">Pretest</strong>: the student's first pretest attempt in a module. <strong className="text-black">Post-test</strong>: their best post-test attempt.</li>
           <li><strong className="text-black">Learning gain</strong>: post-test % minus pretest %, in percentage points. Only counted when a student has both.</li>
-          <li><strong className="text-black">Module completed</strong>: every activity that counts toward unlocking is submitted, and the post-test (best of the tries that count) meets the pass mark the class set for that module.</li>
+          <li><strong className="text-black">Module completed</strong>: the same state shown to the student. A first pretest can test them out. Otherwise required work must be submitted and the final-check rule met by passing, using the allowed tries, or submitting an unscorable check. Sequential and teacher unlocks still apply.</li>
           <li><strong className="text-black">Stuck</strong>: below a module's pass mark after using all of its post-test tries, or no activity for more than {data.settings.inactive_days} days.</li>
           <li><strong className="text-black">Self-paced learners</strong>: students taking a course on their own, outside any class. A module counts as completed once every activity that counts toward unlocking is submitted.</li>
           <li><strong className="text-black">Hours of learning</strong>: total time students spent on submitted activities.</li>
-          <li><strong className="text-black">Modules in progress</strong>: self-paced courses count every published module; instructor-led courses count modules released to the class.</li>
+          <li><strong className="text-black">Modules in scope</strong>: published modules released to the class, or the whole published course when none are released. Self-enrolled learners use all published modules. Completion divides completed student/module pairs by those in scope.</li>
         </ul>
       </details>
     </div>

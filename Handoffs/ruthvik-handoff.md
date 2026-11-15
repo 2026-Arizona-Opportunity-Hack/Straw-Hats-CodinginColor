@@ -58,6 +58,10 @@ The #27 student "Browse courses" UI was dropped in favor of the Explore page alr
 - Instructors' old standalone courses are hidden from the list, not deleted.
 - Code: `src/instructor/Curriculum.tsx` (`CurriculumList`, `LibraryList`, `CourseBuilder` with `inClass`, `CourseReviewer` with a collapsible lesson list), `ClassSetup.tsx`, `ClassTabs.tsx` (`CurriculumTab`), `InstructorWorkspace.tsx` (`importCourse`, `makeClassEditable`, `builderFor`).
 
+Migration 3010 limits external reviewers to published original library courses and their published modules.
+Their workspace fetches only curriculum, without assessment answer keys or learner data.
+Both Explore catalog queries keep the durable class-local scope from migration 2011 and are reserved for students, instructors, and admins.
+
 ### Class Dashboard
 
 - `src/instructor/dashboard.ts` (pure, tested in `dashboard.test.ts`) and `DashboardTab` in `ClassTabs.tsx`.
@@ -67,6 +71,8 @@ The #27 student "Browse courses" UI was dropped in favor of the Explore page alr
 - No thresholds are hardcoded on the frontend.
   Inactive days, low score, pass mark and post-test tries come from `program_settings` and the `class_module_settings` view (migration 2006); each class gets `rules` in `liveStore.ts`.
   Admin analytics (`src/admin/api.ts`, `metrics.ts`) read the same tables, every row, including self-enrolled students.
+- Admin before/after and learning-gain averages use the same matched student/module pairs.
+  The headline, module growth rows and breakdown table show the matched-pair sample size; unmatched scores stay in individual detail without affecting the aggregate comparison.
 
 ### Assignments and grading
 
@@ -76,6 +82,14 @@ The #27 student "Browse courses" UI was dropped in favor of the Explore page alr
   Each cell opens the submission block by block; auto-graded questions can be overridden, feedback is saved.
 - Rubrics on written, code and file blocks: click a rating per criterion to sum the score; typed points still override.
 - File uploads go to the private `submission-files` bucket; instructors open them through 10-minute signed URLs.
+
+### Canonical live progress reports
+
+Apply migration 3008 before deploying the completion-report UI.
+Both loaders require `staff_progress_snapshot()` and fail visibly if it is missing or denied.
+Teacher/admin live completion and pre/post scores come from `_course_state`; browser mock fixtures retain local calculations.
+Teacher module completion counts completed enrolled learners, with required-activity submissions shown separately.
+The snapshot refreshes when the workspace/report reloads; assignment editing still keeps its stored module selection.
 
 ### AI Academy curriculum (from CIC's Week 1 deck)
 
@@ -94,6 +108,11 @@ The #27 student "Browse courses" UI was dropped in favor of the Explore page alr
 - Lesson text renders through `src/shared/ui/LessonMarkdown.tsx` (tables via `remark-gfm`, callouts) and `ActivityCard.tsx`, styled by `lesson.css` (`cic-*`, every rule starts with `:root`).
   Callouts: start a blockquote with `**Key idea:**`, `**Did you know?**`, `**Try it:**`, `**Watch out:**`, `**Remember:**` or `**Think about it:**`.
 - Used by the library preview, the builder's student preview and the student player's `LessonContent`.
+
+### Impact CSV downloads
+
+- The admin Impact page exports named student rows for internal use and a separate program-wide partner CSV for all active classes, independent of filters.
+  The partner CSV omits results based on fewer than five distinct learners, including either side of the completion rate, and gives each learner with paired results equal weight in the average gain.
 
 ## Migrations I own
 
@@ -115,7 +134,7 @@ It only fills `assignments.module_id` where it is empty and is safe to re-run.
 
 1. **Security fixes from a code review (Nov 14):**
    - The live admin login `admin` / `cic-learn-demo` is published in the README and `seed.sql`; rotate it before real use (hosted write).
-   - `profiles.archived_at` is checked nowhere, so archived staff keep access; `current_role_is()` and `teaches_class()` should require `archived_at is null` (new migration).
+   - Apply migration 3011 to enforce account archiving in database policies and RPCs. The app rechecks visible sessions every 15 seconds and on tab return. Restore clears the archive flag without losing class or progress records.
 2. **Correctness:**
    - Student `time_on_task_ms` is overcounted: the timer starts at page open, not at the last save.
    - `src/shared/labs/checks.ts` compares whole output, so a Python lab with 2+ checks never passes.
@@ -177,10 +196,14 @@ Keep it short; link to code instead of copying it.
 Put each sentence on its own line.
 
 ## Log
+- 2026-11-15, Codex: corrected admin before/after averages to use matched assessment pairs and show sample sizes; verified sparse, disjoint and negative-gain cohorts plus rendered growth labels.
+- 2026-11-15, Ken: added migration 3011 and rollback-only tests for archive/restore with unchanged authenticated claims. Hosted application pending.
 - 2026-11-15 8:55 AM, Ruthvik: rewrote this handoff to cover everything I built (PR list, features, migrations, open work) now that #49 is on `main`. Updated the README instructor section and the Supabase handoff (2006 applied).
 - 2026-11-15 1:20 AM, Ruthvik: opened one PR from `ruthvik/class-library-dashboard` that merges latest `main` with the CIC library, edit-in-class curriculum, class Dashboard drill-downs, DB-driven thresholds (migration 2006, already applied to hosted), the lesson reading view, AI Academy curriculum and embedded HTML activities.
   Merge choices: course edits for a class use Ken's browser drafts and `publish_curriculum`; the student player stays on main's `LessonContent` (now rendering Markdown with `LessonMarkdown`); the student enrollment UI from #27 is dropped for main's Explore page.
   Not included: removing mock mode (conflicts with teammates' new work; redo on top of `main` later) and the demo SQL `supabase/demo/assignment_modules_demo.sql` (not run on hosted).
+- 2026-11-15, Codex: separated the named internal student CSV from the aggregate partner CSV in admin analytics.
+
 - 2026-11-14 9:40 PM, Ruthvik: restyled the 5 AI Academy widget pages with one shared look (indigo header band, cyan accent) and CSS-only motion (answer pop and shake, packet flow, bit toggles, 3D flips, score and progress bars, confetti); all motion stops under reduced motion. Score and progress bars are inline, not sticky, because the frame now grows to full height. Content and logic unchanged; SQL regenerated, not applied.
 
 - 2026-11-14 10:00 PM, Ruthvik: AI Academy Module 1 reading pages rewritten textbook style (hooks, subheads, tables, `> **Key idea:**`-style callouts for the new lesson renderer, no leading title heading). The 5 interactive pages are now in the classroom course too, next to its worksheets. Regenerated `supabase/curriculum/ai-academy.sql` (not applied to the hosted database).
@@ -199,6 +222,8 @@ Put each sentence on its own line.
 - 2026-11-14 5:35 PM, Ruthvik: deleted stale `ruthvik/instructor-in-app` (PR #9 had merged into it; nothing unique on it). Opened #13 (schema) and #14 (UI) into `main`.
 - 2026-11-14 5:25 PM, Ruthvik: pushed `ruthvik/schema-2001` (migration 2001 + seed fixes only) so teammates can get the schema without the UI work.
 - 2026-11-14 5:15 PM, Ruthvik: renamed to `ruthvik-handoff.md` and `ruthvik-handoff-supabase.md`.
+- 2026-11-15, Codex: connected teacher/admin live reports to canonical student state, with loader failure checks and regression coverage for test-out, exhausted tries, locks and required-work counts; migration 3008 is a deployment prerequisite.
 - 2026-11-14 5:05 PM, Ruthvik: created this file.
   Live Supabase data for the instructor workspace, migration 2001 and demo seed applied to the hosted project, block-based assignments, CIC logo.
   PR #9 merged into the wrong base; `main` still needs `ruthvik/class-tabs`.
+- 2026-11-15, Codex: added reviewer curriculum read boundaries and verified them with `supabase/tests/reviewer_curriculum_access.sql` in an isolated Postgres instance.

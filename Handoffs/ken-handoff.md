@@ -32,6 +32,8 @@ The browser runs MediaPipe DeepLab after downloading the model and suggests edit
 When a wide or tall image yields no annotations, the browser retries with overlapping square crops and combines their masks in the original image coordinates.
 Instructors can move points, change labels, remove annotations, or draw their own before approving or rejecting the image from the side panel.
 Approved figures and their editable annotations stay in the module draft. Each generated module has five attempts, including rejected images.
+Image annotation creation also works with a keyboard: expand **Add points with the keyboard**, enter positions as percentages from the left/top, and add two box corners or at least three mask points.
+Existing point handles still support arrow-key adjustment, and pointer drawing and automatic suggestions use the same annotation data.
 Apply migration 2008 before enabling the hosted image route. Local Vite enforces its quota independently.
 Local QA buttons open preview, image review, and the image-limit state without paid AI requests. Test image review uses the sample photo or a locally selected PNG or JPEG.
 Adding a module starts it unpublished.
@@ -103,6 +105,12 @@ Migration 1006 scopes opt-in worksheet notes to a class and reveals up to 15 aft
 Instructors can review and hide notes for classes they manage.
 The Cat Photo App demo activation script opts in Maryvale without sharing prior submissions.
 
+## Saved student responses
+
+Class activity details now show saved worksheet answers, question choices, exit reflections and code as plain text with their prompts. The loader uses original input and choice IDs and ignores undeclared payload fields, answer keys and reference solutions.
+The latest response is labeled with its attempt number; if the score counts a different attempt, that number is shown separately. Concept mastery uses the same counted attempt as the overall score: first pretest, best eligible post-test, earliest tied score. Later practice does not replace counted concept scores.
+Verified with fictional loader/model/render fixtures and a local browser screenshot in `docs/screenshots/saved-student-responses.png`; no hosted student records were read or changed. No migration is needed.
+
 ## Maryvale Cat Photo App assignment
 
 Migration 2007 links selected curriculum activities to separate completion entries in Assignment grades.
@@ -112,12 +120,18 @@ The lab is worth one point after server verification and the reflection is worth
 Maryvale students open it under Class assignments. Teachers open its grade cell to see both checkpoints.
 The existing class course and Python assignments stay in place.
 
+## Sign-in and navigation accessibility
+
+The separate sign-in route has its own main landmark. The sidebar and mobile home link take their accessible name from the visible CIC Learn brand label.
+
 ## Roster entry
 
 Class setup and existing classes share the same CSV and manual-entry controls.
 Both require confirmation before saving validated names.
 Class setup and existing-class imports show success after the roster write completes.
 Failed saves keep the roster draft available for retry with the same student IDs.
+Class creation maps selected library modules to their copy using the complete course order or stored positions when the library hides unpublished modules.
+A class setup retry keeps the same copied course and selection mapping.
 The roster mapping endpoint checks the signed-in Supabase profile and calls Jev through OpenRouter when `OPENROUTER_API_KEY` is set. Otherwise it uses Vercel AI Gateway.
 Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
 
@@ -128,6 +142,8 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 - 2026-11-15, Codex: restored Curriculum for instructors and admins with view-first navigation, staff comments, and database isolation for local copies.
 
 - 2026-11-15, Codex: added automatic browser image annotations and verified adjusting, approving, and rejecting them through local image QA.
+
+- 2026-11-15, Codex: added keyboard creation of image boxes and masks, including images with no suggested annotations.
 
 - 2026-11-15, Codex: added optional Seedream images with editable annotations, instructor approval, and a five-attempt quota.
 
@@ -150,13 +166,19 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 - 2026-11-15, Codex: streamed curriculum generation stages to instructor draft review.
 - 2026-11-15, Codex: fixed early roster success and verified both flows with a delayed demo save, a failed save retry, and an immediate reload after success.
 
+- 2026-11-15, Codex: kept selected modules on library copies when drafts sit between published modules.
+
 - 2026-11-15, Ken: linked the verified Cat Photo App lab and reflection to the Maryvale assignment.
 
 - 2026-11-15, Ken: matched builder previews to the published student lesson layout.
 
 - 2026-11-15, Ken: refreshed immediate knowledge check feedback against the current student player.
 
+- 2026-11-15, Ken: fixed the sign-in landmark and home link name flagged by Lighthouse.
+
 - 2026-11-15, Ken: added anonymous classmate notes and teacher moderation.
+
+- 2026-11-15, Codex: restored structured activity responses and counted-attempt concept mastery; verified safe text rendering and later-practice isolation.
 
 - 2026-11-15, Ken: removed reading submissions and excluded reading from curriculum completion totals.
 
@@ -185,3 +207,5 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 - 2026-11-14, Codex: added reviewed proposal conversion with approved references and editable article blocks.
 
 - 2026-11-14, Codex: added PowerPoint text, speaker notes, and opt-in image analysis to the converter.
+
+- 2026-11-15, Codex: corrected the [README startup commands](../README.md#run-it-locally) and verified them in a fresh clone.

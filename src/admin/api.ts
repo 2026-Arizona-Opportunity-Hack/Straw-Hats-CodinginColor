@@ -3,6 +3,7 @@
 // Needed policies are listed in README ("Admin pages: database needs").
 import type { PostgrestError } from '@supabase/supabase-js'
 import { supabase } from '../shared/supabase.ts'
+import { loadStaffProgress } from '../shared/staffProgress.ts'
 import type { Role } from '../shared/types/db.ts'
 import type { OrgData } from './metrics.ts'
 
@@ -66,7 +67,7 @@ type AttemptRow = OrgData['selfPacedAttempts'][number] & { class_id: string | nu
 
 export async function loadOrgData(): Promise<OrgData> {
   const c = db()
-  const [classes, courses, ci, enr, cm, mods, acts, people, settings, courseEnrollments, rules, attempts] = await Promise.all([
+  const [classes, courses, ci, enr, cm, mods, acts, people, settings, courseEnrollments, rules, attempts, progress] = await Promise.all([
     // '*' so pages keep working before archived_at exists (see README: Admin pages).
     c.from('classes').select('*').order('name'),
     c.from('courses').select('id, title, delivery_mode'),
@@ -82,6 +83,7 @@ export async function loadOrgData(): Promise<OrgData> {
     selectAll<{ class_id: string; module_id: string; pass_mark: number | string; max_posttest_tries: number }>(
       'class_module_settings', 'class_id, module_id, pass_mark, max_posttest_tries', ['class_id', 'module_id']),
     selectAll<AttemptRow>('activity_attempts', 'id, student_id, activity_id, class_id, attempt_no, score, is_correct, submitted_at, time_on_task_ms', ['id']),
+    loadStaffProgress(c),
   ])
   for (const [result, table] of [[classes, 'classes'], [courses, 'courses'], [ci, 'class_instructors'], [mods, 'modules'], [people, 'profiles'], [settings, 'program_settings']] as const)
     if (result.error) throw tableError(result.error, table)
@@ -95,6 +97,7 @@ export async function loadOrgData(): Promise<OrgData> {
     is_correct: a.is_correct, submitted_at: a.submitted_at, time_on_task_ms: a.time_on_task_ms,
   })
   return {
+    progress,
     settings: { inactive_days: Number(settings.data![0].inactive_days) },
     classModuleSettings: rules.map((r) => ({ ...r, pass_mark: Number(r.pass_mark) })),
     courseEnrollments,
@@ -173,7 +176,7 @@ export interface NewPerson {
   /** Filled in after adding a student. */
   username?: string
   password: string
-  role: 'student' | 'instructor' | 'admin'
+  role: 'student' | 'instructor' | 'admin' | 'reviewer'
   school: string
   class_id: string
 }
@@ -190,7 +193,7 @@ const ADD_ERRORS: Record<string, string> = {
  * Students have no email: they get a username like jsmith1 (1013), which is returned. */
 export async function addPerson(p: NewPerson): Promise<string | null> {
   if (p.role === 'student') {
-    const [first, ...rest] = p.display_name.trim().split(/s+/)
+    const [first, ...rest] = p.display_name.trim().split(/\s+/)
     const { data, error } = await db().rpc('admin_create_student', {
       p_first_name: first ?? '', p_last_name: rest.join(' '), p_password: p.password, p_class_id: p.class_id || null,
     })

@@ -4,36 +4,48 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { checkCatPhotoLab, getActivityResponse, getCheckAnswer, getClassmateNotes, getModule, listActivityStatus, recordAttempt } from '../api/student/index.ts'
+import { checkCatPhotoLab, getActivityResponse, getCheckAnswer, getClassmateNotes, getModule, listActivityStatus, recordAttempt, type ModuleWithContent } from '../api/student/index.ts'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { isLocalDemo } from '../shared/supabase.ts'
 import { Button } from '../shared/ui/index.tsx'
 import { Celebration } from './Celebration.tsx'
 import { ActivityBlock } from './LessonContent.tsx'
 import { needsSubmission, stepTitle, STEP_LABEL } from './steps.ts'
+import { moduleRevision, openingStep, readPosition, savePosition } from './modulePosition.ts'
 import './stepper.css'
 
 const CHEERS = ['Nice!', 'You got it!', 'Correct!', 'Great job!', 'Nailed it!']
 
 export function ModulePlayer() {
   const { moduleId = '' } = useParams()
-  const [params, setParams] = useSearchParams()
-  const navigate = useNavigate()
   const { profile } = useAuth()
-  const queryClient = useQueryClient()
   const studentId = profile?.id
   const { data: mod, isLoading, isError } = useQuery({
     queryKey: ['module', studentId, moduleId], queryFn: () => getModule(moduleId),
   })
+  const revision = useMemo(() => mod ? moduleRevision(mod) : '', [mod])
+  if (isLoading) return <p role="status">Loading lesson…</p>
+  if (isError) return <p role="alert">Could not load this module. Try reloading the page.</p>
+  if (!mod) return <p>This module is unavailable. <Link className="underline" to="/student">Back to my courses</Link></p>
+  // Reset local answers and the initial bookmark when the student or content changes.
+  return <ModuleSteps key={`${studentId}:${moduleId}:${revision}`} mod={mod} studentId={studentId} revision={revision} />
+}
+
+function ModuleSteps({ mod, studentId, revision }: { mod: ModuleWithContent; studentId?: string; revision: string }) {
+  const moduleId = mod.id
+  const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [savedPosition] = useState(() => readPosition(studentId, moduleId, revision))
   const activityKey = ['moduleActivities', studentId, moduleId]
   const { data: progress = [], isLoading: progressLoading, isError: progressError } = useQuery({
-    queryKey: activityKey, queryFn: () => listActivityStatus(moduleId), enabled: !!mod,
+    queryKey: activityKey, queryFn: () => listActivityStatus(moduleId),
   })
   const [finishedHere, setFinishedHere] = useState<ReadonlySet<string>>(new Set())
   const [cheer, setCheer] = useState<{ text: string; key: number } | null>(null)
   const heading = useRef<HTMLHeadingElement>(null)
 
-  const steps = useMemo(() => mod?.lessons.flatMap((lesson) => lesson.activities.map((activity) => ({ lesson, activity }))) ?? [], [mod])
+  const steps = useMemo(() => mod.lessons.flatMap((lesson) => lesson.activities.map((activity) => ({ lesson, activity }))), [mod])
   const statuses = useMemo(() => new Map(progress.map((s) => [s.activity_id, s])), [progress])
   const isDone = (i: number) => {
     const a = steps[i]?.activity
@@ -43,8 +55,7 @@ export function ModulePlayer() {
   const firstOpen = steps.findIndex((s, i) => s.activity.counts_toward_unlock && !isDone(i))
   /** Furthest card the student may open: everything up to and including the first unfinished required one. */
   const reachable = firstOpen === -1 ? steps.length - 1 : firstOpen
-  const asked = Number(params.get('step')) - 1
-  const current = steps.length ? Math.min(Math.max(Number.isInteger(asked) && asked >= 0 ? asked : reachable, 0), reachable) : 0
+  const current = openingStep(params.get('step'), savedPosition, steps.map((s) => s.activity.id), reachable)
   const allDone = steps.length > 0 && firstOpen === -1
   // A card answered on an earlier visit shows what the student wrote, so load their saved answer first.
   const currentId = steps[current]?.activity.id
@@ -53,13 +64,18 @@ export function ModulePlayer() {
     queryKey: ['activityResponse', studentId, currentId], queryFn: () => getActivityResponse(currentId!), enabled: answeredBefore,
   })
 
-  // Pin the opening card in the URL. Without this, "first unfinished card" would move as soon as
-  // the student answers, jumping them ahead before they read the result. Only Next moves on.
-  const hasStep = params.has('step')
-  const progressReady = !!mod && !progressLoading
+  // Pin the selected card so answering never jumps ahead before feedback is read.
+  // The bookmark records navigation only; it does not submit or complete reading.
+  const stepParam = params.get('step')
+  const progressReady = !progressLoading && !progressError
   useEffect(() => {
-    if (!hasStep && steps.length && progressReady) setParams({ step: String(current + 1) }, { replace: true })
-  }, [hasStep, steps.length, progressReady, current, setParams])
+    if (steps.length && progressReady && stepParam !== String(current + 1)) {
+      setParams((previous) => { const next = new URLSearchParams(previous); next.set('step', String(current + 1)); return next }, { replace: true })
+    }
+  }, [stepParam, steps.length, progressReady, current, setParams])
+  useEffect(() => {
+    if (progressReady && currentId) savePosition(studentId, moduleId, revision, currentId)
+  }, [progressReady, currentId, studentId, moduleId, revision])
   useEffect(() => { heading.current?.focus() }, [current, moduleId])
 
   // The final check locks the student in until they submit it: every way out (Back, the step
@@ -87,9 +103,8 @@ export function ModulePlayer() {
     return () => clearTimeout(t)
   }, [cheer])
 
-  if (isLoading || (mod && progressLoading)) return <p role="status">Loading lesson…</p>
-  if (isError || progressError) return <p role="alert">Could not load this module. Try reloading the page.</p>
-  if (!mod) return <p>This module is unavailable. <Link className="underline" to="/student">Back to my courses</Link></p>
+  if (progressLoading) return <p role="status">Loading lesson…</p>
+  if (progressError) return <p role="alert">Could not load this module. Try reloading the page.</p>
   if (!steps.length) return <p>This module has no activities yet. <Link className="underline" to={`/student/course/${mod.course_id}`}>Back to the course</Link></p>
 
   const go = (i: number) => setParams({ step: String(i + 1) })

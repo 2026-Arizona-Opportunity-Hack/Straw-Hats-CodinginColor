@@ -107,7 +107,7 @@ export function StudentCourse() {
                       <p className="text-sm text-cic-muted">🔒 Opens when you finish the module before.</p>
                     ) : (
                       <div className="flex flex-wrap gap-2">
-                        {acts.map((a) => {
+                        {acts.map((a, stepIndex) => {
                           const done = a.type !== 'content' && submitted.has(a.id)
                           return <div key={a.id} className="relative">
                             <button type="button" aria-label={`${STEP[a.type].label}: ${titleOf(a)}${done ? ', done' : ''}`} aria-expanded={popover === a.id}
@@ -120,7 +120,7 @@ export function StudentCourse() {
                                 <button type="button" onClick={() => setPopover(null)} aria-label="Close" className="absolute right-2 top-2 px-2 text-cic-muted">✕</button>
                                 <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: lang.hue }}>{STEP[a.type].label}</p>
                                 <p className="mt-1 font-semibold">{titleOf(a)}</p>
-                                <Link to={`/student/module/${m.module_id}?step=${acts.indexOf(a) + 1}`} className="mt-3 inline-block font-semibold" style={{ color: lang.hue }}>{done ? 'Review' : 'Go to content'} →</Link>
+                                <Link to={`/student/module/${m.module_id}?step=${stepIndex + 1}`} className="mt-3 inline-block font-semibold" style={{ color: lang.hue }}>{done ? 'Review' : 'Go to content'} →</Link>
                               </div>
                             )}
                           </div>
