@@ -160,7 +160,7 @@ function GradeDialog({ assignment, submission, studentName, position, count, onM
       const auto = autoPoints(block, response);
       const manual = draft.manualScores[block.id];
       const max = blockPoints(block);
-      const label = block.type === 'question' ? `Question ${questionNumbers.get(block.id)} · ${questionKinds[block.question.kind]}` : blockLabels[block.type];
+      const label = block.type === 'question' ? `Question ${questionNumbers.get(block.id)} · ${questionKinds[block.question.kind]}` : block.type === 'completion' ? block.title : blockLabels[block.type];
       return <li key={block.id} className={'ic-grade-block' + (needsInstructor(block) && manual === undefined ? ' is-pending' : '')}>
         <div className="ic-grade-block-head">
           <h3>{label}</h3>
@@ -220,6 +220,7 @@ function StudentAnswer({ block, response }: { block: Block; response: ResponseVa
     <blockquote className="ic-preserve">{typeof response === 'string' && response.trim() ? response : 'No answer'}</blockquote></div>;
   if (block.type === 'code') return <div className="ic-stack ic-answer"><p className="ic-preserve ic-note">{block.prompt}</p>
     <pre><code>{typeof response === 'string' && response.trim() ? response : 'No code submitted'}</code></pre></div>;
+  if (block.type === 'completion') return <p className="ic-answer">{response === '1' ? 'Completed' : 'Pending'}</p>;
   if (block.type === 'html') return <p className="ic-answer">{typeof response === 'string' && response !== '' ? `The page reported ${Math.round(Number(response) * 100)}%.` : 'No score reported.'}</p>;
   return null;
 }

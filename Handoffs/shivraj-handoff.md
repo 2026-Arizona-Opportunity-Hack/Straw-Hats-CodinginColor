@@ -25,9 +25,9 @@ A first pretest try at or above the pass mark tests the student out of that modu
 | `Shivraj` branch | Up to date with `main` (includes 2001) | Has 1001 committed; 1002 to commit |
 | `1001_student_progress.sql` | Merged (#16) | Applied to the hosted DB |
 | `1002_answer_keys_and_assigned_modules.sql` | Merged (#17) | Applied to the hosted DB |
-| `1003_student_sign_up.sql` | Written, tested locally (21 checks) | **Not applied to the hosted DB** |
-| `1008_starter_quiz.sql` | Written, tested locally (26 checks) | **Not applied to the hosted DB** |
-| `1009_unlock_and_duplicate_fixes.sql` | Written, tested locally (14 checks) | **Not applied to the hosted DB** |
+| `1003_student_sign_up.sql` | Merged (#19) | Applied to the hosted DB |
+| `1008_starter_quiz.sql` | Merged (#54) | Applied to the hosted DB |
+| `1009_unlock_and_duplicate_fixes.sql` | Written, tested locally (14 checks) | Applied to the hosted DB |
 
 Tests: 45 checks in a local Postgres (PGlite) with `0001`, `1001`, `1002` and `2001`, passing in both orders.
 The hosted DB applies `0001, 2001, 1001, 1002`; a fresh setup applies `0001, 1001, 1002, 2001`.

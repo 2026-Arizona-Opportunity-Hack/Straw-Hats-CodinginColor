@@ -1,8 +1,8 @@
 // Owner: Jacky. Student home: my courses, to do, my classroom, and the way into Explore.
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { type ModuleStatus, type StudentCourse } from '../api/student/index.ts'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { enrollInCourse, listModuleAssignments, type ModuleAssignment, type ModuleStatus, type StudentCourse } from '../api/student/index.ts'
 import { joinClass } from '../api/student/auth.ts'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { Button, FormStatus, Input } from '../shared/ui/index.tsx'
@@ -89,7 +89,7 @@ function TodoPanel({ tasks, loading }: { tasks: Task[]; loading: boolean }) {
         <span className="text-xs font-semibold uppercase tracking-widest text-cic-muted">{tasks.filter((t) => t.tone !== 'done').length} open</span>
       </div>
       {loading && <p role="status" className="py-3 text-sm text-cic-muted">Loading…</p>}
-      {!loading && !tasks.length && <p className="py-3 text-sm text-cic-muted">Nothing due. Add a course in Explore to get started.</p>}
+      {!loading && !tasks.length && <p className="py-3 text-sm text-cic-muted">Nothing due right now.</p>}
       <ul className="divide-y divide-divider">
         {tasks.map((t) => {
           const body = (
@@ -122,12 +122,47 @@ export function ClassRow({ course, modules }: { course: StudentCourse; modules?:
   )
 }
 
+function ClassAssignments({ studentId }: { studentId?: string }) {
+  const navigate = useNavigate()
+  const qc = useQueryClient()
+  const { data = [], isError } = useQuery({
+    queryKey: ['moduleAssignments', studentId], queryFn: listModuleAssignments,
+  })
+  const open = useMutation({
+    mutationFn: async (assignment: ModuleAssignment) => {
+      if (assignment.needs_enrollment) await enrollInCourse(assignment.course_id)
+      void qc.invalidateQueries({ queryKey: ['myCourses', studentId] })
+      void qc.invalidateQueries({ queryKey: ['moduleAssignments', studentId] })
+      navigate('/student/module/' + assignment.module_id)
+    },
+  })
+  if (!data.length && !isError) return null
+  return <Section title="Class assignments">
+    {isError && <p role="alert">Could not load class assignments. Try reloading.</p>}
+    {!!data.length && <ul className="divide-y divide-divider rounded-2xl bg-white/60">
+      {data.map(assignment => <li key={assignment.id} className="flex items-center justify-between gap-4 px-4 py-3">
+        <div><p className="font-semibold">{assignment.title}</p><p className="text-sm text-cic-muted">{assignment.class_name}</p></div>
+        <Button type="button" disabled={open.isPending} aria-label={'Open ' + assignment.title} onClick={() => open.mutate(assignment)}>
+          {open.isPending && open.variables.id === assignment.id ? 'Opening…' : 'Open'}
+        </Button>
+      </li>)}
+    </ul>}
+    <FormStatus error={open.error?.message} />
+  </Section>
+}
+
 export function JoinClass() {
   const qc = useQueryClient()
   const [code, setCode] = useState('')
   const join = useMutation({
     mutationFn: () => joinClass(code.trim()),
-    onSuccess: () => { setCode(''); return qc.invalidateQueries({ queryKey: ['myCourses'] }) },
+    onSuccess: async () => {
+      setCode('')
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['myCourses'] }),
+        qc.invalidateQueries({ queryKey: ['moduleAssignments'] }),
+      ])
+    },
   })
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -207,7 +242,7 @@ export function StudentHome() {
 
       {state?.added && <p role="status" className="mt-6 rounded-xl bg-brand-tint px-4 py-3 font-semibold text-brand">{state.added} is now in your courses.</p>}
 
-      <div className="mt-12 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className={`mt-12 grid items-start gap-8 ${courses.length ? 'lg:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
         <section aria-label="Continue learning">
           <div className="mb-5 flex items-baseline justify-between gap-4 border-b border-divider pb-3">
             <h2 className="st-serif text-3xl">Continue learning</h2>
@@ -225,8 +260,10 @@ export function StudentHome() {
             {continuing.map((c) => <CourseCard key={c.id} course={c} modules={modulesOf(c.id)} />)}
           </div>
         </section>
-        <TodoPanel tasks={tasks} loading={isLoading || progress.some((p) => p.isLoading)} />
+        {courses.length > 0 && <TodoPanel tasks={tasks} loading={progress.some((p) => p.isLoading)} />}
       </div>
+
+      <ClassAssignments studentId={profile?.id} />
 
       <Section title="Explore" note="Every language CIC teaches">
         <ExploreOrbit />
