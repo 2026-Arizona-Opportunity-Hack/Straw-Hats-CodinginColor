@@ -44,7 +44,63 @@ export async function listMyCourses(): Promise<StudentCourse[]> {
     }))
     return [...new Map(courses.map(course => [course.id, course])).values()]
   }
-  return mockDelay(MOCK_COURSES.filter((c) => c.published))
+  const enrolled = mockEnrolledCourseIds()
+  return mockDelay(MOCK_COURSES.filter((c) => c.published && enrolled.includes(c.id)).map(toStudentCourse))
+}
+
+// Mock mode: the demo student starts in these courses; picked courses are added per browser.
+const MOCK_DEFAULT_ENROLLED = ['course-intro-python', 'course-ai-basics']
+const MOCK_ENROLLMENTS_KEY = 'cic.mockCourseEnrollments'
+let mockPicked: string[] = []
+
+function mockEnrolledCourseIds(): string[] {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(MOCK_ENROLLMENTS_KEY) ?? '[]')
+    if (Array.isArray(saved)) mockPicked = saved.filter((id): id is string => typeof id === 'string')
+  } catch { /* storage blocked: keep the in-memory list */ }
+  return [...new Set([...MOCK_DEFAULT_ENROLLED, ...mockPicked])]
+}
+
+const toStudentCourse = ({ id, title, description, level, delivery_mode }: Course): StudentCourse =>
+  ({ id, title, description, level, delivery_mode })
+
+/** Published self-paced courses the student can pick and is not in yet. */
+export async function listAvailableCourses(): Promise<StudentCourse[]> {
+  const enrolled = new Set((await listMyCourses()).map((c) => c.id))
+  const courses = curriculumBackend
+    ? await result<StudentCourse[]>(curriculumBackend.from('courses')
+      .select('id, title, description, level, delivery_mode')
+      .eq('published', true).eq('delivery_mode', 'self_paced').order('title'))
+    : MOCK_COURSES.filter((c) => c.published && c.delivery_mode === 'self_paced').map(toStudentCourse)
+  return courses.filter((c) => !enrolled.has(c.id))
+}
+
+/** Enroll the signed-in student in a self-paced course. Errors carry the server's code. */
+export async function enrollInCourse(courseId: string): Promise<void> {
+  if (curriculumBackend) {
+    await result(curriculumBackend.rpc('enroll_in_course', { p_course_id: courseId }))
+    return
+  }
+  const course = MOCK_COURSES.find((c) => c.id === courseId)
+  if (!course?.published || course.delivery_mode !== 'self_paced') throw new Error('COURSE_NOT_AVAILABLE')
+  mockPicked = [...new Set([...mockEnrolledCourseIds(), courseId])].filter((id) => !MOCK_DEFAULT_ENROLLED.includes(id))
+  try {
+    localStorage.setItem(MOCK_ENROLLMENTS_KEY, JSON.stringify(mockPicked))
+  } catch { /* storage blocked: enrollment lasts until reload */ }
+  await mockDelay(null)
+}
+
+const ENROLL_ERRORS: Record<string, string> = {
+  COURSE_NOT_AVAILABLE: 'This course is not open for enrollment right now.',
+  ALREADY_IN_CLASS: 'You already take this course with your class. Find it under My courses.',
+  STUDENTS_ONLY: 'Only student accounts can enroll in courses.',
+}
+
+/** Plain words for an enrollment error. */
+export function enrollErrorMessage(error: unknown): string {
+  const code = error instanceof Error ? error.message : ''
+  return Object.entries(ENROLL_ERRORS).find(([key]) => code.includes(key))?.[1]
+    ?? 'Could not enroll you right now. Check your connection and try again.'
 }
 
 export async function listModuleStatus(courseId: string): Promise<ModuleStatus[]> {
