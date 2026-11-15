@@ -67,8 +67,6 @@ The #27 student "Browse courses" UI was dropped in favor of the Explore page alr
 - No thresholds are hardcoded on the frontend.
   Inactive days, low score, pass mark and post-test tries come from `program_settings` and the `class_module_settings` view (migration 2006); each class gets `rules` in `liveStore.ts`.
   Admin analytics (`src/admin/api.ts`, `metrics.ts`) read the same tables, every row, including self-enrolled students.
-- The admin Impact page exports named student rows for internal use and a separate program-wide partner CSV for all active classes, independent of filters.
-  The partner CSV omits results based on fewer than five distinct learners, including either side of the completion rate, and gives each learner with paired results equal weight in the average gain.
 
 ### Assignments and grading
 
@@ -96,6 +94,11 @@ The #27 student "Browse courses" UI was dropped in favor of the Explore page alr
 - Lesson text renders through `src/shared/ui/LessonMarkdown.tsx` (tables via `remark-gfm`, callouts) and `ActivityCard.tsx`, styled by `lesson.css` (`cic-*`, every rule starts with `:root`).
   Callouts: start a blockquote with `**Key idea:**`, `**Did you know?**`, `**Try it:**`, `**Watch out:**`, `**Remember:**` or `**Think about it:**`.
 - Used by the library preview, the builder's student preview and the student player's `LessonContent`.
+
+### Impact CSV downloads
+
+- The admin Impact page exports named student rows for internal use and a separate program-wide partner CSV for all active classes, independent of filters.
+  The partner CSV omits results based on fewer than five distinct learners, including either side of the completion rate, and gives each learner with paired results equal weight in the average gain.
 
 ## Migrations I own
 
