@@ -36,7 +36,7 @@ language sql stable security definer set search_path = '' as $$
   select exists (select 1 from public.courses c
     join public.profiles p on p.id = (select auth.uid())
     where c.id = p_course and (
-      p.role = 'admin' or c.owner_id = p.id
+      p.role = 'admin' or (p.role = 'instructor' and c.owner_id = p.id)
       or (p.role = 'instructor' and curriculum_private.teaches_course(c.id))
       or (p.role = 'student' and public._class_for(p.id, c.id) is not null)
       or (c.published and not curriculum_private.is_local_course(c.id))))
@@ -51,7 +51,8 @@ create policy "read local curriculum scope" on public.local_curricula for select
 create function curriculum_private.remember_local_copy() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin
-  if new.copied_from is not null then
+  if new.copied_from is not null or (not new.is_library and exists (
+    select 1 from public.profiles p where p.id=new.owner_id and p.role='instructor')) then
     insert into public.local_curricula(course_id) values(new.id) on conflict do nothing;
   end if;
   return new;
@@ -70,6 +71,7 @@ language sql stable security definer set search_path = '' as $$
   select public.current_role_is('admin') or (
     public.current_role_is('instructor') and exists (
       select 1 from public.courses x where x.id = c and not x.is_library
+      and curriculum_private.is_local_course(x.id)
       and (x.owner_id = (select auth.uid()) or curriculum_private.teaches_course(x.id))))
 $$;
 create or replace function public.can_edit_activity(a uuid) returns boolean
@@ -109,11 +111,18 @@ create function curriculum_private.protect_class_course() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin
   if tg_op = 'UPDATE' and new.course_id = old.course_id then return new; end if;
+  -- Serialize competing attachments to the same course before checking membership.
+  perform 1 from public.courses where id = new.course_id for update;
   if auth.uid() is not null and not public.current_role_is('admin') and not exists (
     select 1 from public.courses c where c.id = new.course_id
       and ((c.is_library and c.published and c.copied_from is null)
         or public.can_edit_course(c.id))) then
     raise exception 'COURSE_NOT_AVAILABLE';
+  end if;
+  if exists (select 1 from public.courses c where c.id = new.course_id
+      and (not c.is_library or curriculum_private.is_local_course(c.id)))
+    and exists (select 1 from public.classes k where k.course_id = new.course_id and k.id <> new.id) then
+    raise exception 'LOCAL_CURRICULUM_ALREADY_ATTACHED: Copy this curriculum for the new class';
   end if;
   insert into public.local_curricula(course_id)
     select id from public.courses where id=new.course_id and not is_library

@@ -5,6 +5,8 @@ update profiles set role = 'instructor' where id in ('91000000-0000-0000-0000-00
 insert into courses (id, title, published) values
  ('92000000-0000-0000-0000-000000000001', 'Discussion QA Web', true),
  ('92000000-0000-0000-0000-000000000002', 'Discussion QA Python', true);
+-- The same global template is intentionally assigned to both classes.
+update courses set is_library=true where id='92000000-0000-0000-0000-000000000002';
 insert into modules (id, course_id, position, title, concept, published) values
  ('93000000-0000-0000-0000-000000000001', '92000000-0000-0000-0000-000000000001', 1, 'QA', 'HTML', true);
 insert into lessons (id, module_id, position, title) values

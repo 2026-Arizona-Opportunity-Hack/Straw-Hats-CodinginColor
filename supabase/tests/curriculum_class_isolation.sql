@@ -17,16 +17,40 @@ insert into lessons(id,module_id,position,title) values
 insert into activities(id,lesson_id,position,type,concept,content) values
  ('85000000-0000-0000-0000-000000000001','84000000-0000-0000-0000-000000000001',1,'content','Fixture','{"markdown":"Original global text"}');
 insert into activity_keys(activity_id,key) values ('85000000-0000-0000-0000-000000000001','{"solution":"fictional"}');
+-- Simulate a pre-existing non-library global original owned by an instructor.
+insert into courses(id,title,owner_id,published) values
+ ('82000000-0000-0000-0000-000000000004','Existing global original','81000000-0000-0000-0000-000000000002',true);
+delete from local_curricula where course_id='82000000-0000-0000-0000-000000000004';
 grant all on isolation_ids to authenticated;
 create function pg_temp.assert(ok boolean, message text) returns void language plpgsql as $$
 begin if ok is distinct from true then raise exception '%', message; end if; end $$;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','81000000-0000-0000-0000-000000000002',true);
+select pg_temp.assert(not public.can_edit_course('82000000-0000-0000-0000-000000000004'),'Instructor owner can edit a non-library global original');
+-- Newly authored instructor content is local before it is attached to a class.
+insert into courses(id,title,owner_id,published) values
+ ('82000000-0000-0000-0000-000000000003','New instructor draft',auth.uid(),true);
+select pg_temp.assert(public.can_edit_course('82000000-0000-0000-0000-000000000003'),'New instructor author cannot edit before attachment');
+select pg_temp.assert(exists(select 1 from local_curricula where course_id='82000000-0000-0000-0000-000000000003'),'New instructor course not classified local');
 insert into isolation_ids values ('copy',copy_library_course('82000000-0000-0000-0000-000000000001'));
 insert into isolation_ids select 'module',id from modules where course_id=(select id from isolation_ids where name='copy');
 insert into isolation_ids select 'activity',a.id from activities a join lessons l on l.id=a.lesson_id where l.module_id=(select id from isolation_ids where name='module');
 insert into classes(id,name,school,course_id,join_code,created_by)
 select '86000000-0000-0000-0000-000000000001','Fictional class','Same editable school label',id,'ISOLATION-ONLY','81000000-0000-0000-0000-000000000002' from isolation_ids where name='copy';
+-- A second class needs its own copy, even when the same teacher owns both.
+do $$ begin
+ begin
+  insert into classes(name,school,course_id,join_code,created_by)
+  select 'Second class','Different school label',id,'ISOLATION-SECOND',auth.uid() from isolation_ids where name='copy';
+  raise exception 'Second local attachment succeeded';
+ exception when raise_exception then if sqlerrm not like 'LOCAL_CURRICULUM_ALREADY_ATTACHED:%' then raise; end if; end;
+end $$;
+update classes set name='Renamed fictional class',course_id=course_id
+  where id='86000000-0000-0000-0000-000000000001';
+select pg_temp.assert(exists(select 1 from classes where name='Renamed fictional class'),'Harmless class edit failed');
+insert into isolation_ids values ('second-copy',copy_library_course('82000000-0000-0000-0000-000000000001'));
+insert into classes(name,school,course_id,join_code,created_by)
+select 'Independent second class','Different school label',id,'ISOLATION-INDEPENDENT',auth.uid() from isolation_ids where name='second-copy';
 reset role;
 select set_config('request.jwt.claim.sub','',true);
 insert into class_instructors(class_id,instructor_id) values ('86000000-0000-0000-0000-000000000001','81000000-0000-0000-0000-000000000003');
@@ -86,6 +110,17 @@ select pg_temp.assert((select content->>'markdown'='School-specific text' from a
 select pg_temp.assert(exists(select 1 from local_curricula where course_id=(select id from isolation_ids where name='copy')),'Local scope disappeared');
 select set_config('request.jwt.claim.sub','81000000-0000-0000-0000-000000000004',true);
 select pg_temp.assert(not exists(select 1 from courses where id=(select id from isolation_ids where name='copy')),'Orphaned local course became global');
+-- Ownership does not preserve staff privileges after a role demotion.
+reset role;
+update profiles set role='reviewer' where id='81000000-0000-0000-0000-000000000002';
+set local role authenticated;
+select set_config('request.jwt.claim.sub','81000000-0000-0000-0000-000000000002',true);
+select pg_temp.assert(not exists(select 1 from courses where id=(select id from isolation_ids where name='copy')),'Demoted reviewer owner sees orphan local course');
+select pg_temp.assert(not public.can_edit_course((select id from isolation_ids where name='copy')),'Demoted reviewer owner can edit');
+reset role;
+update profiles set role='student' where id='81000000-0000-0000-0000-000000000002';
+set local role authenticated;
+select pg_temp.assert(not exists(select 1 from courses where id=(select id from isolation_ids where name='copy')),'Demoted student owner sees orphan local course');
 reset role;
 set local role anon;
 select pg_temp.assert(not exists(select 1 from courses where title='Global fixture'),'Anonymous access unexpectedly allowed');
