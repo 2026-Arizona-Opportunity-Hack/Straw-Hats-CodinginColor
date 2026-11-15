@@ -10,6 +10,7 @@ function tell(origin, body) {
 
 window.addEventListener('message', event => {
   if (accepted || event.source !== window.parent || !parents.has(event.origin)) return
+  if (new URL(event.origin).hostname === window.location.hostname) return
   const { type, run, code } = event.data ?? {}
   if (type !== 'cic:python-run' || typeof run !== 'string' || typeof code !== 'string' || code.length > 48_000) return
   accepted = true

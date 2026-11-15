@@ -1,9 +1,11 @@
-const runnerOrigin = 'http://127.0.0.1:5178'
 export type PythonResult = { stdout: string; error?: string }
 
 export function runPython(code: string, signal: AbortSignal, onStart: () => void): Promise<PythonResult> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) return reject(new DOMException('Stopped', 'AbortError'))
+    // Cookies are scoped by host, so using only a different port would share them.
+    const runnerHost = window.location.hostname === '127.0.0.1' ? 'localhost' : '127.0.0.1'
+    const runnerOrigin = 'http://' + runnerHost + ':5178'
     const run = crypto.randomUUID()
     const frame = document.createElement('iframe')
     frame.title = 'Python execution runtime'
