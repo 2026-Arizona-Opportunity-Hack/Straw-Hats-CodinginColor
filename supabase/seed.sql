@@ -18,7 +18,7 @@ begin
     raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
     confirmation_token, recovery_token, email_change_token_new, email_change)
   values ('00000000-0000-0000-0000-000000000000', p_id, 'authenticated', 'authenticated', p_email,
-    crypt('cic-learn-demo', gen_salt('bf')), now(),
+    extensions.crypt('cic-learn-demo', extensions.gen_salt('bf')), now(),
     jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')),
     jsonb_build_object('display_name', p_name), now() - interval '30 days', now(), '', '', '', '');
   insert into auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
@@ -83,6 +83,10 @@ insert into class_instructors values
   ('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000b1'),
   ('20000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000000b2'),
   ('20000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-0000000000b2');
+
+-- Each class starts with every published module of its course assigned.
+insert into class_modules (class_id, module_id)
+select c.id, m.id from classes c join modules m on m.course_id = c.course_id and m.published;
 
 -- ───────── Students + generated progress ─────────
 do $$
