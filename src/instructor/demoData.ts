@@ -48,8 +48,32 @@ const Web: Course = {
   description: 'Create a simple webpage with HTML.',
   modules: [{ id: 'html', title: 'HTML foundations', published: true, lessons: [{
     id: 'html-lesson', title: 'Headings and paragraphs',
-    activities: [{ ...article, id: 'html-article', title: 'Give your page structure', markdown: 'Use an **h1** element for the page title and a **p** element for a paragraph.\n\n```html\n<h1>My first page</h1>\n<p>Welcome!</p>\n```' }],
+    activities: [{ ...article, id: 'html-article', title: 'Give your page structure', markdown: 'Use an **h1** element for the page title and a **p** element for a paragraph.\n\n```html\n<h1>My first page</h1>\n<p>Welcome!</p>\n```' }, {
+      ...article, id: 'cat-photo-lab', type: 'code', title: 'Build your Cat Photo App',
+      markdown: 'Change the heading to Cat Photo App, introduce your cat in a paragraph, and add an alt description to the photo.',
+      code: { starter: '<h1>My cat page</h1>\n<p></p>\n<img src="cat.jpg" alt="">', tests: '', solution: '',
+        lab: { language: 'web', verifier: 'cat-photo-v1', starterCss: 'body { padding: 1rem; } img { max-width: 100%; }', checks: [] } },
+    }],
   }] }],
+};
+/** Preloaded library course: instructors import their own copy. Full content: curriculum/ai-academy. */
+export const LibraryDemo: Course = {
+  id: 'library-ai-academy', title: 'AI Academy (Classroom)', level: 'Beginner', library: true,
+  description: 'A ready-made, instructor-led course about how AI tools work and how to use them well.',
+  modules: [{
+    id: 'library-ai-what', title: 'What is AI?', published: true, lessons: [{
+      id: 'library-ai-what-lesson', title: 'Spot AI in everyday life', activities: [
+        { ...article, id: 'library-ai-what-article', title: 'AI is pattern finding', markdown: 'AI tools learn patterns from lots of examples. Your phone keyboard guesses the next word because it has seen many sentences.' },
+        { ...check, id: 'library-ai-what-check', questions: [{ prompt: 'How does a keyboard guess your next word?', choices: ['It reads your mind', 'It learned patterns from many sentences', 'It picks a random word'], answer: 1, concept: 'What is AI' }] },
+      ],
+    }],
+  }, {
+    id: 'library-ai-prompts', title: 'Write good prompts', published: true, lessons: [{
+      id: 'library-ai-prompts-lesson', title: 'Ask clearly, check the answer', activities: [
+        { ...article, id: 'library-ai-prompts-article', title: 'Be specific', markdown: 'A good prompt says who the answer is for, what you want, and what format to use. Always check the answer before you trust it.' },
+      ],
+    }],
+  }],
 };
 export const BuilderDemo: Course = {
   id: 'builder-demo', title: 'Try the curriculum builder', description: 'Practice with quizzes, a custom activity, and two coding labs.', level: 'Beginner',
@@ -58,7 +82,7 @@ export const BuilderDemo: Course = {
     lessons: [{
       id: 'builder-demo-lesson', title: 'From a variable to a web page', activities: [
         { ...check, id: 'builder-quiz', title: 'Quick quiz' },
-        { ...check, id: 'builder-reflection', type: 'worksheet', title: 'In your own words', format: 'open-ended',
+        { ...check, id: 'builder-reflection', type: 'worksheet', title: 'In your own words', format: 'open-ended', discussionEnabled: true,
           questions: [{ prompt: 'Where could a scoreboard be useful?', choices: [], answer: null, concept: 'Variables' }] },
         { ...article, id: 'builder-widget', type: 'interactive_html', title: 'Try the score widget', markdown: '', interactiveHtml: {
           reports_score: true,
@@ -200,7 +224,7 @@ const maryvaleSubmissions: Submission[] = learners.slice(0, 7).flatMap((learner,
 });
 
 export const demoData: InstructorData = {
-  courses: [Python, Web, BuilderDemo],
+  courses: [Python, Web, BuilderDemo, LibraryDemo],
   staff: [
     { id: 'instructor', name: 'Demo instructor', role: 'instructor', classIds: ['maryvale', 'desert-edge'] },
     { id: 'admin', name: 'Demo program manager', role: 'admin', classIds: [] },

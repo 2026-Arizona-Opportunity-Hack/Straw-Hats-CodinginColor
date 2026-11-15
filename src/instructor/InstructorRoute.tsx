@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { supabase } from '../shared/supabase.ts'
 import { InstructorWorkspace } from './InstructorWorkspace.tsx'
-import { loadLiveData, saveLiveData } from './liveStore.ts'
+import { importLibraryCourse, loadLiveData, publishLiveCourse, saveLiveData } from './liveStore.ts'
 import type { InstructorData, StaffRole } from './model.ts'
 import type { InstructorStore } from './store.ts'
 
@@ -25,7 +25,9 @@ function LiveWorkspace({ role, hash, userId, name }: { role: StaffRole; hash: st
   const { data, error, isPending, dataUpdatedAt, refetch } = useQuery({
     queryKey,
     queryFn: () => loadLiveData(client, role, name),
-    // The workspace keeps its own copy while editing; only reload on purpose.
+    // Refresh published data when returning to the workspace.
+    refetchOnMount: 'always',
+    // Keep the active editor stable on tab changes.
     refetchOnWindowFocus: false,
     staleTime: Infinity,
   })
@@ -36,13 +38,16 @@ function LiveWorkspace({ role, hash, userId, name }: { role: StaffRole; hash: st
   const store = useMemo<InstructorStore | null>(() => data ? {
     load: () => structuredClone(data),
     save: (next: InstructorData, previous: InstructorData) => {
-      return queue.run(() => saveLiveData(client, userId, previous, next)).catch(problem => {
+      return queue.run(() => saveLiveData(client, userId, previous, next, { editLibrary: role === 'admin' })).catch(problem => {
         setSyncError(`${problem instanceof Error ? problem.message : 'Saving failed.'} The page was reloaded from the database, so recent changes may be missing.`)
         void queryClient.invalidateQueries({ queryKey })
         throw problem
       })
     },
-  } : null, [data, client, userId, queryClient, queryKey, queue])
+    publishCourse: (course, previous, moduleId, expectedRevision) =>
+      queue.run(() => publishLiveCourse(client, course, previous, moduleId, expectedRevision)),
+    importCourse: source => importLibraryCourse(client, source.id),
+  } : null, [data, client, userId, role, queryClient, queryKey, queue])
 
   if (isPending) return <p className="p-6" role="status">Loading your classes…</p>
   if (error || !store) {
@@ -55,15 +60,15 @@ function LiveWorkspace({ role, hash, userId, name }: { role: StaffRole; hash: st
   return <>
     {syncError && <p role="alert" className="mb-4 rounded-lg bg-warn-soft px-4 py-3 text-sm font-semibold text-warn">{syncError}</p>}
     {/* Remount with fresh data after a reload. */}
-    <InstructorWorkspace key={dataUpdatedAt} role={role} hash={hash} authorId={userId} store={store} />
+    <InstructorWorkspace key={userId + ':' + dataUpdatedAt} role={role} hash={hash} authorId={userId} store={store} />
   </>
 }
 
 /** Runs async tasks one after another; a failed task does not block the next one. */
 function createSerialQueue() {
-  let tail: Promise<void> = Promise.resolve()
+  let tail: Promise<unknown> = Promise.resolve()
   return {
-    run(task: () => Promise<void>) {
+    run<T>(task: () => Promise<T>) {
       const result = tail.then(task)
       tail = result.catch(() => undefined)
       return result

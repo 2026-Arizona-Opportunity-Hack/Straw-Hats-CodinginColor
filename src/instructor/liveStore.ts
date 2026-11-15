@@ -5,8 +5,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Submission } from './assignments/grading';
 import { normalizeAssignment, totalPoints, type Assignment, type AssignmentKind } from './assignments/model';
 import {
-  activityTypes, type Activity, type ActivityType, type Attempt, type ClassGroup, type Course, type InstructorData,
-  type Learner, type Question, type StaffRole,
+  activityTypes, type Activity, type ActivityType, type Attempt, type ClassGroup, type ClassRules, type Course, type InstructorData,
+  type Learner, type ProgramSettings, type Question, type StaffRole,
 } from './model';
 
 type Json = Record<string, unknown>;
@@ -18,8 +18,11 @@ const byPosition = (a: Row, b: Row) => Number(a.position) - Number(b.position);
 const str = (value: unknown) => (typeof value === 'string' ? value : '');
 const arr = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 
-function fail(action: string, error: { message: string } | null) {
-  if (error) throw new Error(`Could not ${action}: ${error.message}`);
+function fail(action: string, error: { message: string; code?: string } | null) {
+  if (!error) return;
+  // PostgREST reports a table or view the database does not have yet (an unapplied migration).
+  if (['PGRST205', '42P01'].includes(error.code ?? '')) throw new Error(`Could not ${action}: the database has no such table or view yet (${error.message}). Apply the latest migrations in supabase/migrations.`);
+  throw new Error(`Could not ${action}: ${error.message}`);
 }
 
 // ---- Activities: shared content contract (src/shared/types/activities.ts) <-> course builder ----
@@ -77,28 +80,36 @@ function toActivity(row: Row): Activity {
     markdown: str(content.markdown) || (type === 'code' ? str(content.prompt) : ''),
     url: str(content.url), questions,
   };
-  if (type === 'code') activity.code = { starter: str(content.starter_code), tests, solution: str(content.solution) };
+  if (type === 'content' && content.presentation === 'cic-article') activity.presentation = 'cic-article';
+  if (type === 'code') {
+    const lab = content.lab as Json | undefined;
+    activity.code = { starter: str(content.starter_code), tests, solution: str(content.solution) };
+    if (lab?.verifier === 'cat-photo-v1') activity.code.lab = {
+      language: 'web', verifier: 'cat-photo-v1', starterCss: str(lab.starterCss), checks: [],
+    };
+  }
   if (type === 'interactive_html') activity.interactiveHtml = {
     html: str(content.html), instructions: str(content.instructions), reports_score: Boolean(content.reports_score),
   };
   if (content.format === 'open-ended') activity.format = 'open-ended';
+  if (type === 'worksheet') activity.discussionEnabled = content.discussion_enabled === true;
   return activity;
 }
 
 /** Writes the shared contract fields (what the student app reads) plus the builder's full question list. */
-function activityContent(activity: Activity): Json {
+export function activityContent(activity: Activity): Json {
   const choices = (q: Question): Choice[] => q.choices.filter(c => c.trim()).map((label, i) => ({ id: choiceId(i), label }));
   const answerId = (q: Question) => (q.answer === null ? undefined : choiceId(q.choices.slice(0, q.answer).filter(c => c.trim()).length));
   const first = activity.questions[0];
   const base: Json = { title: activity.title, questions: activity.questions };
   switch (activity.type) {
-    case 'content': return { ...base, markdown: activity.markdown };
+    case 'content': return { ...base, markdown: activity.markdown, ...(activity.presentation ? { presentation: activity.presentation } : {}) };
     case 'video':
     case 'slides': return { ...base, url: activity.url, caption: activity.title, markdown: activity.markdown };
     case 'check': return { ...base, prompt: first?.prompt ?? '', choices: first ? choices(first) : [], answer: first ? answerId(first) : undefined, markdown: activity.markdown };
     case 'exit': return { ...base, prompt: first?.prompt ?? '', choices: first ? choices(first) : [], markdown: activity.markdown };
     case 'worksheet': return {
-      ...base, markdown: activity.markdown, format: activity.format,
+      ...base, markdown: activity.markdown, format: activity.format, discussion_enabled: !!activity.discussionEnabled,
       fields: activity.questions.map((q, i) => q.choices.some(c => c.trim())
         ? { id: 'f' + i, kind: 'multiple_choice', prompt: q.prompt, choices: choices(q) }
         : { id: 'f' + i, kind: activity.format === 'open-ended' ? 'long_answer' : 'short_answer', prompt: q.prompt }),
@@ -113,6 +124,7 @@ function activityContent(activity: Activity): Json {
       ...base, prompt: activity.markdown, markdown: activity.markdown, starter_code: activity.code?.starter ?? '',
       tests: (activity.code?.tests ?? '').split('\n').filter(line => line.trim()).map((assertion, i) => ({ name: 'Test ' + (i + 1), assertion })),
       solution: activity.code?.solution ?? '',
+      ...(activity.code?.lab?.verifier === 'cat-photo-v1' ? { lab: activity.code.lab } : {}),
     };
   }
 }
@@ -167,26 +179,27 @@ type ActivityInfo = { type: string; moduleId: string };
  * Which tries count, matching the database rules in 1001_student_progress.sql
  * (Shivraj's handoff, "Scoring rules other code must match"):
  * pretest counts try #1 only; post-test counts the best of the first N tries
- * (module_rules.max_posttest_tries, default 3); everything else counts the best try.
+ * (class_module_settings.max_posttest_tries, migration 2006); everything else counts the best try.
  */
-function countedScore(rows: Row[], info: ActivityInfo | undefined, maxTries: number): number | null {
+function countedScore(rows: Row[], info: ActivityInfo | undefined, maxTries: number | undefined): number | null {
   const scored = (list: Row[]) => list.map(r => r.score).filter((v): v is number | string => v !== null && v !== undefined).map(Number);
   const byTry = rows.slice().sort((a, b) => Number(a.attempt_no) - Number(b.attempt_no));
   if (info?.type === 'pretest') return scored(byTry.slice(0, 1))[0] ?? null;
-  const pool = info?.type === 'posttest' ? byTry.filter(r => Number(r.attempt_no) <= maxTries) : byTry;
+  // No rule for the module (a module outside the class's course): which tries count is unknown.
+  if (info?.type === 'posttest' && maxTries === undefined) return null;
+  const pool = info?.type === 'posttest' ? byTry.filter(r => Number(r.attempt_no) <= (maxTries as number)) : byTry;
   const scores = scored(pool);
   return scores.length ? Math.max(...scores) : null;
 }
 
-function learnersFor(classId: string, roster: Row[], attempts: Row[], activities: Map<string, ActivityInfo>, rules: Row[]): Learner[] {
-  const maxTries = (moduleId: string) => Number(rules.find(r => r.class_id === classId && r.module_id === moduleId)?.max_posttest_tries ?? 3);
+function learnersFor(classId: string, roster: Row[], attempts: Row[], activities: Map<string, ActivityInfo>, rules: ClassRules): Learner[] {
   return roster.slice().sort((a, b) => str(a.created_at).localeCompare(str(b.created_at))).map(student => {
     const mine = attempts.filter(a => a.class_id === classId && student.profile_id && a.student_id === student.profile_id);
     const byActivity = new Map<string, Row[]>();
     for (const attempt of mine) byActivity.set(String(attempt.activity_id), [...(byActivity.get(String(attempt.activity_id)) ?? []), attempt]);
     const list: Attempt[] = [...byActivity.entries()].map(([activityId, rows]) => {
       const info = activities.get(activityId);
-      const counted = countedScore(rows, info, info ? maxTries(info.moduleId) : 3);
+      const counted = countedScore(rows, info, info && rules.maxTries[info.moduleId]);
       const latest = rows.slice().sort((a, b) => Number(b.attempt_no) - Number(a.attempt_no))[0];
       return {
         activityId, count: rows.length, submitted: rows.some(r => r.submitted_at),
@@ -204,48 +217,99 @@ function learnersFor(classId: string, roster: Row[], attempts: Row[], activities
 
 /** Supabase returns at most `max_rows` (1000) rows per request; read every page. */
 const PAGE = 1000;
-async function selectAll(supabase: SupabaseClient, table: string, columns: string): Promise<Row[]> {
+async function selectAll(supabase: SupabaseClient, table: string, columns: string, orderBy = ['id']): Promise<Row[]> {
   const rows: Row[] = [];
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase.from(table).select(columns).order('id').range(from, from + PAGE - 1);
+    // A stable order keeps pages from overlapping or skipping rows.
+    let query = supabase.from(table).select(columns);
+    for (const column of orderBy) query = query.order(column);
+    const { data, error } = await query.range(from, from + PAGE - 1);
     fail(`load ${table}`, error);
     rows.push(...((data ?? []) as unknown as Row[]));
     if (!data || data.length < PAGE) return rows;
   }
 }
 
-export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, displayName: string): Promise<InstructorData> {
-  const [courses, classes, attempts, rules] = await Promise.all([
-    supabase.from('courses').select('id, title, description, level, owner_id, created_at, modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))').order('created_at'),
-    supabase.from('classes').select('id, name, school, course_id, join_code, created_at, class_modules (module_id), class_students (id, display_name, passcode, profile_id, created_at), assignments (*), assignment_submissions (*)').order('created_at'),
-    selectAll(supabase, 'activity_attempts', 'id, student_id, activity_id, class_id, score, submitted_at, time_on_task_ms, attempt_no, response'),
-    supabase.from('module_rules').select('class_id, module_id, max_posttest_tries'),
-  ]);
-  fail('load courses', courses.error);
-  fail('load classes', classes.error);
-  fail('load module rules', rules.error);
+const courseColumns = 'id, title, description, level, owner_id, is_library, copied_from, publication_revision, created_at, modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))';
 
-  const courseList: Course[] = (courses.data as Row[]).map(c => ({
+function toCourse(c: Row): Course {
+  const course: Course = {
     id: String(c.id), title: str(c.title), description: str(c.description), level: titleCase(str(c.level) || 'beginner'),
+    publicationRevision: Number(c.publication_revision ?? 0),
     modules: (arr(c.modules) as Row[]).sort(byPosition).map(m => ({
       id: String(m.id), title: str(m.title), published: Boolean(m.published),
       lessons: (arr(m.lessons) as Row[]).sort(byPosition).map(l => ({
         id: String(l.id), title: str(l.title), activities: (arr(l.activities) as Row[]).sort(byPosition).map(toActivity),
       })),
     })),
-  }));
+  };
+  if (c.is_library) course.library = true;
+  if (c.copied_from) course.copiedFrom = String(c.copied_from);
+  return course;
+}
+
+/**
+ * Copies a library course into a course the signed-in instructor owns (copy_library_course,
+ * migration 2004) and returns the copy. The database makes the copy, answer keys included.
+ */
+export async function importLibraryCourse(supabase: SupabaseClient, libraryCourseId: string): Promise<Course> {
+  const copied = await supabase.rpc('copy_library_course', { p_course_id: libraryCourseId });
+  fail('import the course', copied.error);
+  const loaded = await supabase.from('courses').select(courseColumns).eq('id', copied.data as string).single();
+  fail('load the imported course', loaded.error);
+  return toCourse(loaded.data as Row);
+}
+
+/** program_settings (migration 2006): the single row of CIC-wide thresholds. */
+function toSettings(rows: Row[] | null): ProgramSettings {
+  const row = rows?.[0];
+  if (!row) throw new Error('Could not load program settings: program_settings has no row. Apply supabase/migrations/2006_program_settings_and_rules.sql.');
+  return { inactiveDays: Number(row.inactive_days), lowScorePct: Number(row.low_score_pct) };
+}
+
+/** One class's rules: class_module_settings rows (pass mark 0..1 in the database, 0-100 here) plus program settings. */
+function rulesFor(classId: string, rows: Row[], settings: ProgramSettings): ClassRules {
+  const rules: ClassRules = { ...settings, passMark: {}, maxTries: {} };
+  for (const row of rows) {
+    if (row.class_id !== classId) continue;
+    rules.passMark[String(row.module_id)] = Number(row.pass_mark) * 100;
+    rules.maxTries[String(row.module_id)] = Number(row.max_posttest_tries);
+  }
+  return rules;
+}
+
+export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, displayName: string): Promise<InstructorData> {
+  const [courses, classes, attempts, moduleSettings, programSettings] = await Promise.all([
+    // Includes published library courses (RLS "read published courses") so instructors can import them.
+    supabase.from('courses').select(courseColumns).order('created_at'),
+    supabase.from('classes').select('id, name, school, course_id, join_code, created_at, class_modules (module_id), class_students (id, display_name, passcode, profile_id, created_at), assignments (*), assignment_submissions (*)').order('created_at'),
+    selectAll(supabase, 'activity_attempts', 'id, student_id, activity_id, class_id, score, submitted_at, time_on_task_ms, attempt_no, response'),
+    selectAll(supabase, 'class_module_settings', 'class_id, module_id, pass_mark, max_posttest_tries', ['class_id', 'module_id']),
+    supabase.from('program_settings').select('inactive_days, low_score_pct'),
+  ]);
+  fail('load courses', courses.error);
+  fail('load classes', classes.error);
+  fail('load program_settings', programSettings.error);
+  const settings = toSettings(programSettings.data as Row[] | null);
+
+  const courseList = (courses.data as Row[]).map(toCourse);
   const activityInfo = new Map<string, ActivityInfo>(courseList.flatMap(course => course.modules.flatMap(m =>
     m.lessons.flatMap(l => l.activities.map(a => [a.id, { type: a.type, moduleId: m.id }] as const)))));
-  const classList: ClassGroup[] = (classes.data as Row[]).map(c => ({
-    id: String(c.id), name: str(c.name), school: str(c.school), courseId: String(c.course_id), joinCode: str(c.join_code),
-    moduleIds: (arr(c.class_modules) as Row[]).map(m => String(m.module_id)),
-    learners: learnersFor(String(c.id), arr(c.class_students) as Row[], attempts, activityInfo, rules.data as Row[]),
-    assignments: (arr(c.assignments) as Row[]).sort((a, b) => str(a.created_at).localeCompare(str(b.created_at))).map(toAssignment),
-    submissions: (arr(c.assignment_submissions) as Row[]).map(toSubmission),
-  }));
+  const classList: ClassGroup[] = (classes.data as Row[]).map(c => {
+    const rules = rulesFor(String(c.id), moduleSettings, settings);
+    return {
+      id: String(c.id), name: str(c.name), school: str(c.school), courseId: String(c.course_id), joinCode: str(c.join_code),
+      moduleIds: (arr(c.class_modules) as Row[]).map(m => String(m.module_id)),
+      learners: learnersFor(String(c.id), arr(c.class_students) as Row[], attempts, activityInfo, rules),
+      assignments: (arr(c.assignments) as Row[]).sort((a, b) => str(a.created_at).localeCompare(str(b.created_at))).map(toAssignment),
+      submissions: (arr(c.assignment_submissions) as Row[]).map(toSubmission),
+      rules,
+    };
+  });
   return {
     courses: courseList,
     classes: classList,
+    settings,
     // The signed-in person; RLS already limits classes to the ones they can see.
     staff: [{ id: role, name: displayName, role, classIds: classList.map(group => group.id) }],
   };
@@ -288,6 +352,24 @@ function courseRows(course: Course) {
 function changedRows<T extends { id: string }>(before: T[], after: T[]) {
   const old = new Map(before.map(row => [row.id, row]));
   return after.filter(row => !same(old.get(row.id), row));
+}
+
+export async function publishLiveCourse(supabase: SupabaseClient, course: Course, previous: Course | undefined, moduleId: string, expectedRevision: number | undefined) {
+  const before = previous ? courseRows(previous) : { modules: [], lessons: [], activities: [] };
+  const next = courseRows(course);
+  const level = course.level.toLowerCase();
+  const { data, error } = await supabase.rpc('publish_curriculum', {
+    p_course: { id: course.id, title: course.title.trim(), description: course.description, level: levels.includes(level) ? level : 'beginner' },
+    p_module_id: moduleId,
+    p_expected_revision: expectedRevision ?? null,
+    p_modules: changedRows(before.modules, next.modules),
+    p_lessons: changedRows(before.lessons, next.lessons),
+    p_activities: changedRows(before.activities, next.activities),
+    p_removed_lessons: before.lessons.filter(row => !next.lessons.some(item => item.id === row.id)).map(row => row.id),
+    p_removed_activities: before.activities.filter(row => !next.activities.some(item => item.id === row.id)).map(row => row.id),
+  });
+  fail('publish the module', error);
+  return Number(data);
 }
 
 async function syncCourse(supabase: SupabaseClient, userId: string, course: Course, prev: Course | undefined) {
@@ -351,10 +433,14 @@ async function syncClass(supabase: SupabaseClient, userId: string, next: ClassGr
   }
 }
 
-export async function saveLiveData(supabase: SupabaseClient, userId: string, prev: InstructorData, next: InstructorData) {
+/** `editLibrary`: admins may change shared library courses; everyone else edits their own imported copy. */
+export async function saveLiveData(supabase: SupabaseClient, userId: string, prev: InstructorData, next: InstructorData, { editLibrary = false } = {}) {
   const prevCourses = new Map(prev.courses.map(c => [c.id, c]));
   for (const course of next.courses) {
-    if (!same(prevCourses.get(course.id), course)) await syncCourse(supabase, userId, course, prevCourses.get(course.id));
+    // Library courses are shared: only admins write them; instructors edit their imported copy.
+    const prevCourse = prevCourses.get(course.id);
+    if (!editLibrary && (course.library || prevCourse?.library)) continue;
+    if (!same(prevCourse, course)) await syncCourse(supabase, userId, course, prevCourse);
   }
   const prevClasses = new Map(prev.classes.map(c => [c.id, c]));
   for (const group of next.classes) {

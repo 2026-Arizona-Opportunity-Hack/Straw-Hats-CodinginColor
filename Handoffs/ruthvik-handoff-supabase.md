@@ -100,6 +100,9 @@ From `2003_rubrics_and_file_uploads.sql`:
 Demo data outside the seed: `supabase/demo/grading_demo.sql` adds two Maryvale assignments and nine fictional submissions (applied to the hosted project on Nov 14).
 Run it with `npx supabase db query --remote --file supabase/demo/grading_demo.sql`; fixed ids make re-runs a no-op.
 `supabase/demo/rubric_demo.sql` adds a file-upload assignment with a rubric and three submissions; the header comment has the `storage cp` commands that upload `supabase/demo/sample-write-up.pdf` first.
+`supabase/demo/assignment_modules_demo.sql` links every assignment without a module to the module of its class's course named in its title or instructions, so the Dashboard's module drop-downs list work.
+It never changes an assignment that already has a module, so re-running is a no-op.
+Not applied to the hosted project yet; run it after migration 2006 with `npx supabase db query --remote --file supabase/demo/assignment_modules_demo.sql`.
 
 ## Row Level Security
 
@@ -121,7 +124,34 @@ Policies today (minimal, a full permissions pass is still open):
 Known gaps for the permissions pass:
 
 - Students cannot read assignments yet (no student policy).
-- Instructors cannot edit library courses owned by the admin.
+- Instructors cannot edit library courses owned by the admin; they import their own copy instead (migration 2004 below).
+
+## Migration 2004: copy a library course (applied)
+
+`supabase/migrations/2004_copy_library_course.sql` adds `copy_library_course(p_course_id uuid) returns uuid`.
+It is `security definer` and only instructors and admins may call it (`INSTRUCTORS_ONLY` otherwise).
+The source must be `is_library and published` (`NOT_A_LIBRARY_COURSE` otherwise).
+It creates a course owned by the caller (`is_library false`, `copied_from` = source, `published true`) and copies every module (keeping its published flag), lesson, activity and `activity_keys` row with new ids.
+Execute is granted to `authenticated` only.
+Checked against a throwaway local Postgres with migrations 0001 to 2004: student refused, non-library course refused, copy and keys correct, library rows unchanged.
+Applied to the hosted project on 2026-11-14 with `npx supabase db push --linked --include-all` (2004 sorts before 3001-3004, so `--include-all` is needed).
+
+## Migration 2006: program settings and module rules (not applied yet)
+
+`supabase/migrations/2006_program_settings_and_rules.sql` moves every threshold the dashboards use into the database.
+
+| Object | What |
+|---|---|
+| `program_settings` | One row (`id = true`): `inactive_days` (3), `low_score_pct` (60), `default_pass_mark` (0.70), `default_max_posttest_tries` (3), `updated_at`. Signed-in users read it; only admins update it. No insert or delete policy. |
+| `program_default_pass_mark()`, `program_default_max_tries()` | The two defaults as functions. `module_rules` column defaults now call them. |
+| `class_module_settings` view | `security_invoker`. One row per class and module of the class's course (assigned or not): `class_id`, `module_id`, `pass_mark` (0..1), `max_posttest_tries`, with `module_rules` overrides and `program_settings` defaults resolved. |
+| Policy "class managers read module rules" | `can_manage_class` may read `module_rules`, so a class creator who no longer teaches it still sees its overrides in the view. |
+| `_course_state`, `submit_attempt` | Replaced with identical bodies except the fallback: `program_default_pass_mark()` and `program_default_max_tries()` instead of `0.70` and `3`. |
+
+The app needs this migration: the instructor workspace and the admin Analytics page refuse to load without the view and the settings row, and the error names what is missing.
+The instructor side reads it in `src/instructor/liveStore.ts` (each class gets `rules`, the data gets `settings`); the admin side in `src/admin/api.ts`.
+Checked on a throwaway local Postgres with all migrations, the seed and the demo files: `supabase/tests/program_settings_and_rules.sql` passes (and fails when the creator policy is dropped), and `supabase/tests/student_curriculum_access.sql` still passes.
+Apply with `npx supabase db push --linked --include-all` (2006 sorts before the applied 3001-3004).
 
 ## Gotchas we already hit
 
@@ -135,3 +165,10 @@ Known gaps for the permissions pass:
 
 Plan, not done yet.
 Delete demo auth users and rows (or create a fresh project), apply migrations without `--include-seed`, then create the real CIC admin account in Authentication and a matching `profiles` row with `role = 'admin'`.
+
+## Log
+
+- 2026-11-15 1:15 AM, Ruthvik: added migration 2006 (program settings, `class_module_settings`), its SQL test and `supabase/demo/assignment_modules_demo.sql`. Neither is applied to the hosted project yet.
+
+- 2026-11-15 12:45 AM, Ruthvik: set `is_library = true` on the hosted "Web Development Foundations" course (owner Dana Whitfield, no classes) so it shows in the CIC library. Data-only change, not in a migration or seed.
+- 2026-11-14 9:00 PM, Ruthvik: added and applied migration 2004 `copy_library_course`. Also loaded `supabase/curriculum/ai-academy.sql` (AI Academy library courses).

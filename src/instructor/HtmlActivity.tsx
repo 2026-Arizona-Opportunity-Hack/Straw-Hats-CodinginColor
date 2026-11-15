@@ -27,9 +27,9 @@ export function HtmlActivityEditor({ value, onChange }: { value: InteractiveHtml
   </div>
 }
 
-export function HtmlActivityPreview({ activity, title, scripts, onComplete, completed }: {
+export function HtmlActivityPreview({ activity, title, scripts, onComplete, completed, device }: {
   activity: InteractiveHtmlPayload; title: string; scripts: boolean
-  onComplete?: (score?: number) => void; completed?: boolean
+  onComplete?: (score?: number) => void; completed?: boolean; device?: boolean
 }) {
   const [running, setRunning] = useState<InteractiveHtmlPayload | null>(null)
   const [message, setMessage] = useState('')
@@ -41,16 +41,28 @@ export function HtmlActivityPreview({ activity, title, scripts, onComplete, comp
     setRunning(activity)
     setMessage('')
   }
+  // Without scripts nothing can run, so show the page embedded right away.
+  if (!scripts) {
+    const tooBig = new TextEncoder().encode(activity.html).length > maxHtmlBytes
+    return <div className="ic-stack">
+      {activity.instructions && <p>{activity.instructions}</p>}
+      {/<script/i.test(activity.html) && <p className="ic-note">This page uses scripts, which only run in the local demo. Students see it without them.</p>}
+      {!activity.html.trim() ? <p className="ic-note">Add HTML source to see the page here.</p>
+        : tooBig ? <p className="ic-note">This page is over 256 KB, so it cannot be shown.</p>
+        : <InteractiveHtmlFrame html={activity.html} title={title} device={device} />}
+      {onComplete && !completed && activity.html.trim() && !tooBig &&
+        <div className="ic-row"><button className="ic-button ic-primary" type="button" onClick={() => onComplete()}>Mark as done</button></div>}
+    </div>
+  }
   return <div className="ic-stack">
     {activity.instructions && <p>{activity.instructions}</p>}
-    {!scripts && <p className="ic-note">Scripts are available in the local demo.</p>}
     <div className="ic-row">
       <button className="ic-button" type="button" onClick={run} disabled={running === activity}>{onComplete ? 'Start HTML activity' : 'Run HTML preview'}</button>
       {running && <button className="ic-button" type="button" onClick={() => { setRunning(null); setMessage('') }}>Reset preview</button>}
       {running && onComplete && !activity.reports_score && !completed && <button className="ic-button ic-primary" type="button" onClick={() => onComplete()}>Mark as done</button>}
     </div>
     {message && <p role="status" className="ic-note">{message}</p>}
-    {running && <InteractiveHtmlFrame html={running.html} title={title} allowScripts={scripts}
+    {running && <InteractiveHtmlFrame html={running.html} title={title} allowScripts={scripts} device={device}
       onComplete={running.reports_score && !completed ? score => onComplete ? onComplete(score) : setMessage(score === undefined ? 'Completion received.' : 'Practice score: ' + Math.round(score * 100) + '%') : undefined} />}
   </div>
 }

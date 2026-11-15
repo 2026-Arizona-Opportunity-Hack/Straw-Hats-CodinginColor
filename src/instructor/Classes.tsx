@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ArrowRight, BookOpen, Clipboard, GraduationCap, Plus, Printer, Search, Users } from 'lucide-react';
-import { RosterUpload } from './ClassSetup';
+import { RosterUpload } from './RosterUpload';
 import { makeLearners, type ClassGroup, type Course, type Learner } from './model';
 import { attemptFor, classProgress, percent, points } from './progress';
 import {
@@ -34,8 +34,12 @@ export function ClassList({ groups, courses }: { groups: ClassGroup[]; courses: 
   </>;
 }
 
-export function ClassDashboard({ group, course, onSave, justCreated, tab, detail, otherClasses }: {
+export function ClassDashboard({ group, course, onSave, justCreated, tab, detail, otherClasses, editor, onMakeEditable }: {
   group: ClassGroup; course?: Course; onSave: (group: ClassGroup) => boolean; justCreated: boolean; tab: ClassTabId;
+  /** Course builder shown inside the Curriculum tab while editing this class's curriculum. */
+  editor?: ReactNode;
+  /** Present when the class still uses a shared library course: gives the class its own copy to edit. */
+  onMakeEditable?: () => Promise<void>;
   /** Item inside the tab, e.g. an assignment id. */
   detail?: string;
   otherClasses: ClassGroup[];
@@ -61,7 +65,7 @@ export function ClassDashboard({ group, course, onSave, justCreated, tab, detail
     {justCreated && <p className="ic-success" role="status">Class created with {group.learners.length} students. Open student login cards to see the example link and passcodes.</p>}
     <ClassTabBar groupId={group.id} active={tab} />
     {tab === 'dashboard' && <DashboardTab group={group} course={course} />}
-    {tab === 'curriculum' && <CurriculumTab group={group} course={course} onEditAssignment={editAssignment} />}
+    {tab === 'curriculum' && (editor ?? <CurriculumTab group={group} course={course} onEditAssignment={editAssignment} onMakeEditable={onMakeEditable} />)}
     {tab === 'assignments' && <AssignmentsTab group={group} course={course} otherClasses={otherClasses} assignmentId={detail} onSave={onSave} />}
     {tab === 'grades' && <GradesTab group={group} course={course} onSelect={setSelected} onSave={onSave} />}
     {tab === 'roster' && <RosterTab group={group} course={course} onSave={onSave} onImport={openImport} onCards={openCards} />}
