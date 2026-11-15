@@ -141,7 +141,7 @@ parent.postMessage({ type: 'cic:complete', score: 0.8 }, '*') // score is 0..1
 
 ## Links
 
-- Live demo:
+- Live demo: https://cic-learn.vercel.app (Vercel Hobby, deployed with `npx vercel --prod` until the org approves Vercel's GitHub app)
 - Demo video:
 - Design / docs:
 
