@@ -218,7 +218,7 @@ export function CurriculumTab({ group, course, onEditAssignment, onMakeEditable,
       <ol className="ic-outline">{course.modules.map(module => <li key={module.id}>
         <div className="ic-outline-module"><strong>{module.title}</strong>
           <span className={'ic-status ' + (group.moduleIds.includes(module.id) && module.published ? 'is-published' : '')}>
-            {!module.published ? 'Draft' : group.moduleIds.includes(module.id) ? 'Assigned' : 'Not assigned'}</span></div>
+            {module.archived ? 'Archived' : !module.published ? 'Draft' : group.moduleIds.includes(module.id) ? 'Assigned' : 'Not assigned'}</span></div>
         <ul>{module.lessons.map(lesson => <li key={lesson.id}>{lesson.title}<span className="ic-note"> · {lesson.activities.length} activities</span></li>)}</ul>
       </li>)}</ol>
     </Tile>

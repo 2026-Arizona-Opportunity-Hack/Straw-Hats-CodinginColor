@@ -175,10 +175,12 @@ With Supabase configured, all of this is live data (`src/instructor/liveStore.ts
 
 **Curriculum.** Instructors and admins can browse global courses and the classes they can access. Courses open in view mode.
 Staff can comment on individual published blocks. Comments on a class course stay in that class's staff thread.
-Admins can edit global courses, and class staff can edit their class's copy.
-**CIC Library** lists the workshop and school slide decks admins have curated. In a global course, select **Include in CIC Library** on a Slides block and publish its module to add the deck.
+Instructors and admins can edit published global courses and their class's own copy. For a class still using a shared template, choose **Edit for this class** to create a class copy.
+In the course builder, **Archive module** hides the module and keeps its lessons and student work. Publish it again to restore access. **Delete module** permanently removes the module, its lessons, and the student work attached to those lessons. Unassign a module from its classes before archiving or deleting it.
+In **CIC Library**, choose **New course**, **Edit curriculum**, or **Add existing course**. Adding an existing course lists the same global course, and a new course joins the shared library when its first module is published. The course directory is separate from reviewer access and class template configuration.
+To add a slide deck, select **Include in CIC Library** on a Slides block in a global course and publish its module.
 In **Create a class**, picking a global course template makes an independent copy with its own content IDs.
-Apply curriculum migrations `2011` and `2012` before deploying this workspace. The [curriculum isolation audit](Handoffs/curriculum-isolation-audit-2026-11-15.md) covers the current data and legacy classes still using shared courses directly.
+Apply curriculum migrations `2011`, `2012`, `3018`, and `3019` before deploying this workspace. The [curriculum isolation audit](Handoffs/curriculum-isolation-audit-2026-11-15.md) covers the original isolation change and legacy classes still using shared courses directly.
 
 **Class Dashboard.** Shows learning gain with the pretest and post-test averages behind it, average assignment score, work to grade and missing work.
 **Needs attention** lists each student who needs help and opens to the exact reasons (stuck, inactive, below mastery, missing or low work, post-test drop).
