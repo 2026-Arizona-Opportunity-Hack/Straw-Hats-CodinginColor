@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BarChart3, BookOpen, Eye, GraduationCap, Library, Pencil, Settings } from 'lucide-react';
+import { BarChart3, BookOpen, Eye, GraduationCap, Library, Pencil, Plus, Settings } from 'lucide-react';
 import { ClassSetup } from './ClassSetup';
 import { ClassDashboard, ClassList, type ClassProgressSource } from './Classes';
 import { copiedModuleIds } from './classCurriculum';
@@ -7,7 +7,7 @@ import { isClassTab } from './classTabIds';
 import { CourseBuilder, CourseReviewer, CurriculumList } from './Curriculum';
 import { CurriculumBlockComments } from './CurriculumBlockComments';
 import { CicLibrary } from './CicLibrary';
-import { copyCourse, publishModule, type Activity, type ClassGroup, type Course, type Learner, type Module, type StaffRole } from './model';
+import { changeModuleState, copyCourse, publishModule, type Activity, type ClassGroup, type Course, type Learner, type Module, type ModuleAction, type StaffRole } from './model';
 import { AccessSettings, ProgramOverview } from './Operations';
 import { browserInstructorStore, loadCourseDrafts, saveCourseDraft, type InstructorStore } from './store';
 import { PageHeader } from './ui';
@@ -52,6 +52,7 @@ export function InstructorWorkspace({
   const [standaloneRoute, setStandaloneRoute] = useState(currentRoute);
   const [newClass, setNewClass] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [listingCourse, setListingCourse] = useState(false);
   const [pickedProfileId, setProfileId] = useState(initialProfile);
   const profileId = role ?? pickedProfileId;
   const profile = data.staff.find(person => person.id === profileId) || data.staff[0];
@@ -189,24 +190,41 @@ export function InstructorWorkspace({
     return save({ ...current, courseDrafts: { ...current.courseDrafts, [draftKey(course.id)]: course } });
   }
 
-  function createCourse(course: Course) {
+  function createCourse(course: Course, fromLibrary = false) {
+    const draft = fromLibrary ? { ...course, libraryListed: true } : course;
+    const route = `/${fromLibrary ? 'library' : 'curriculum'}/${course.id}/edit`;
     if (!draftsLocal) {
-      if (saveDraft(course)) window.location.hash = '/curriculum/' + course.id + '/edit';
+      if (saveDraft(draft)) window.location.hash = route;
       return;
     }
     const current = store.load();
     if (save({
       ...current,
-      courses: [...current.courses, { ...course, modules: [] }],
-      courseDrafts: { ...current.courseDrafts, [draftKey(course.id)]: course },
-    })) window.location.hash = '/curriculum/' + course.id + '/edit';
+      courses: [...current.courses, { ...draft, published: false, modules: [] }],
+      courseDrafts: { ...current.courseDrafts, [draftKey(course.id)]: draft },
+    })) window.location.hash = route;
   }
 
-  async function release(draft: Course, moduleId: string, selected: Module | null) {
+  async function addToLibrary(courseId: string) {
+    const markListed = (current: typeof data) => ({
+      ...current, courses: current.courses.map(course => course.id === courseId ? { ...course, libraryListed: true } : course),
+    });
+    if (draftsLocal) {
+      const current = store.load();
+      if (!save(markListed(current), current)) throw new Error('Could not save the course listing. Try again.');
+    } else {
+      if (!store.addToLibrary) throw new Error('Adding courses to CIC Library is unavailable.');
+      await store.addToLibrary(courseId);
+      setData(markListed);
+    }
+  }
+
+  async function release(draft: Course, selected: Module) {
+    const moduleId = selected.id;
     if (!draftsLocal) {
       const catalog = data.courses.find(course => course.id === draft.id);
       if (!store.publishCourse) throw new Error('Publishing is unavailable.');
-      const snapshot = publishModule(catalog ?? { ...draft, modules: [] }, draft, selected, moduleId);
+      const snapshot = publishModule(catalog ?? { ...draft, modules: [] }, draft, selected);
       const { revision: publicationRevision, assessmentWarning, released } = await store.publishCourse(snapshot, catalog, moduleId, draft.publicationRevision);
       const refreshModule = (course: Course) => ({
         ...course, publicationRevision,
@@ -217,18 +235,57 @@ export function InstructorWorkspace({
         ...current,
         courses: catalog ? current.courses.map(course => course.id === draft.id ? published : course) : [...current.courses, published],
       }));
-      const next = refreshModule(draft);
+      const next = { ...refreshModule(draft), libraryListed: published.libraryListed };
       saveDraft(next);
       return { draft: next, assessmentWarning };
     }
     const current = store.load();
     const catalog = current.courses.find(course => course.id === draft.id);
-    if (!catalog || (!selected && current.classes.some(group => group.moduleIds.includes(moduleId)))) return false as const;
+    if (!catalog || catalog.publicationRevision !== draft.publicationRevision) {
+      throw new Error('This course changed since you opened it. Reload to get the latest version.');
+    }
+    const next = { ...draft, published: true, publicationRevision: (catalog.publicationRevision ?? 0) + 1 };
     return save({
       ...current,
-      courses: current.courses.map(course => course.id === draft.id ? publishModule(catalog, draft, selected, moduleId) : course),
-      courseDrafts: { ...current.courseDrafts, [draftKey(draft.id)]: draft },
-    }) ? { draft } : false as const;
+      courses: current.courses.map(course => course.id === draft.id ? publishModule(catalog, next, selected) : course),
+      courseDrafts: { ...current.courseDrafts, [draftKey(draft.id)]: next },
+    }) ? { draft: next } : false as const;
+  }
+
+  async function manageModule(draft: Course, moduleId: string, action: ModuleAction): Promise<Course | false> {
+    const current = draftsLocal ? store.load() : data;
+    const catalog = current.courses.find(course => course.id === draft.id);
+    const next = changeModuleState(draft, moduleId, action);
+    if (!catalog?.modules.some(module => module.id === moduleId)) return saveDraft(next) && next;
+    if (catalog.publicationRevision !== draft.publicationRevision) {
+      throw new Error('This course changed since you opened it. Reload to get the latest version.');
+    }
+    if (current.classes.some(group => group.moduleIds.includes(moduleId))) {
+      throw new Error('Unassign this module from its classes before archiving or deleting it.');
+    }
+
+    const withChange = (latest: typeof data, publicationRevision: number) => ({
+      ...latest,
+      courses: latest.courses.map(course => course.id === draft.id
+        ? { ...changeModuleState(course, moduleId, action), publicationRevision } : course),
+    });
+    if (draftsLocal) {
+      const revision = (catalog.publicationRevision ?? 0) + 1;
+      const saved = { ...next, publicationRevision: revision };
+      return save({
+        ...withChange(current, revision),
+        courseDrafts: { ...current.courseDrafts, [draftKey(draft.id)]: saved },
+      }, current) && saved;
+    }
+
+    if (!store.manageModule || draft.publicationRevision === undefined) throw new Error('Module changes are unavailable.');
+    // Save pending edits before the server change, then advance the draft to the committed revision.
+    if (!saveDraft(draft)) return false;
+    const revision = await store.manageModule(draft.id, moduleId, draft.publicationRevision, action);
+    const saved = { ...next, publicationRevision: revision };
+    setData(latest => withChange(latest, revision));
+    if (!saveDraft(saved)) setLiveDrafts(current => ({ ...current, [saved.id]: saved }));
+    return saved;
   }
 
   /** Makes the instructor's own editable copy of a library course; the library is never changed. */
@@ -257,7 +314,14 @@ export function InstructorWorkspace({
   async function makeClassEditable(group: ClassGroup, source: Course) {
     const copy = await importCourse(source);
     const moduleIds = copiedModuleIds(source, copy, group.moduleIds);
-    if (!saveClass({ ...group, courseId: copy.id, moduleIds }, copy)) throw new Error('Could not update the class.');
+    const progressModuleIds = group.progressModuleIds && copiedModuleIds(source, copy, group.progressModuleIds);
+    const next = { ...group, courseId: copy.id, moduleIds, progressModuleIds };
+    if (store.saveClass) {
+      await store.saveClass(next, group);
+      setData(current => ({ ...current, classes: current.classes.map(item => item.id === group.id ? next : item) }));
+    } else if (!saveClass(next, copy)) {
+      throw new Error('Could not update the class.');
+    }
     window.location.assign(`#/classes/${group.id}/curriculum/edit`);
   }
 
@@ -266,13 +330,13 @@ export function InstructorWorkspace({
 
   /** The builder for a published course or a private draft; null when neither exists. */
   const builderFor = (courseId: string, options: {
-    inClass?: { className: string; backTo: string }; initialLessonId?: string; canCurate?: boolean;
+    inClass?: { className: string; backTo: string }; initialLessonId?: string; canCurate?: boolean; back?: { label: string; to: string };
   } = {}) => {
     const released = data.courses.find(item => item.id === courseId);
     const initial = draftOf(courseId) ?? released;
     if (!initial) return null;
     return <CourseBuilder key={draftKey(courseId) + (options.initialLessonId ?? '')} initial={initial} released={released ?? { ...initial, modules: [] }}
-      localAuthoring={draftsLocal} onSave={saveDraft} onRelease={release}
+      localAuthoring={draftsLocal} onSave={saveDraft} onRelease={release} onManageModule={manageModule}
       assigned={new Set(data.classes.filter(item => item.courseId === courseId).flatMap(item => item.moduleIds))}
       library={library} onSaveLibrary={saveLibrary} {...options} />;
   };
@@ -282,11 +346,18 @@ export function InstructorWorkspace({
   const classCourseIds = new Set(data.classes.map(group => group.courseId));
   const shared = data.courses.filter(course => !course.local && (course.library || (!course.copiedFrom && !classCourseIds.has(course.id))));
   const isAdmin = profile.role === 'admin';
-  const catalog = isAdmin ? [...shared] : shared.filter(course => course.published !== false && (course.library || course.modules.some(module => module.published)));
+  const canEditGlobal = isAdmin || profile.role === 'instructor';
+  const global = shared.filter(course => course.published !== false);
+  const catalog = isAdmin ? [...shared] : global;
   // Unpublished admin courses may exist only as a draft in this browser.
   if (isAdmin) catalog.push(...Object.values(liveDrafts).filter(draft => !data.courses.some(course => course.id === draft.id)));
   const unassigned = isAdmin ? data.courses.filter(course => (course.local || course.copiedFrom) && !classCourseIds.has(course.id)) : [];
   const catalogCourse = catalog.find(course => course.id === item);
+  const ownDrafts = draftsLocal
+    ? Object.entries(data.courseDrafts ?? {}).filter(([key]) => key.startsWith(author + ':')).map(([, course]) => course)
+    : Object.values(liveDrafts);
+  const libraryDrafts = ownDrafts.filter(course => course.libraryListed &&
+    !data.courses.some(saved => saved.id === course.id && saved.published !== false));
   const classCurricula = visibleClasses.flatMap(group => {
     const course = data.courses.find(course => course.id === group.courseId);
     return course ? [{ group, course }] : [];
@@ -298,7 +369,18 @@ export function InstructorWorkspace({
   const viewCatalogCourse = (course: Course, initialLessonId?: string) => <CourseReviewer key={course.id + (initialLessonId ?? '')} course={course}
     back={{ label: 'Curriculum', to: '#/curriculum' }} initialLessonId={initialLessonId}
     blockActions={course.local || course.copiedFrom ? undefined : comments}
-    actions={isAdmin && <a className="ic-button ic-primary" href={`#/curriculum/${course.id}/edit${initialLessonId ? `/${initialLessonId}` : ''}`}><Pencil size={16} aria-hidden="true" /> Edit curriculum</a>} />;
+    actions={<>
+      {(isAdmin || (canEditGlobal && global.some(item => item.id === course.id))) &&
+        <a className="ic-button ic-primary" href={`#/curriculum/${course.id}/edit${initialLessonId ? `/${initialLessonId}` : ''}`}><Pencil size={16} aria-hidden="true" /> Edit curriculum</a>}
+      {canEditGlobal && global.some(item => item.id === course.id) && (course.library || course.libraryListed
+        ? <a className="ic-button" href="#/library">CIC Library</a>
+        : <button type="button" className="ic-button" disabled={listingCourse} onClick={async () => {
+          setListingCourse(true);
+          try { await addToLibrary(course.id); }
+          catch (problem) { showError(problem instanceof Error ? problem.message : 'Could not add the course to CIC Library.'); }
+          finally { setListingCourse(false); }
+        }}><Plus size={16} aria-hidden="true" /> Add to CIC Library</button>)}
+    </>} />;
 
   const content = (() => {
     if (!navigation.some(({ path }) => path === section)) return <PageHeader title="Page unavailable for this role" back={{ label: 'Back to workspace', to: home }} />;
@@ -317,11 +399,22 @@ export function InstructorWorkspace({
       if (!item) return catalogPage();
       const selected = catalogCourse ?? unassigned.find(course => course.id === item);
       if (selected) {
-        if (subpage === 'edit' && isAdmin) return builderFor(selected.id, { initialLessonId: detail, canCurate: Boolean(catalogCourse) });
+        if (subpage === 'edit' && (isAdmin || (canEditGlobal && !!catalogCourse))) {
+          return builderFor(selected.id, { initialLessonId: detail, canCurate: Boolean(catalogCourse) });
+        }
         return viewCatalogCourse(selected, subpage === 'view' ? detail : undefined);
       }
     }
-    if (section === 'library') return <CicLibrary courses={shared} canCurate={isAdmin} />;
+    if (section === 'library') {
+      const listed = global.some(course => course.id === item && (course.libraryListed || course.library)) ||
+        libraryDrafts.some(course => course.id === item);
+      if (item && subpage === 'edit' && canEditGlobal && listed) {
+        return builderFor(item, { canCurate: true, back: { label: 'CIC Library', to: '#/library' } });
+      }
+      return <CicLibrary courses={global} drafts={libraryDrafts} canCurate={canEditGlobal}
+        onCreate={canEditGlobal ? course => createCourse(course, true) : undefined}
+        onAddCourse={canEditGlobal ? addToLibrary : undefined} />;
+    }
     if (section === 'review') {
       if (profile.role !== 'reviewer') {
         if (!item) return catalogPage();

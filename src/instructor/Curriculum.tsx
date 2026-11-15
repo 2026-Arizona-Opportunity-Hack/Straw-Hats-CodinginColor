@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, ChevronLeft, ChevronRight, Library, ListTree, Copy, Eye, FilePlus2, GripVertical, ImagePlus, Plus, Save, Star, Trash2 } from 'lucide-react';
 import { isLocalDemo } from '../shared/supabase.ts';
 import { CodingLabEditor } from './CodingLabEditor';
+import { CourseCreateDialog } from './CourseCreateDialog';
 import { DiscussionReview } from './DiscussionReview';
 import { HtmlActivityEditor, HtmlActivityPreview } from './HtmlActivity';
 import { emptyHtml } from './htmlStarter';
@@ -12,8 +13,8 @@ import { readAndCheckLesson } from './lessonTemplates';
 import { ActivityPreview, LessonPreview } from './LessonPreview';
 import { StudentPreview } from './StudentLessonPreview';
 import {
-  activityTypes, blankQuestion, copyBlock, embedUrl, gradedTypes, id, newActivity, newLesson, newModule, questionTypes, reorder, slidesUrl, unresolvedModuleContent,
-  type Activity, type ClassGroup, type Course, type Lesson, type Module,
+  activityTypes, blankQuestion, copyBlock, embedUrl, gradedTypes, newActivity, newLesson, newModule, questionTypes, reorder, slidesUrl, unresolvedModuleContent,
+  type Activity, type ClassGroup, type Course, type Lesson, type Module, type ModuleAction,
 } from './model';
 import { Dialog, Empty, PageHeader, Panel } from './ui';
 
@@ -29,9 +30,6 @@ export function CurriculumList({ courses, classCurricula = [], unassigned = [], 
   onCreate?: (course: Course) => void;
 }) {
   const [adding, setAdding] = useState(false);
-  const [title, setTitle] = useState('');
-  const [level, setLevel] = useState('Beginner');
-  const [template, setTemplate] = useState('blank');
   const visible = reviewer ? courses.filter(course => course.modules.some(module => module.published)) : courses;
   return <>
     <PageHeader title={reviewer ? 'Curriculum reviewer' : 'Curriculum'} description={reviewer
@@ -55,21 +53,7 @@ export function CurriculumList({ courses, classCurricula = [], unassigned = [], 
         {unassigned.map(course => <CurriculumCourseRow key={course.id} course={course} to={`#/curriculum/${course.id}`} />)}
       </>}
     </div>
-    {adding && onCreate && <Dialog title="Create a course" onClose={() => setAdding(false)}>
-      <form className="ic-stack" onSubmit={event => {
-        event.preventDefault();
-        if (!title.trim()) return;
-        const module = newModule();
-        if (template === 'read-check') module.lessons = [readAndCheckLesson()];
-        onCreate({ id: id(), title: title.trim(), description: '', level, modules: [module] });
-      }}><label>Course title<input required autoFocus value={title} maxLength={100} onChange={event => setTitle(event.target.value)} /></label>
-        <label>Level<select value={level} onChange={event => setLevel(event.target.value)}>{['Beginner', 'Intermediate', 'Advanced', 'Expert'].map(value => <option key={value}>{value}</option>)}</select></label>
-        <label>Start with<select value={template} onChange={event => setTemplate(event.target.value)}>
-          <option value="blank">Blank lesson</option><option value="read-check">Read &amp; check</option>
-        </select></label>
-        <div className="ic-form-footer"><button className="ic-button ic-primary" type="submit">Create course</button></div>
-      </form>
-    </Dialog>}
+    {adding && onCreate && <CourseCreateDialog onCreate={onCreate} onClose={() => setAdding(false)} />}
   </>;
 }
 
@@ -135,17 +119,19 @@ export function CourseReviewer({ course, back = { label: 'Reviewer library', to:
   </>;
 }
 
-export function CourseBuilder({ initial, released, localAuthoring, onSave, onRelease, assigned, library, onSaveLibrary, inClass, initialLessonId, canCurate }: {
+export function CourseBuilder({ initial, released, localAuthoring, onSave, onRelease, onManageModule, assigned, library, onSaveLibrary, inClass, initialLessonId, canCurate, back }: {
   /** Set when the builder opens inside a class card: a compact header that returns to the class. */
   inClass?: { className: string; backTo: string };
   initialLessonId?: string;
   canCurate?: boolean;
+  back?: { label: string; to: string };
   initial: Course;
   released: Course;
   localAuthoring: boolean;
   library: Activity[];
   onSaveLibrary: (blocks: Activity[]) => boolean;
-  onRelease: (course: Course, moduleId: string, selected: Module | null) => Promise<{ draft: Course; assessmentWarning?: string } | false>;
+  onRelease: (course: Course, selected: Module) => Promise<{ draft: Course; assessmentWarning?: string } | false>;
+  onManageModule: (course: Course, moduleId: string, action: ModuleAction) => Promise<Course | false>;
   onSave: (course: Course) => boolean;
   assigned: Set<string>;
 }) {
@@ -163,19 +149,25 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [publishing, setPublishing] = useState(false);
+  const [moduleAction, setModuleAction] = useState<ModuleAction | null>(null);
+  const [changingModule, setChangingModule] = useState(false);
+  const [moduleError, setModuleError] = useState('');
+  const courseDetails = useRef<HTMLButtonElement>(null);
+  const moduleTitle = useRef<HTMLInputElement>(null);
   const [resetDraft, setResetDraft] = useState(false);
   const [dragging, setDragging] = useState<DragItem | null>(null);
   const [picker, setPicker] = useState<number | null>(null);
   const addBlockButton = useRef<HTMLButtonElement>(null);
   const pickerTrigger = useRef<HTMLElement | null>(null);
-  const [removal, setRemoval] = useState<{ kind: OutlineKind; index: number; parent: string; title: string } | null>(null);
+  const [removal, setRemoval] = useState<{ kind: 'lesson' | 'block'; index: number; parent: string; title: string } | null>(null);
   const module = course.modules.find(module => module.id === view.moduleId);
   const lesson = module?.lessons.find(lesson => lesson.id === view.lessonId);
   const activity = lesson?.activities.find(activity => activity.id === view.activityId);
-  const liveModule = released.modules.find(item => item.id === module?.id && item.published);
+  const liveModule = released.modules.find(item => item.id === module?.id);
   const savedBlocks = new Set(released.modules.find(item => item.id === module?.id)?.lessons
     .find(item => item.id === lesson?.id)?.activities.map(block => block.id));
   const unsaved = course !== savedDraft;
+  const busy = publishing || changingModule;
   const staleDraft = released.publicationRevision !== undefined && course.publicationRevision !== released.publicationRevision;
   const saveDraft = useCallback(() => {
     if (!onSave(course)) return false;
@@ -185,21 +177,21 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
 
   const flushDraft = useRef<(() => boolean) | null>(null);
   useEffect(() => {
-    flushDraft.current = unsaved && !publishing ? () => onSave(course) : null;
-    if (!unsaved || publishing) return;
+    flushDraft.current = unsaved && !busy ? () => onSave(course) : null;
+    if (!unsaved || busy) return;
     const timer = window.setTimeout(saveDraft, 700);
     return () => window.clearTimeout(timer);
-  }, [course, onSave, saveDraft, unsaved, publishing]);
+  }, [course, onSave, saveDraft, unsaved, busy]);
   useEffect(() => () => { flushDraft.current?.(); }, []);
 
   useEffect(() => {
-    if (!unsaved && !publishing) return;
+    if (!unsaved && !busy) return;
     function preventLoss(event: BeforeUnloadEvent) {
-      if (publishing || flushDraft.current?.() === false) event.preventDefault();
+      if (busy || flushDraft.current?.() === false) event.preventDefault();
     }
     window.addEventListener('beforeunload', preventLoss);
     return () => window.removeEventListener('beforeunload', preventLoss);
-  }, [unsaved, publishing]);
+  }, [unsaved, busy]);
 
   function select(next: View) {
     setView(next);
@@ -222,21 +214,21 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
     updateLesson(lesson.id, lesson => ({ ...lesson, activities: lesson.activities.map(activity => activity.id === activityId ? fn(activity) : activity) }));
   }
 
-  async function updatePublication(selected: Module | null) {
-    if (!module || publishing || staleDraft || !saveDraft()) return;
+  async function updatePublication(selected: Module) {
+    if (!module || busy || staleDraft || !saveDraft()) return;
     setPublishing(true);
     setError('');
     setMessage('');
-    const draft = { ...course, modules: course.modules.map(item => item.id === module.id ? { ...item, published: !!selected } : item) };
+    const draft = { ...course, modules: course.modules.map(item => item.id === module.id ? { ...item, published: true, archived: false } : item) };
     try {
-      const saved = await onRelease(draft, module.id, selected);
+      const saved = await onRelease(draft, selected);
       if (!saved) return;
       setCourse(saved.draft);
       setSavedDraft(saved.draft);
       if (saved.assessmentWarning) {
         setError('Module published. ' + saved.assessmentWarning);
       } else {
-        setMessage(selected ? 'Module published and ready to assign.' : 'Module moved to draft.');
+        setMessage('Module published and ready to assign.');
       }
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : 'Could not publish this update. Your draft is saved in this browser.');
@@ -253,9 +245,39 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
     void updatePublication(module);
   }
 
-  function unpublish() {
-    if (!module || assigned.has(module.id)) return setError('Remove this module from its class assignments before unpublishing.');
-    void updatePublication(null);
+  function confirmModuleAction(action: ModuleAction) {
+    if (!module || busy) return;
+    if (assigned.has(module.id)) return setError('Unassign this module from its classes before archiving or deleting it.');
+    setModuleError('');
+    setModuleAction(action);
+  }
+
+  async function applyModuleAction() {
+    if (!module || !moduleAction || busy) return;
+    setChangingModule(true);
+    setModuleError('');
+    setError('');
+    setMessage('');
+    try {
+      const saved = await onManageModule(course, module.id, moduleAction);
+      if (!saved) throw new Error('Could not save the change in this browser. Free up storage and try again.');
+      flushDraft.current = null;
+      setCourse(saved);
+      setSavedDraft(saved);
+      setModuleAction(null);
+      if (moduleAction === 'delete') {
+        select({});
+        requestAnimationFrame(() => courseDetails.current?.focus());
+        setMessage('Module permanently deleted.');
+      } else {
+        requestAnimationFrame(() => moduleTitle.current?.focus());
+        setMessage('Module archived. Publish it to make it available again.');
+      }
+    } catch (problem) {
+      setModuleError(problem instanceof Error ? problem.message : 'Could not update this module. Try again.');
+    } finally {
+      setChangingModule(false);
+    }
   }
 
   function addModule(next = newModule()) {
@@ -317,10 +339,9 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
   function remove() {
     if (!removal) return;
     const { kind, parent, index } = removal;
-    if (kind === 'module') setCourse(course => ({ ...course, modules: course.modules.filter((_, i) => i !== index) }));
     if (kind === 'lesson') updateModule(parent, module => ({ ...module, lessons: module.lessons.filter((_, i) => i !== index) }));
     if (kind === 'block') updateLesson(parent, lesson => ({ ...lesson, activities: lesson.activities.filter((_, i) => i !== index) }));
-    select(kind === 'module' ? {} : { moduleId: module?.id, lessonId: kind === 'block' ? lesson?.id : undefined });
+    select({ moduleId: module?.id, lessonId: kind === 'block' ? lesson?.id : undefined });
     setRemoval(null);
   }
 
@@ -341,7 +362,7 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
       {isSelected && <div className="ic-tree-controls">
         <button type="button" className="ic-icon" disabled={!index} aria-label={`Move ${kind} up`} onClick={() => move(kind, parent, index, index - 1)}><ArrowUp size={14} /></button>
         <button type="button" className="ic-icon" disabled={index >= length - 1} aria-label={`Move ${kind} down`} onClick={() => move(kind, parent, index, index + 1)}><ArrowDown size={14} /></button>
-        {!(module?.published || (module && assigned.has(module.id))) && <button type="button" className="ic-icon" aria-label={`Remove ${kind}`} onClick={() => setRemoval({ kind, parent, index, title: label })}><Trash2 size={14} /></button>}
+        {kind !== 'module' && !(module?.published || (module && assigned.has(module.id))) && <button type="button" className="ic-icon" aria-label={`Remove ${kind}`} onClick={() => setRemoval({ kind, parent, index, title: label })}><Trash2 size={14} /></button>}
       </div>}
     </div>;
   }
@@ -352,7 +373,7 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
         {localAuthoring && <button type="button" className="ic-button" onClick={() => setManageBlocks(true)}><Star size={16} /> My blocks</button>}
         <button type="button" className="ic-button" onClick={() => setImporter('converter')}><FilePlus2 size={16} /> Draft from materials</button>
         <button type="button" className="ic-button" disabled={!module?.lessons.length} onClick={() => setPreview(true)}><Eye size={16} /> Preview module</button>
-        <button type="button" className="ic-button ic-primary" disabled={publishing} onClick={saveDraft}><Save size={16} /> Save draft</button>
+        <button type="button" className="ic-button ic-primary" disabled={busy} onClick={saveDraft}><Save size={16} /> Save draft</button>
       </>;
       return inClass
         ? <div className="ic-class-builder-head">
@@ -361,10 +382,10 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
           <div className="ic-row">{actions}</div>
         </div>
         : <PageHeader title={course.title || 'Untitled course'} description="Course builder"
-          back={{ label: 'View curriculum', to: `#/curriculum/${course.id}${initialLessonId ? `/view/${initialLessonId}` : ''}` }}>{actions}</PageHeader>;
+          back={back ?? { label: 'View curriculum', to: `#/curriculum/${course.id}${initialLessonId ? `/view/${initialLessonId}` : ''}` }}>{actions}</PageHeader>;
     })()}
     <div className="ic-builder-status">
-      <span role="status">{publishing ? 'Updating publication…' : unsaved ? 'Unsaved draft changes' : 'Draft saved in this browser'}</span>
+      <span role="status">{busy ? 'Updating curriculum…' : unsaved ? 'Unsaved draft changes' : 'Draft saved in this browser'}</span>
       <span role="status">{message}</span>
     </div>
     {error && <p className="ic-error" role="alert">{error}</p>}
@@ -372,13 +393,13 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
       <p className="ic-note" role="alert">A newer publication is available. Copy draft edits you want to keep before starting from the latest version.</p>
       <button className="ic-button" type="button" onClick={() => setResetDraft(true)}>Use latest version</button>
     </div>}
-    <div className="ic-builder" inert={publishing}>
+    <div className="ic-builder" inert={busy}>
       <Panel title="Course outline">
-        <button type="button" className="ic-tree-button ic-course-settings" aria-pressed={!module} onClick={() => select({})}>Course details</button>
+        <button ref={courseDetails} type="button" className="ic-tree-button ic-course-settings" aria-pressed={!module} onClick={() => select({})}>Course details</button>
         <div className="ic-outline">
           {course.modules.map((item, index) => <div className="ic-tree-group" key={item.id}>
             {treeRow('module', course.id, index, course.modules.length, item.title || 'Untitled module', item.id === module?.id && !lesson,
-              () => select({ moduleId: item.id }), item.published ? 'Published' : 'Draft')}
+              () => select({ moduleId: item.id }), moduleStatus(item))}
             {item.id === module?.id && item.lessons.map((child, lessonIndex) => <div key={child.id}>
               {treeRow('lesson', item.id, lessonIndex, item.lessons.length, child.title || 'Untitled lesson', child.id === lesson?.id && !activity,
                 () => select({ moduleId: item.id, lessonId: child.id }))}
@@ -394,14 +415,20 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
           <label>Level<select value={course.level} onChange={event => setCourse({ ...course, level: event.target.value })}>
             {['Beginner', 'Intermediate', 'Advanced', 'Expert'].map(value => <option key={value}>{value}</option>)}
           </select></label></div></Panel>}
-        {module && !lesson && <Panel title="Module details" actions={<button type="button" className="ic-button ic-primary" disabled={staleDraft} onClick={publish}>{liveModule ? 'Publish update' : 'Publish module'}</button>}>
-          <label>Module title<input value={module.title} maxLength={100} onChange={event => updateModule(module.id, item => ({ ...item, title: event.target.value }))} /></label>
-          <div className="ic-row ic-section-gap"><span className={'ic-status ' + (module.published ? 'is-published' : '')}>{liveModule ? 'Published' : 'Draft'}</span>{liveModule && <button type="button" className="ic-button" disabled={staleDraft} onClick={unpublish}>Unpublish module</button>}<button type="button" className="ic-button" onClick={() => addLesson()}><Plus size={16} /> Add lesson</button>{localAuthoring && <button type="button" className="ic-button" onClick={() => addLesson(true)}><Plus size={16} /> Add HTML lesson</button>}</div>
+        {module && !lesson && <Panel title="Module details" actions={<button type="button" className="ic-button ic-primary" disabled={staleDraft} onClick={publish}>{liveModule?.published ? 'Publish update' : 'Publish module'}</button>}>
+          <label>Module title<input ref={moduleTitle} value={module.title} maxLength={100} onChange={event => updateModule(module.id, item => ({ ...item, title: event.target.value }))} /></label>
+          <div className="ic-row ic-section-gap">
+            <span className={'ic-status ' + (liveModule?.published ? 'is-published' : '')}>{moduleStatus(liveModule ?? module)}</span>
+            <button type="button" className="ic-button" onClick={() => addLesson()}><Plus size={16} /> Add lesson</button>
+            {localAuthoring && <button type="button" className="ic-button" onClick={() => addLesson(true)}><Plus size={16} /> Add HTML lesson</button>}
+            {liveModule?.published && <button type="button" className="ic-button" disabled={staleDraft} onClick={() => confirmModuleAction('archive')}>Archive module</button>}
+            <button type="button" className="ic-button" disabled={!!liveModule && staleDraft} onClick={() => confirmModuleAction('delete')}><Trash2 size={16} aria-hidden="true" /> Delete module</button>
+          </div>
           {module.lessons.length ? <ul className="ic-list ic-section-gap">{module.lessons.map(child => <li key={child.id}><button type="button" className="ic-link-button" onClick={() => select({ moduleId: module.id, lessonId: child.id })}>{child.title}</button><span className="ic-note">{child.activities.length} activities</span></li>)}</ul> : <Empty>Add a lesson to start this module.</Empty>}
         </Panel>}
         {module && lesson && <section className={'ic-panel ic-lesson-page' + (lesson.htmlFirst ? ' ic-html-lesson' : '')} aria-label="Lesson editor">
           <div className="ic-lesson-toolbar">
-            <span className="ic-note">{module.title} · {module.published ? 'Published' : 'Draft'}</span>
+            <span className="ic-note">{module.title} · {moduleStatus(module)}</span>
             <div className="ic-mode" role="group" aria-label="Editor view">
               <button type="button" aria-pressed={tab === 'edit'} onClick={() => setTab('edit')}>Edit</button>
               <button type="button" aria-pressed={tab === 'preview'} onClick={() => { setPicker(null); setTab('preview'); }}>Preview lesson</button>
@@ -491,6 +518,19 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
       <p>“{removal.title}” will be removed from the draft outline when you save.</p>
       <div className="ic-form-footer"><button className="ic-button" onClick={() => setRemoval(null)}>Cancel</button><button className="ic-button ic-primary" onClick={remove}>Remove {removal.kind}</button></div>
     </Dialog>}
+    {moduleAction && module && <Dialog title={moduleAction === 'delete' ? 'Permanently delete module?' : 'Archive module?'}
+      onClose={() => setModuleAction(null)} closeDisabled={changingModule}>
+      <p>{moduleAction === 'delete'
+        ? `“${module.title}”, its lessons, and any saved student work for those lessons will be permanently deleted.`
+        : `“${module.title}” will be hidden from learners. Its lessons and student work will be kept. Publish it again to restore access.`}</p>
+      {moduleError && <p className="ic-error" role="alert">{moduleError}</p>}
+      <div className="ic-form-footer">
+        <button type="button" className="ic-button" disabled={changingModule} onClick={() => setModuleAction(null)}>Cancel</button>
+        <button type="button" className="ic-button ic-primary" disabled={changingModule} onClick={() => void applyModuleAction()}>
+          {moduleAction === 'delete' ? 'Delete permanently' : 'Archive module'}
+        </button>
+      </div>
+    </Dialog>}
     {resetDraft && <Dialog title="Replace this draft?" onClose={() => setResetDraft(false)}>
       <p>The latest published version will replace the draft in this browser.</p>
       <div className="ic-form-footer">
@@ -506,6 +546,11 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
       </div>
     </Dialog>}
   </>;
+}
+
+function moduleStatus(module: Module) {
+  if (module.archived) return 'Archived';
+  return module.published ? 'Published' : 'Draft';
 }
 
 function ActivityEditor({ activity, onChange, localAuthoring, canCurate }: {

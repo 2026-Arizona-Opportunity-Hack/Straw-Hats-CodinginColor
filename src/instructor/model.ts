@@ -37,15 +37,19 @@ export type Activity = {
 export type Lesson = { id: string; title: string; activities: Activity[]; htmlFirst?: boolean };
 export type Module = {
   id: string; title: string; published: boolean; revision?: number; lessons: Lesson[];
+  archived?: boolean;
   /** Stored order on a live course. Visible modules may omit drafts and leave gaps. */
   position?: number;
 };
+export type ModuleAction = 'archive' | 'delete';
 export type Course = {
   id: string; title: string; description: string; level: string; modules: Module[];
   published?: boolean;
   publicationRevision?: number;
-  /** Shared library course: read-only, instructors import their own copy. */
+  /** Template that instructors can copy for a class. */
   library?: boolean;
+  /** Listed in the staff-facing CIC Library. */
+  libraryListed?: boolean;
   /** The library course this one was copied from. */
   copiedFrom?: string;
   /** A class-local course remains local even after its source or last class is removed. */
@@ -132,6 +136,7 @@ export function copyBlock(block: Activity): Activity {
 export function copyCourse(source: Course): Course {
   const course = structuredClone(source);
   delete course.library;
+  delete course.libraryListed;
   return {
     ...course, id: id(), copiedFrom: source.id, local: true,
     modules: course.modules.map(module => ({
@@ -147,18 +152,22 @@ export function assignableCourses(courses: Course[]) {
 }
 
 // Replace only the selected release. Draft changes in other modules stay private.
-export function publishModule(catalog: Course, draft: Course, selected: Module | null, moduleId: string): Course {
+export function publishModule(catalog: Course, draft: Course, selected: Module): Course {
   const releases = new Map(catalog.modules.map(module => [module.id, module]));
-  const previous = releases.get(moduleId);
-  if (selected) {
-    const revision = (previous?.revision ?? (previous?.published ? 1 : 0)) + 1;
-    releases.set(moduleId, { ...structuredClone(selected), published: true, revision });
-  } else if (previous) {
-    releases.set(moduleId, { ...previous, published: false, revision: previous.revision ?? 1 });
-  }
+  const previous = releases.get(selected.id);
+  const revision = (previous?.revision ?? (previous?.published ? 1 : 0)) + 1;
+  releases.set(selected.id, { ...structuredClone(selected), published: true, archived: false, revision });
   const ids = new Set([...draft.modules.map(module => module.id), ...releases.keys()]);
   const modules = [...ids].flatMap(id => releases.get(id) ?? []);
-  return { ...draft, modules };
+  return { ...draft, libraryListed: catalog.libraryListed || draft.libraryListed, modules };
+}
+
+export function changeModuleState(course: Course, moduleId: string, action: ModuleAction): Course {
+  const modules = action === 'archive'
+    ? course.modules.map(module => module.id === moduleId ? { ...module, published: false, archived: true } : module)
+    : course.modules.filter(module => module.id !== moduleId).map((module, index) =>
+      module.position === undefined ? module : { ...module, position: index + 1 });
+  return { ...course, modules };
 }
 
 export const id = () => globalThis.crypto.randomUUID();

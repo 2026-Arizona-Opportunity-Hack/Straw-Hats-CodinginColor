@@ -40,3 +40,18 @@ it('lists only curated Slides in published global curriculum with validated link
 it('shows an empty state when nobody has curated a published deck', () => {
   expect(renderToStaticMarkup(<CicLibrary courses={[]} />)).toContain('No curated slide decks yet.');
 });
+
+it('links listed global courses and the author draft to the library editor', () => {
+  const markup = renderToStaticMarkup(<CicLibrary canCurate courses={[
+    course('listed', [], { libraryListed: true }),
+    course('template', [], { library: true }),
+    course('unlisted', []),
+    course('local', [], { libraryListed: true, local: true }),
+  ]} drafts={[course('private-draft', [], { libraryListed: true })]} />);
+  expect(markup).toContain('#/library/listed/edit');
+  expect(markup).toContain('#/library/template/edit');
+  expect(markup).toContain('#/library/private-draft/edit');
+  expect(markup).not.toContain('#/curriculum/private-draft');
+  expect(markup).not.toContain('#/library/local/edit');
+  expect(markup).not.toContain('#/library/unlisted/edit');
+});

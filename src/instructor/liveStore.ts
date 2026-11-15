@@ -9,7 +9,7 @@ import { savedConceptScores, savedResponse } from './attemptResponses';
 import { normalizeAssignment, totalPoints, type Assignment, type AssignmentKind } from './assignments/model';
 import {
   activityTypes, type Activity, type ActivityType, type Attempt, type ClassGroup, type ClassRules, type Course, type InstructorData,
-  type Learner, type ProgramSettings, type Question, type StaffRole,
+  type Learner, type ModuleAction, type ProgramSettings, type Question, type StaffRole,
 } from './model';
 
 type Json = Record<string, unknown>;
@@ -250,14 +250,14 @@ export async function loadLiveClassSubmissions(supabase: SupabaseClient, classId
   return rows.map(toSubmission);
 }
 
-const courseColumns = 'id, title, description, level, owner_id, is_library, copied_from, published, publication_revision, created_at, local_curricula (course_id), modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))';
+const courseColumns = 'id, title, description, level, owner_id, is_library, in_cic_library, copied_from, published, publication_revision, created_at, local_curricula (course_id), modules (id, position, title, concept, published, archived_at, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))';
 
 function toCourse(c: Row): Course {
   const course: Course = {
     id: String(c.id), title: str(c.title), description: str(c.description), level: titleCase(str(c.level) || 'beginner'),
     publicationRevision: Number(c.publication_revision ?? 0),
     modules: (arr(c.modules) as Row[]).sort(byPosition).map(m => ({
-      id: String(m.id), title: str(m.title), published: Boolean(m.published),
+      id: String(m.id), title: str(m.title), published: Boolean(m.published), archived: !!m.archived_at,
       position: typeof m.position === 'number' ? m.position : undefined,
       lessons: (arr(m.lessons) as Row[]).sort(byPosition).map(l => ({
         id: String(l.id), title: str(l.title), activities: (arr(l.activities) as Row[]).sort(byPosition).map(toActivity),
@@ -266,6 +266,7 @@ function toCourse(c: Row): Course {
   };
   if (typeof c.published === 'boolean') course.published = c.published;
   if (c.is_library) course.library = true;
+  if (c.in_cic_library) course.libraryListed = true;
   if (c.copied_from) course.copiedFrom = String(c.copied_from);
   if (Array.isArray(c.local_curricula) ? c.local_curricula.length : c.local_curricula) course.local = true;
   return course;
@@ -406,7 +407,8 @@ export async function publishLiveCourse(supabase: SupabaseClient, course: Course
   const before = previous ? courseRows(previous) : { modules: [], lessons: [], activities: [] };
   const next = courseRows(course);
   const level = course.level.toLowerCase();
-  const { data, error } = await supabase.rpc('publish_curriculum', {
+  const firstLibraryPublish = !previous && course.libraryListed;
+  const { data, error } = await supabase.rpc(firstLibraryPublish ? 'publish_new_library_curriculum' : 'publish_curriculum', {
     p_course: { id: course.id, title: course.title.trim(), description: course.description, level: levels.includes(level) ? level : 'beginner' },
     p_module_id: moduleId,
     p_expected_revision: expectedRevision ?? null,
@@ -441,6 +443,22 @@ export async function publishLiveCourse(supabase: SupabaseClient, course: Course
     // Publication has already committed. Keep its revision even if the refresh failed.
   }
   return { revision, assessmentWarning: assessmentWarning ?? 'The assessment pair is ready. Reload the course to see its current assessment blocks before editing again.' };
+}
+
+export async function addLiveCourseToLibrary(supabase: SupabaseClient, courseId: string) {
+  const { error } = await supabase.rpc('add_course_to_cic_library', { p_course_id: courseId });
+  fail('add the course to CIC Library', error);
+}
+
+export async function manageLiveModule(supabase: SupabaseClient, courseId: string, moduleId: string, expectedRevision: number, action: ModuleAction) {
+  const { data, error } = await supabase.rpc('manage_curriculum_module', {
+    p_course_id: courseId,
+    p_module_id: moduleId,
+    p_expected_revision: expectedRevision,
+    p_action: action,
+  });
+  fail(`${action} the module`, error);
+  return Number(data);
 }
 
 /** Verify the stored assessment pair and fill missing forms from the curriculum when possible. */

@@ -63,8 +63,11 @@ The local preview can also run demo HTML activities and coding labs.
 ## Curriculum workspace
 
 Instructors and admins open published lessons from **Curriculum** and can leave staff comments on individual blocks.
-Global edits are an explicit admin action, and class edits follow the class's own curriculum route.
-**CIC Library** shows curated workshop slide decks from published global courses. Admins manage the catalog by selecting **Include in CIC Library** on a Slides block and publishing its module.
+Instructors and admins can edit published global curriculum, and class edits follow the class's own curriculum route.
+**CIC Library** lists shared courses alongside curated slide decks. Staff can list an existing global course, edit it from the library, or publish a new course from the library.
+Module archive preserves lessons and student work for republishing. Permanent delete cascades to lessons, activities, and their student work. Class release links must be removed before either action.
+Apply migrations 3018 and 3019 before deploying the module and library changes.
+Staff curate slide decks by selecting **Include in CIC Library** on a Slides block and publishing its module.
 Migrations 2011 and 2012 add durable class-local scope and staff-only comment threads. Apply them in that order before deploying the workspace.
 See the [curriculum isolation audit](curriculum-isolation-audit-2026-11-15.md) for the current database boundaries and legacy global course links.
 
@@ -156,6 +159,8 @@ The partner CSV still requests program-wide data when needed.
 Apply migration 3017 before deploying the frontend change so the scoped reports can load.
 
 ## Log
+
+- 2026-11-15, Codex: added permanent module deletion and reversible archiving, restored global and class editing for instructors, and added CIC Library course creation, editing, and listing.
 
 - 2026-11-15, Codex: scoped canonical progress to the selected class and preserved the existing staff access checks.
 
