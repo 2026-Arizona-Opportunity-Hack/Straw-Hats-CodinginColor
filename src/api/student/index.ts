@@ -95,3 +95,18 @@ export async function nextActivityFor(courseId: string): Promise<{ module_id: st
   const activity = lesson && MOCK_ACTIVITIES.find((a) => a.lesson_id === lesson.id)
   return mockDelay(first && activity ? { module_id: first.id, activity_id: activity.id } : null)
 }
+
+export interface MyClass {
+  class_id: string
+  class_name: string
+  course_id: string
+}
+
+/** Classes the signed-in student joined (live mode). Added by Jacky for the student home page. */
+export async function listMyClasses(): Promise<MyClass[]> {
+  if (!supabase) return mockDelay([])
+  const rows = await result<{ course_id: string; source: string; class_id: string | null; class_name: string | null }[]>(supabase.rpc('my_courses'))
+  return rows
+    .filter((r) => r.source === 'class' && r.class_id)
+    .map((r) => ({ class_id: r.class_id!, class_name: r.class_name ?? 'My class', course_id: r.course_id }))
+}

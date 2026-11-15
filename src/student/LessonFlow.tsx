@@ -1,41 +1,22 @@
 // Owner: Jacky. Plays a lesson an instructor published, one step per screen (CodeHS / code.org style):
 // step tracker, Back / Continue, resume where you left off, and a finish screen that opens the next lesson.
-import {
-  ArrowLeft, ArrowRight, BookOpen, Lock, CheckCircle2, ClipboardList, Code2, Flag, HelpCircle, MonitorPlay,
-  MousePointerClick, PenLine, Presentation, Trophy, type LucideIcon,
-} from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle2, Flag, Lock, Trophy } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Markdown, { defaultUrlTransform } from 'react-markdown'
 import { Link, useNavigate } from 'react-router-dom'
 import { HtmlActivityPreview } from '../instructor/HtmlActivity.tsx'
 import { labPayload } from '../instructor/labPayload.ts'
-import { embedUrl, slidesUrl, type Activity, type ActivityType } from '../instructor/model.ts'
+import { embedUrl, slidesUrl, type Activity } from '../instructor/model.ts'
 import '../instructor/styles.css'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { CodeLab } from '../shared/labs/CodeLab.tsx'
 import { isLocalDemo } from '../shared/supabase.ts'
 import { Badge, Button, EmptyState } from '../shared/ui/index.tsx'
-import { findModule, lessonRows, loadProgress, saveProgress, stepsOf, type ModuleProgress } from './instructorContent.ts'
+import { findModule, lessonRows, loadProgress, reportStep, saveProgress, stepsOf, type ModuleProgress } from './instructorContent.ts'
+import { STEP, mustAnswer } from './stepTypes.ts'
 import { QuestionStep } from './QuestionStep.tsx'
 import { topicIdForCourse } from './topics.ts'
 import './lesson.css'
-
-const STEP: Record<ActivityType, { label: string; icon: LucideIcon }> = {
-  content: { label: 'Read', icon: BookOpen },
-  video: { label: 'Watch', icon: MonitorPlay },
-  slides: { label: 'Slides', icon: Presentation },
-  interactive_html: { label: 'Try it', icon: MousePointerClick },
-  check: { label: 'Quick check', icon: HelpCircle },
-  worksheet: { label: 'Worksheet', icon: PenLine },
-  code: { label: 'Code', icon: Code2 },
-  exit: { label: 'Exit ticket', icon: Flag },
-  pretest: { label: 'Warm-up quiz', icon: ClipboardList },
-  posttest: { label: 'Final check', icon: Trophy },
-}
-
-const QUESTION_TYPES: ActivityType[] = ['check', 'worksheet', 'exit', 'pretest', 'posttest']
-/** Steps the student must answer before Continue. Labs and widgets can be skipped (the runner may be offline). */
-const mustAnswer = (a: Activity) => QUESTION_TYPES.includes(a.type) && a.questions.some((q) => q.prompt.trim())
 
 function safeUrl(url: string, attr: string) {
   if (attr === 'src' && /^data:image\/(png|jpeg|webp|gif);base64,[a-z0-9+/=]+$/i.test(url)) return url
@@ -109,9 +90,11 @@ export function LessonFlow({ moduleId }: { moduleId: string }) {
   const index = Math.min(progress.step, steps.length) // steps.length = finish screen
   const headingRef = useRef<HTMLHeadingElement>(null)
   const shownStep = useRef(index)
+  const stepStarted = useRef(0)
 
   // New step: back to the top, keyboard focus on its title (skip on first load).
   useEffect(() => {
+    stepStarted.current = Date.now()
     if (shownStep.current === index) return
     shownStep.current = index
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -130,7 +113,7 @@ export function LessonFlow({ moduleId }: { moduleId: string }) {
     return <EmptyState title="This lesson isn’t available" description="Your teacher may have unpublished it." action={<Link to="/student" className="font-semibold text-brand underline">Back to topics</Link>} />
   }
   const { course, module, next } = found
-  const backTo = `/student?topic=${topicIdForCourse(course.id)}`
+  const backTo = `/student/course/${topicIdForCourse(course.id)}`
   const rows = lessonRows(studentId, course)
   const position = rows.findIndex((r) => r.module.id === module.id)
   if (rows[position]?.state === 'locked') {
@@ -141,11 +124,18 @@ export function LessonFlow({ moduleId }: { moduleId: string }) {
   if (steps.length === 0) return <EmptyState title="This lesson is empty" description="Your teacher hasn’t added activities yet." action={<Link to={backTo} className="font-semibold text-brand underline">Back to {course.title}</Link>} />
 
   const isDone = (id: string) => progress.done.includes(id)
-  const markDone = (id: string, score?: number | null) => update((p) => ({
-    ...p,
-    done: p.done.includes(id) ? p.done : [...p.done, id],
-    scores: score != null && !(id in p.scores) ? { ...p.scores, [id]: score } : p.scores,
-  }))
+  const markDone = (id: string, score?: number | null) => {
+    if (!progress.done.includes(id)) {
+      // Teachers see this step in their class roster (local demo).
+      const minutes = Math.max(1, Math.round((Date.now() - stepStarted.current) / 60_000))
+      reportStep(studentId, course.id, id, score ?? null, minutes)
+    }
+    update((p) => ({
+      ...p,
+      done: p.done.includes(id) ? p.done : [...p.done, id],
+      scores: score != null && !(id in p.scores) ? { ...p.scores, [id]: score } : p.scores,
+    }))
+  }
   const goTo = (i: number) => update((p) => ({ ...p, step: i }))
   const finished = index >= steps.length
   const furthest = Math.max(index, ...steps.map((s, i) => (isDone(s.activity.id) ? i + 1 : 0)))
