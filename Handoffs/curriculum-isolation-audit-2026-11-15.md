@@ -18,6 +18,8 @@ Local content is available to its instructor owner, attached class staff, enroll
 
 The frontend may include `local_curricula(course_id)` in its courses projection to distinguish a local course even after `copied_from` is cleared by source deletion. Authenticated clients can read permitted markers but cannot write the registry directly.
 
+Student Explore and starter quiz recommendations use the same scope check, including the module-title preview introduced by migration 1012.
+
 ## Boundaries and remaining decisions
 
 This is **class/owner isolation, not a school tenant model**. Legacy multiple classes sharing one local course still share its content changes, even if their school labels differ; no such shared local courses were found in the production check. New sharing is rejected regardless of the school labels. Comments can remain class-specific. Sharing one course is different from copying it; separate copies have separate content.

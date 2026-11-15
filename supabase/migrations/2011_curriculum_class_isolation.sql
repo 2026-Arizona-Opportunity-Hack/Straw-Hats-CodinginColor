@@ -189,6 +189,43 @@ language sql stable security definer set search_path = '' as $$
   where ce.student_id = auth.uid() and c.published and not curriculum_private.is_local_course(c.id)
 $$;
 
+-- Explore lists published global curricula before enrollment. Its module preview
+-- and the starter quiz also bypass table policies, so each honors durable scope.
+create function public.catalog_courses()
+returns table (id uuid, title text, description text, level public.course_level, delivery_mode public.delivery_mode)
+language sql stable security definer set search_path = '' as $$
+  select c.id, c.title, c.description, c.level, c.delivery_mode
+  from public.courses c
+  where c.published and not curriculum_private.is_local_course(c.id)
+  order by c.title, c.id
+$$;
+revoke all on function public.catalog_courses() from public, anon, authenticated;
+grant execute on function public.catalog_courses() to authenticated;
+
+create or replace function public.catalog_modules()
+returns table (course_id uuid, module_position int, module_title text, module_concept text)
+language sql stable security definer set search_path = '' as $$
+  select m.course_id, m.position, m.title, m.concept
+  from public.modules m join public.courses c on c.id = m.course_id
+  where c.published and m.published and not curriculum_private.is_local_course(c.id)
+  order by m.course_id, m.position
+$$;
+
+create or replace function public._level_index(p_level public.course_level) returns int
+language sql immutable as $$
+  select array_position(array['beginner', 'intermediate', 'advanced', 'expert']::public.course_level[], p_level)
+$$;
+
+create or replace function public._course_for(p_subject text, p_level public.course_level) returns public.courses
+language sql stable security definer set search_path = '' as $$
+  select c.* from public.courses c
+  where c.published and c.delivery_mode = 'self_paced'
+    and not curriculum_private.is_local_course(c.id)
+    and public.course_subject(c.title) = p_subject
+  order by abs(public._level_index(c.level) - public._level_index(p_level)), public._level_index(c.level), c.title
+  limit 1
+$$;
+
 -- This definer RPC previously returned activity IDs for any guessed module UUID.
 create or replace function public.my_module_activities(p_module_id uuid)
 returns table (activity_id uuid, submitted boolean, best_score numeric, tries int, last_submitted_at timestamptz)

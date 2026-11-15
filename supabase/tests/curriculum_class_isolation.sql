@@ -9,7 +9,7 @@ select id, (case name when 'person1' then 'admin' when 'person2' then 'instructo
  'Fictional isolation ' || name from isolation_ids
 on conflict(id) do update set role=excluded.role;
 insert into courses(id,title,is_library,published,delivery_mode) values
- ('82000000-0000-0000-0000-000000000001','Global fixture',true,true,'self_paced');
+ ('82000000-0000-0000-0000-000000000001','Python global fixture',true,true,'self_paced');
 insert into modules(id,course_id,position,title,concept,published) values
  ('83000000-0000-0000-0000-000000000001','82000000-0000-0000-0000-000000000001',1,'Global module','Fixture',true);
 insert into lessons(id,module_id,position,title) values
@@ -29,9 +29,15 @@ select set_config('request.jwt.claim.sub','81000000-0000-0000-0000-000000000002'
 select pg_temp.assert(not public.can_edit_course('82000000-0000-0000-0000-000000000004'),'Instructor owner can edit a non-library global original');
 -- Newly authored instructor content is local before it is attached to a class.
 insert into courses(id,title,owner_id,published) values
- ('82000000-0000-0000-0000-000000000003','New instructor draft',auth.uid(),true);
+ ('82000000-0000-0000-0000-000000000003','A Python school course',auth.uid(),true);
 select pg_temp.assert(public.can_edit_course('82000000-0000-0000-0000-000000000003'),'New instructor author cannot edit before attachment');
 select pg_temp.assert(exists(select 1 from local_curricula where course_id='82000000-0000-0000-0000-000000000003'),'New instructor course not classified local');
+insert into modules(id,course_id,position,title,concept,published) values
+ ('83000000-0000-0000-0000-000000000003','82000000-0000-0000-0000-000000000003',1,'Private module title','Fixture',true);
+select pg_temp.assert(not exists(select 1 from catalog_courses()
+  where id='82000000-0000-0000-0000-000000000003'),'Explore lists a local original even for its owner');
+select pg_temp.assert(not exists(select 1 from catalog_modules()
+  where course_id='82000000-0000-0000-0000-000000000003'),'Explore leaks the title of a local original’s module');
 insert into isolation_ids values ('copy',copy_library_course('82000000-0000-0000-0000-000000000001'));
 insert into isolation_ids select 'module',id from modules where course_id=(select id from isolation_ids where name='copy');
 insert into isolation_ids select 'activity',a.id from activities a join lessons l on l.id=a.lesson_id where l.module_id=(select id from isolation_ids where name='module');
@@ -53,6 +59,8 @@ insert into classes(name,school,course_id,join_code,created_by)
 select 'Independent second class','Different school label',id,'ISOLATION-INDEPENDENT',auth.uid() from isolation_ids where name='second-copy';
 reset role;
 select set_config('request.jwt.claim.sub','',true);
+select pg_temp.assert((_course_for('python','beginner')).id='82000000-0000-0000-0000-000000000001',
+  'Placement recommends a class-local original');
 insert into class_instructors(class_id,instructor_id) values ('86000000-0000-0000-0000-000000000001','81000000-0000-0000-0000-000000000003');
 insert into enrollments(class_id,student_id) values ('86000000-0000-0000-0000-000000000001','81000000-0000-0000-0000-000000000005');
 -- Simulate a self-enrollment made through the old vulnerable RPC.
@@ -63,6 +71,12 @@ select pg_temp.assert(not exists(select 1 from courses where id=(select id from 
 select pg_temp.assert(not exists(select 1 from modules where id=(select id from isolation_ids where name='module')),'Unrelated instructor sees private module');
 select pg_temp.assert(not exists(select 1 from activity_keys where activity_id=(select id from isolation_ids where name='activity')),'Unrelated instructor sees private answer key');
 select pg_temp.assert(exists(select 1 from activities where id='85000000-0000-0000-0000-000000000001'),'Published global content is hidden');
+select pg_temp.assert(exists(select 1 from catalog_courses()
+  where id='82000000-0000-0000-0000-000000000001'),'Explore lost the global course');
+select pg_temp.assert(exists(select 1 from catalog_modules()
+  where course_id='82000000-0000-0000-0000-000000000001'),'Explore lost the global module title');
+select pg_temp.assert(not exists(select 1 from catalog_modules()
+  where course_id=(select id from isolation_ids where name='copy')),'Explore lists a class copy');
 do $$ begin
  begin
   insert into classes(name,school,course_id,join_code,created_by)
