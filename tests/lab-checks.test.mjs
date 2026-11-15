@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { test } from 'vitest'
 import { checkPython } from '../src/shared/labs/checks.ts'
 
 const lab = { language: 'python', checks: [{ name: 'Print a number', expected: '3' }] }
