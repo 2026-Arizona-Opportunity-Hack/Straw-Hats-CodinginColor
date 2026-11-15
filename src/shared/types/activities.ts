@@ -1,3 +1,5 @@
+import type { LessonFigure } from '../curriculum/figure.ts'
+
 // Per-type payload stored in activities.content (jsonb).
 // Owner: Aryan. Adding a new type: add it here, in ActivityType, and in the
 // `activity_type` enum in a new migration.
@@ -18,6 +20,7 @@ export interface ContentPayload {
   /** Markdown, rendered sanitized. zyBooks-style text section. */
   markdown: string
   presentation?: 'cic-article'
+  figure?: LessonFigure
   title?: string
 }
 

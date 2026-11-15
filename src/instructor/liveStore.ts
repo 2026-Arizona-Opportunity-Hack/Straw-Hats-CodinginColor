@@ -1,3 +1,4 @@
+import { validLessonFigure } from '../shared/curriculum/figure';
 import { parseWebPracticeChecks } from '../shared/labs/webPracticeChecks';
 // Supabase-backed data for the instructor workspace. Loads courses, classes, rosters,
 // assignments and progress, and writes back only what changed. Row Level Security decides
@@ -81,6 +82,7 @@ function toActivity(row: Row): Activity {
     markdown: str(content.markdown) || (type === 'code' ? str(content.prompt) : ''),
     url: str(content.url), questions,
   };
+  if (type === 'content' && validLessonFigure(content.figure)) activity.figure = content.figure;
   if (type === 'content' && content.presentation === 'cic-article') activity.presentation = 'cic-article';
   if (type === 'code') {
     const lab = content.lab as Json | undefined;
@@ -108,7 +110,8 @@ export function activityContent(activity: Activity): Json {
   const first = activity.questions[0];
   const base: Json = { title: activity.title, questions: activity.questions };
   switch (activity.type) {
-    case 'content': return { ...base, markdown: activity.markdown, ...(activity.presentation ? { presentation: activity.presentation } : {}) };
+    case 'content': return { ...base, markdown: activity.markdown,
+      ...(activity.presentation ? { presentation: activity.presentation } : {}), ...(activity.figure ? { figure: activity.figure } : {}) };
     case 'video':
     case 'slides': return { ...base, url: activity.url, caption: activity.title, markdown: activity.markdown };
     case 'check': return { ...base, prompt: first?.prompt ?? '', choices: first ? choices(first) : [], answer: first ? answerId(first) : undefined, markdown: activity.markdown };

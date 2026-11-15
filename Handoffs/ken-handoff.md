@@ -24,12 +24,24 @@ Use the [CIC Learn lesson style guide](../docs/lesson-style-guide.md) as model i
 
 Draft from materials calls the Vercel draft endpoint for signed-in instructors and admins.
 Generated articles use the Cat Photo App presentation in preview and the student player.
-Review notes stay in the dialog, and adding a module starts it unpublished.
+Generation opens the first lesson in the interactive student preview.
+The student preview shows topic checks in reading order and keeps references in the lesson.
+The optional coding lab remains available from the preview.
+**Generate image** sends the instructor’s scene description to Seedream 5.0 Flash.
+The browser runs MediaPipe DeepLab after downloading the model and suggests editable masks and their bounding boxes for recognized objects.
+Instructors can move points, change labels, remove annotations, or draw their own before approving or rejecting the image from the side panel.
+Approved figures and their editable annotations stay in the module draft. Each generated module has five attempts, including rejected images.
+Apply migration 2008 before enabling the hosted image route. Local Vite enforces its quota independently.
+Local QA buttons open preview, image review, and the image-limit state without paid AI requests. The sample photo uses the same browser annotation path.
+Adding a module starts it unpublished.
 PPTX extraction runs in the browser, and only selected image previews go to the selected model.
-GPT-6.1 Terra is the default. Claude Opus 5.5 is available under High quality.
-Both use the same five-minute function runtime and a dedicated capped OpenRouter key.
-The review dialog reports lookup, model wait, and validation stages with elapsed time.
-Instructors can describe the learners and supply additional instructions independently.
+The default runs Terra, then Opus, then Jev, with at most one targeted Terra edit.
+Opus returns changes only for the lesson fields it revises.
+An actionable Jev flag triggers one Terra repair, and its other findings stay in instructor notes. Single-pass Terra and Opus remain available.
+The models share the five-minute function runtime and a dedicated capped OpenRouter key.
+The review dialog shows drafting, revision, gap checking, and any targeted edit as they happen.
+Audience suggestions are editable, and additional instructions remain independent.
+The guide calls for short knowledge checks, hands-on practice, and written responses for big ideas and discussion.
 Requests for W3Schools prioritize matching approved tutorials using reviewed summaries and canonical links.
 **Add a coding lab** gives Sol the source text and article draft for an optional HTML/CSS practice block.
 The reference solution and review notes stay in the draft review. Adding the module keeps only the starter and checks.
@@ -101,6 +113,18 @@ The roster mapping endpoint checks the signed-in Supabase profile and calls Jev 
 Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
 
 ## Log
+
+- 2026-11-15, Codex: added automatic browser image annotations and verified adjusting, approving, and rejecting them through local image QA.
+
+- 2026-11-15, Codex: added optional Seedream images with editable annotations, instructor approval, and a five-attempt quota.
+
+- 2026-11-15, Codex: placed generated checks after their topics and removed the long instructor notes from preview.
+
+- 2026-11-15, Codex: opened generated drafts directly in the student lesson preview.
+
+- 2026-11-15, Codex: limited Opus to changed fields and replayed the Project 2 HTTPS gap through the local repair path.
+
+- 2026-11-15, Codex: added reviewed curriculum generation, native knowledge checks, and audience suggestions.
 
 - 2026-11-15, Codex: enabled optional AI curriculum generation in the local instructor preview.
 

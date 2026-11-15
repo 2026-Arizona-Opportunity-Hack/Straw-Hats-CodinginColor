@@ -8,29 +8,32 @@ export function parseInstructorInstructions(value: unknown): string | null {
 }
 
 export const draftQualities = {
-  standard: 'Standard · GPT-6.1 Terra',
-  high: 'High quality · Claude Opus 5.5',
+  reviewed: 'Reviewed draft (recommended)',
+  standard: 'Single pass · GPT-6.1 Terra',
+  high: 'Single pass · Claude Opus 5.5',
 } as const
 export type DraftQuality = keyof typeof draftQualities
-export const defaultDraftQuality: DraftQuality = 'standard'
+export const defaultDraftQuality: DraftQuality = 'reviewed'
 export function isDraftQuality(value: unknown): value is DraftQuality {
   return typeof value === 'string' && Object.hasOwn(draftQualities, value)
 }
 
 export type LessonDraftSource = { kind: 'lesson_plan'; text: string; audience: string; additionalInstructions?: string; quality?: DraftQuality }
 export type DraftReference = { id: string; title: string; url: string }
+export type DraftKnowledgeCheck = { prompt: string; choices: string[]; answer: number; afterSection?: string }
 export type CurriculumDraft = {
   moduleTitle: string
   lessons: {
     title: string
     article: string
+    knowledgeChecks?: DraftKnowledgeCheck[]
     practice: string[]
     exitPrompt: string
     citationIds: string[]
   }[]
   reviewNotes: string[]
 }
-export type DraftResponse = CurriculumDraft & { references: DraftReference[] }
+export type DraftResponse = CurriculumDraft & { references: DraftReference[]; imageTicket?: string }
 
 export const maxSlides = 60
 export const maxSelectedImages = 6

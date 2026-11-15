@@ -3,6 +3,8 @@ import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { defaultUrlTransform } from 'react-markdown'
 import type { ActivityStatus, AttemptInput, recordAttempt } from '../api/student/index.ts'
 import { embedUrl, slidesUrl } from '../instructor/model.ts'
+import { LessonFigure } from '../shared/curriculum/LessonFigure'
+import { validLessonFigure } from '../shared/curriculum/figure'
 import { CicArticle } from '../shared/curriculum/CicArticle.tsx'
 import { CodeLab, type VerifyWebLab } from '../shared/labs/CodeLab.tsx'
 import { previewCatPhotoChecks } from '../shared/labs/catPhoto.ts'
@@ -239,6 +241,7 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, onResult, 
   const { content } = activity
   const title = 'title' in content && typeof content.title === 'string' ? content.title : null
   const markdown = activity.type !== 'code' && 'markdown' in content && typeof content.markdown === 'string' ? content.markdown : null
+  const figure = activity.type === 'content' && (activity as Activity<'content'>).content.figure
   const themedArticle = activity.type === 'content' && (activity as Activity<'content'>).content.presentation === 'cic-article'
   let feedback: string | undefined
   // Right or wrong: from this visit's answer, else from the saved score (answer once = that one try).
@@ -259,6 +262,7 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, onResult, 
       {markdown && <LessonMarkdown markdown={markdown} title={title ?? undefined} headingBase={4} />}
       {markdown && <LinkedVideos markdown={markdown} />}
     </>}
+    {validLessonFigure(figure) && <div id={'lesson-figure-' + activity.id}><LessonFigure figure={figure} /></div>}
     {body()}
     {!!choices?.length && feedback && <p role="status" className={`rounded-xl px-4 py-3 font-semibold ${correct === false
       ? 'bg-warn-soft text-warn' : 'bg-brand-tint text-brand'}`}>{correct === false ? '✗ ' : correct ? '✓ ' : ''}{feedback}</p>}

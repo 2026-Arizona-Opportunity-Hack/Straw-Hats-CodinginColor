@@ -1,18 +1,28 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { defaultDraftQuality, draftQualities, isDraftQuality, maxDraftRequest, maxInstructorInstructions, maxSelectedImages, maxSourceText, type DraftSource } from '../shared/curriculum/draft'
+import type { LessonFigure } from '../shared/curriculum/figure'
 import type { GenerationStage } from '../shared/curriculum/progress'
+import { DraftImageReview } from './DraftImageReview'
 import { DraftLabReview } from './DraftLabReview'
 import { includeDraftLab, type DraftLab } from './draftLab'
 import { GenerationStatus } from './GenerationStatus'
-import { LessonPreview } from './LessonPreview'
+import { StudentPreview } from './StudentLessonPreview'
 import { sampleCurriculum } from './requestCurriculum'
-import { requestMaterialsDraft, type MaterialDraft } from './materialsDraft'
+import { requestMaterialsDraft, type DraftQaFixture, type MaterialDraft } from './materialsDraft'
 import type { readPptx } from './pptx'
-import type { Module } from './model'
+import { newActivity, type Activity, type Module } from './model'
 import { Dialog } from './ui'
 
-export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
+const audiencePresets = [
+  'Middle school students new to programming',
+  'High school students new to programming',
+  'College students new to programming',
+  'Adult learners new to programming',
+]
+
+export function ImportMaterials({ mode, local, close, onMarkdown, onDraft }: {
   mode: 'markdown' | 'converter'
+  local: boolean
   close: () => void
   onMarkdown: (text: string) => void
   onDraft: (module: Module) => void
@@ -21,11 +31,10 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
   const [audience, setAudience] = useState('')
   const [additionalInstructions, setAdditionalInstructions] = useState('')
   const audienceHint = useId()
+  const audienceOptions = useId()
   const instructionsHint = useId()
   const [quality, setQuality] = useState(defaultDraftQuality)
   const [draft, setDraft] = useState<MaterialDraft | null>(null)
-  const [lab, setLab] = useState<DraftLab | null>(null)
-  const [labBusy, setLabBusy] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [stage, setStage] = useState<GenerationStage>('preparing')
@@ -36,25 +45,12 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
   const pending = useRef<AbortController | null>(null)
   useEffect(() => () => pending.current?.abort(), [])
   const converter = mode === 'converter'
-  const labMaterial = deck ? deck.slides.map(slide => `Slide ${slide.number}\n${slide.text}\n${slide.notes}`).join('\n\n') : text.trim()
+  if (draft) return <DraftPreview draft={draft.module} imageTicket={draft.imageTicket} fixture={draft.fixture} local={local} close={close} back={() => setDraft(null)} onDraft={onDraft}
+    audience={audience.trim()} additionalInstructions={additionalInstructions.trim()}
+    material={deck ? deck.slides.map(slide => `Slide ${slide.number}\n${slide.text}\n${slide.notes}`).join('\n\n') : text.trim()} />
 
-  return <Dialog title={draft ? 'Review module draft' : converter ? 'Draft a module from materials' : 'Import Markdown'} wide={!!draft} onClose={close}>
-    {draft ? <div className="ic-stack">
-      <h2>{draft.module.title}</h2>
-      {draft.reviewNotes.length > 0 && <section><h3>Instructor review notes</h3><ul>
-        {draft.reviewNotes.map((note, index) => <li key={index}>{note}</li>)}
-      </ul></section>}
-      {draft.references.length > 0 && <section><h3>Verified references</h3><ul>
-        {draft.references.map(ref => <li key={ref.id}><a href={ref.url} target="_blank" rel="noreferrer">{ref.title}</a></li>)}
-      </ul></section>}
-      {draft.module.lessons.map(lesson => <details key={lesson.id}><summary>{lesson.title}</summary><LessonPreview lesson={lesson} /></details>)}
-      <DraftLabReview module={draft.module} material={labMaterial} audience={audience.trim()}
-        additionalInstructions={additionalInstructions.trim()} selected={lab} onChange={setLab} onBusy={setLabBusy} />
-      <div className="ic-form-footer">
-        <button type="button" className="ic-button" onClick={() => { setDraft(null); setLab(null); setLabBusy(false) }}>Back to materials</button>
-        <button type="button" className="ic-button ic-primary" disabled={labBusy} onClick={() => onDraft(includeDraftLab(draft.module, lab))}>Add as draft</button>
-      </div>
-    </div> : <form className="ic-stack" onSubmit={async event => {
+  return <Dialog title={converter ? 'Draft a module from materials' : 'Import Markdown'} onClose={close}>
+    <form className="ic-stack" onSubmit={async event => {
       event.preventDefault()
       if (pending.current || !ready) return
       if (!converter) return onMarkdown(text.trim())
@@ -85,6 +81,16 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
       {converter && (sampleCurriculum
         ? <p className="ic-note">Sample mode copies your materials into a draft. Enable AI generation to build a lesson and look up references.</p>
         : <p className="ic-note">Use curriculum materials approved for processing. Leave out student names and records.</p>)}
+      {converter && import.meta.env.DEV && local && <fieldset disabled={busy || reading}>
+        <legend>Local QA</legend>
+        <div className="ic-row">
+          {(['preview', 'image', 'limit'] as const).map(scenario => <button key={scenario} type="button" className="ic-button"
+            onClick={async () => {
+              const { localQaDraft } = await import('./draftQa')
+              if (!pending.current) setDraft(localQaDraft(scenario))
+            }}>{scenario === 'preview' ? 'Test lesson preview' : scenario === 'image' ? 'Test image review' : 'Test image limit'}</button>)}
+        </div>
+      </fieldset>}
       {!deck && <label>{converter ? 'Lesson plan proposal' : 'Markdown'}<textarea rows={7} value={text} maxLength={converter ? maxSourceText : undefined}
         onChange={event => setText(event.target.value)} disabled={busy || reading} /></label>}
       <label>{converter ? 'Text, Markdown, or PowerPoint file' : 'Text or Markdown file'}
@@ -149,9 +155,10 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
       {converter && <>
         <div>
           <label>Who is this for? (optional)<input value={audience} maxLength={180} disabled={busy}
-            placeholder="High school students new to CSS" aria-describedby={audienceHint}
+            placeholder="High school students new to programming" aria-describedby={audienceHint} list={audienceOptions}
             onChange={event => setAudience(event.target.value)} /></label>
-          <p className="ic-note" id={audienceHint}>Describe the learners and what they already know.</p>
+          <datalist id={audienceOptions}>{audiencePresets.map(preset => <option key={preset} value={preset} />)}</datalist>
+          <p className="ic-note" id={audienceHint}>Choose a suggestion or describe your learners and what they already know.</p>
         </div>
         <div>
           <label>Additional instructions (optional)<textarea rows={3} value={additionalInstructions} maxLength={maxInstructorInstructions} disabled={busy}
@@ -171,6 +178,79 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
       <div className="ic-form-footer"><button type="submit" className="ic-button ic-primary" disabled={busy || reading || !ready}>
         {converter ? (sampleCurriculum ? 'Preview sample draft' : 'Generate draft') : 'Add article'}
       </button></div>
-    </form>}
+    </form>
+  </Dialog>
+}
+
+
+function DraftPreview({ draft, imageTicket, fixture, local, close, back, onDraft, audience, additionalInstructions, material }: {
+  draft: Module
+  imageTicket?: string
+  fixture?: DraftQaFixture
+  local: boolean
+  close: () => void
+  back: () => void
+  onDraft: (module: Module) => void
+  audience: string
+  additionalInstructions: string
+  material: string
+}) {
+  const [view, setView] = useState<'preview' | 'lab' | 'image'>(fixture && fixture.scenario !== 'preview' ? 'image' : 'preview')
+  const [lessonId, setLessonId] = useState(draft.lessons[0]?.id)
+  const [lab, setLab] = useState<DraftLab | null>(null)
+  const [labBusy, setLabBusy] = useState(false)
+  const [imageBusy, setImageBusy] = useState(false)
+  const [images, setImages] = useState<{ placement: string; activity: Activity }[]>([])
+  const [focusFigure, setFocusFigure] = useState<string>()
+  const module = useMemo(() => includeDraftLab({ ...draft, lessons: draft.lessons.map(item => ({
+    ...item, activities: item.activities.flatMap(activity => [
+      activity, ...images.filter(image => image.placement === activity.id).map(image => image.activity),
+    ]),
+  })) }, lab), [draft, images, lab])
+  useEffect(() => {
+    if (focusFigure) document.getElementById('lesson-figure-' + focusFigure)?.scrollIntoView({ block: 'center' })
+  }, [focusFigure])
+
+  function approveImage(placement: string, figure: LessonFigure) {
+    const target = draft.lessons.find(item => item.activities.some(a => a.id === placement))
+    if (!target) return
+    const activity = { ...newActivity('content'), title: 'Lesson image', figure }
+    setImages(current => [...current, { placement, activity }])
+    setLessonId(target.id)
+    setView('preview')
+    setFocusFigure(activity.id)
+  }
+  const lesson = module.lessons.find(item => item.id === lessonId)
+
+  return <Dialog title="Preview module draft" wide onClose={close} footer={<>
+    <button type="button" className="ic-button" onClick={back}>Back to materials</button>
+    <button type="button" className="ic-button ic-primary" disabled={labBusy || imageBusy} onClick={() => onDraft(module)}>Add as draft</button>
+  </>}>
+    <div className="ic-stack ic-draft-preview">
+      <h2>{module.title}</h2>
+      {fixture && <p className="ic-note">Local test data. This preview makes no paid AI requests.</p>}
+      <div className="ic-tab-row" role="group" aria-label="Draft views">
+        <button type="button" aria-pressed={view === 'preview'} onClick={() => setView('preview')}>Student preview</button>
+        {(imageTicket || fixture) && <button type="button" aria-pressed={view === 'image'} onClick={() => setView('image')}>Generate image</button>}
+        {!fixture && <button type="button" aria-pressed={view === 'lab'} onClick={() => setView('lab')}>Coding lab</button>}
+      </div>
+      <div hidden={view !== 'preview'}>
+        <div className="ic-stack">
+          {module.lessons.length > 1 && <label>Lesson
+            <select value={lessonId} onChange={event => setLessonId(event.target.value)}>
+              {module.lessons.map(item => <option value={item.id} key={item.id}>{item.title}</option>)}
+            </select>
+          </label>}
+          {lesson && <StudentPreview moduleId={module.id} lessons={[lesson]} local={local} />}
+        </div>
+      </div>
+      {(imageTicket || fixture) && <div hidden={view !== 'image'}>
+        <DraftImageReview module={draft} ticket={imageTicket} fixture={fixture} onApprove={approveImage} onBusy={setImageBusy} />
+      </div>}
+      {!fixture && <div hidden={view !== 'lab'}>
+        <DraftLabReview module={draft} material={material} audience={audience}
+          additionalInstructions={additionalInstructions} selected={lab} onChange={setLab} onBusy={setLabBusy} />
+      </div>}
+    </div>
   </Dialog>
 }

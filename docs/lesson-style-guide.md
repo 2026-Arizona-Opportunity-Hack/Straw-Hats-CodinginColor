@@ -1,6 +1,6 @@
 # CIC Learn lesson style guide
 
-Version 1.0 · Visual reference: **Build a Cat Photo App**, Coding in Color’s first Web Development project.
+Version 1.1 · Visual reference: **Build a Cat Photo App**, Coding in Color’s first Web Development project.
 
 Convert a lesson plan proposal or slide deck into a student-facing lesson with the visual style and practice-first pacing of the Cat Photo App. Keep the source’s learning goals, audience, and subject matter. Use this guide for presentation and interaction choices.
 
@@ -20,8 +20,14 @@ Keep the source language and intended reading level unless the caller specifies 
 1. **Open with the thing learners will make or do.** Use the CIC Learn brand bar, a short course or project label, one action-oriented title, one or two outcome sentences, and a primary link to the first task. Add a preview photo, diagram, or example artifact if it helps learners see the outcome.
 2. **Give learners an early win.** Start with a small edit, prediction, choice, or worked example with a visible result. Explain the underlying term after learners have something concrete to attach it to. In Cat Photo App, students change a heading and see what the browser shows before learning the vocabulary for tags.
 3. **Teach in short sections.** Name sections after what learners do. Lead with one instruction, then show the smallest complete example and explain what changed. Add a hint, extension, or optional explanation in a disclosure when it belongs outside the main path.
-4. **Practice and check understanding.** Match the practice to the skill. For coding, use an editable starter and a labeled output pane when the target provides a runner. For other topics, use a worked example, comparison, prediction, or short response. Give feedback that explains the result or points to the next thing to try.
+4. **Practice and check understanding.** Match the practice to the skill. For coding, use an editable starter and a labeled output pane when the target provides a runner. Use a quick check with feedback for a prediction, a common mistake, or a choice students can test. Use a hands-on task when students can change code, run it, and see what happened.
 5. **Finish with evidence of learning.** Ask learners to show, explain, or apply what they made. Include a source-backed next step or further reading when it serves the lesson. Keep bonus material and optional links outside the required path.
+
+## Choosing practice blocks
+
+- Use a knowledge check when there is a clear answer and immediate feedback helps. Ask students to predict what code will do, spot a mistake, or choose the next step. Use plausible choices that reflect beginner misconceptions. Place each check immediately after the topic that teaches its answer, while the example is fresh.
+- Use hands-on practice for skills students can demonstrate by editing, building, testing, or debugging. Tell them what to change and what they should see. Ask for the result they observed when it helps the instructor see their work.
+- Save written responses for the big ideas. Ask students to explain a choice, compare approaches, connect the lesson to something they know, or share an idea worth discussing. One thoughtful prompt is enough. Use a quick check for vocabulary and other facts students can verify right away.
 
 ## Visual standard
 

@@ -1,6 +1,4 @@
-import type { DraftQuality } from '../../src/shared/curriculum/draft.ts'
-
-import type { ReportProgress } from '../../src/shared/curriculum/progress.ts'
+import type { GenerationStage, ReportProgress } from '../../src/shared/curriculum/progress.ts'
 
 export const draftTimeoutMs = 280_000
 const completionTimeoutMs = 265_000
@@ -26,7 +24,7 @@ type Completion = {
   choices?: { finish_reason?: string; message?: { content?: string } }[]
 }
 
-async function verifyEndpoint(route: (typeof routes)[DraftQuality], signal: AbortSignal) {
+export async function verifyEndpoint(route: { model: string; endpoint: string }, signal: AbortSignal) {
   const catalog = await fetch(openRouterUrl + '/endpoints/zdr', {
     cache: 'no-store', signal: AbortSignal.any([signal, AbortSignal.timeout(8_000)]),
   }).then(response => response.ok ? response.json() : null).catch(() => null) as {
@@ -41,22 +39,23 @@ async function verifyEndpoint(route: (typeof routes)[DraftQuality], signal: Abor
 
 type MessagePart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }
 
-export async function completeDraft({ quality, key, signal, guideVersion, instructions, source, schema, report }: {
-  quality: DraftQuality | 'codingLab'; key: string; signal: AbortSignal; guideVersion: string | undefined
+export async function completeDraft({ quality, key, signal, guideVersion, instructions, source, schema, report, stage, limits }: {
+  quality: keyof typeof routes; key: string; signal: AbortSignal; guideVersion: string | undefined
   instructions: string; source: string | MessagePart[]; schema: object; report?: ReportProgress
+  stage?: GenerationStage; limits?: { timeoutMs: number; maxTokens?: number; effort?: 'medium' | 'high' }
 }) {
   const route = routes[quality]
-  await verifyEndpoint(route, signal)
-  report?.('model')
+  const completionSignal = AbortSignal.any([signal, AbortSignal.timeout(limits?.timeoutMs ?? completionTimeoutMs)])
+  await verifyEndpoint(route, completionSignal)
+  report?.(stage ?? 'model')
   const started = Date.now()
-  const completionSignal = AbortSignal.any([signal, AbortSignal.timeout(completionTimeoutMs)])
   const response = await fetch(openRouterUrl + '/chat/completions', {
     method: 'POST', signal: completionSignal,
     headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: route.model,
-      max_tokens: route.maxTokens,
-      reasoning: { effort: 'high', exclude: true },
+      max_tokens: limits?.maxTokens ?? route.maxTokens,
+      reasoning: { effort: limits?.effort ?? 'high', exclude: true },
       provider: {
         only: [route.endpoint], allow_fallbacks: false, require_parameters: true, zdr: true, data_collection: 'deny',
         max_price: { prompt: route.promptPrice, completion: route.completionPrice },
@@ -75,7 +74,7 @@ export async function completeDraft({ quality, key, signal, guideVersion, instru
   const completion = await response.json().catch(() => null) as Completion | null
   completionSignal.throwIfAborted()
   console.info('curriculum draft', { model: completion?.model || route.model, guide: guideVersion, cost: completion?.usage?.cost, latencyMs: Date.now() - started })
-  report?.('validating')
+  if (!stage) report?.('validating')
   const choice = completion?.choices?.[0]
   if (choice?.finish_reason === 'length') {
     throw new DraftError('The draft exceeded the model’s output limit. Try splitting the source into smaller modules.', 502)

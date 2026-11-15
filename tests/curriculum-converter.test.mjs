@@ -14,6 +14,9 @@ const example = {
   lessons: [{ title: 'Write a heading', article: '## Make the first edit\n\nChange the text in the heading.', practice: ['Try a new title.'], exitPrompt: 'What changed on screen?', citationIds: ['mdn-html'] }],
   reviewNotes: ['Review the practice prompt.'],
 }
+const opusEdit = (index, changes) => ({ index, changes: {
+  article: null, practice: null, exitPrompt: null, citationIds: null, knowledgeChecks: null, ...changes,
+} })
 const completion = draft => Response.json({ choices: [{ message: { content: JSON.stringify(draft) } }] })
 
 it('requires a session before attempting paid inference', async () => {
@@ -25,11 +28,12 @@ const endpointsUrl = 'https://openrouter.ai/api/v1/endpoints/zdr'
 const catalog = (opusRetains = false) => Response.json({ data: [
   { model_id: 'openai/gpt-6.1-sol', tag: 'azure/us', safety_retention: false },
   { model_id: 'openai/gpt-6.1-terra', tag: 'azure/us', safety_retention: false },
+  { model_id: 'typesafe/jev-1.14', tag: 'typesafe', safety_retention: false },
   { model_id: 'anthropic/claude-opus-5.5', tag: 'google-vertex/global', safety_retention: opusRetains },
 ] })
 const mdn = () => new Response('<main><h1>Headings</h1><p>Headings structure a webpage.</p></main>')
 
-it('defaults a proposal to Terra and validates approved citations', async () => {
+it('supports a single Terra pass and validates approved citations', async () => {
   const calls = []
   const timeout = vi.spyOn(AbortSignal, 'timeout')
   vi.stubGlobal('fetch', async (url, init) => {
@@ -38,7 +42,7 @@ it('defaults a proposal to Terra and validates approved citations', async () => 
     calls.push(JSON.parse(init.body))
     return completion(example)
   })
-  const response = await generateDraft(proposal, '# Guide\n\nVersion 1.0', 'test', new AbortController().signal)
+  const response = await generateDraft({ ...proposal, quality: 'standard' }, '# Guide\n\nVersion 1.0', 'test', new AbortController().signal)
   expect(calls).toHaveLength(1)
   expect(calls[0]).toMatchObject({
     model: 'openai/gpt-6.1-terra', max_tokens: 13_000, reasoning: { effort: 'high', exclude: true },
@@ -130,7 +134,7 @@ it('keeps missing source evidence in review notes', async () => {
     return url.startsWith('https://developer.mozilla.org') ? new Response(null, { status: 503 })
       : completion({ ...example, lessons: [{ ...example.lessons[0], citationIds: [] }] })
   })
-  const response = await generateDraft(proposal, '# Guide', 'test', new AbortController().signal)
+  const response = await generateDraft({ ...proposal, quality: 'standard' }, '# Guide', 'test', new AbortController().signal)
   expect(response.references).toEqual([])
   expect(response.reviewNotes.join(' ')).toContain('Could not verify MDN')
 })
@@ -160,9 +164,9 @@ it('sends only selected images to the chosen model and preserves slide order', a
   })
   const deck = { kind: 'slide_deck', audience: '', slides, images: [] }
   const signal = new AbortController().signal
-  await generateDraft(deck, '# Guide', 'test', signal)
+  await generateDraft({ ...deck, quality: 'standard' }, '# Guide', 'test', signal)
   const selectedDeck = { ...deck, images: [{ id: 'slide-1-image-1', slideNumber: 1, dataUrl: png }] }
-  await generateDraft(selectedDeck, '# Guide', 'test', signal)
+  await generateDraft({ ...selectedDeck, quality: 'standard' }, '# Guide', 'test', signal)
   const response = await generateDraft({ ...selectedDeck, quality: 'high' }, '# Guide', 'test', signal)
   expect(calls.map(call => call.model)).toEqual(['openai/gpt-6.1-terra', 'openai/gpt-6.1-terra', 'anthropic/claude-opus-5.5'])
   expect(JSON.parse(calls[0].messages[1].content).source.slides).toEqual(slides)
@@ -190,7 +194,7 @@ it('rejects authenticated students and accepts an instructor without saving the 
       return completion(example)
     })
     const request = () => new Request('https://example.org/api/curriculum/draft', {
-      method: 'POST', headers: { Authorization: 'Bearer unit-test-session' }, body: JSON.stringify(proposal),
+      method: 'POST', headers: { Authorization: 'Bearer unit-test-session' }, body: JSON.stringify({ ...proposal, quality: 'standard' }),
     })
     expect((await POST(request())).status).toBe(403)
     expect(modelCalls).toBe(0)
@@ -214,7 +218,7 @@ it('reports actual generation stages before returning the validated draft', asyn
     if (url === endpointsUrl) return catalog()
     return promise
   })
-  const request = signedInRequest(proposal)
+  const request = signedInRequest({ ...proposal, quality: 'standard' })
   request.headers.set('Accept', 'application/x-ndjson')
   const response = await POST(request)
   expect(response.headers.get('Content-Type')).toContain('application/x-ndjson')
@@ -287,7 +291,7 @@ it('supplies relevant official W3Schools references when requested in additional
     })
     return completion({ ...example, lessons: [{ ...example.lessons[0], citationIds: ['w3schools-selectors'] }] })
   })
-  const result = await generateDraft(source, '# Guide', 'test', new AbortController().signal)
+  const result = await generateDraft({ ...source, quality: 'standard' }, '# Guide', 'test', new AbortController().signal)
   expect(calls).not.toContain('https://example.org/lesson')
   expect(result.references).toEqual([{
     id: 'w3schools-selectors', title: 'W3Schools · CSS Selectors', url: 'https://www.w3schools.com/css/css_selectors.asp',
@@ -312,4 +316,146 @@ it('validates additional instructions for proposals and slide decks', async () =
     expect(parseSource({ ...source, additionalInstructions: 'x'.repeat(2001) })).toBeNull()
     expect(parseSource({ ...source, additionalInstructions: 123 })).toBeNull()
   }
+})
+
+it.each(['ready', 'practice', 'instructor', 'invalid_repair'])('routes the reviewed draft through Opus and Jev (%s)', async decision => {
+  const quiz = { prompt: 'Which tag makes the largest heading by default?', choices: ['h1', 'p'], answer: 0 }
+  const checkedLesson = { ...example.lessons[0], knowledgeChecks: [quiz], practice: [], exitPrompt: '' }
+  const unrelated = { ...checkedLesson, title: 'Read a heading' }
+  const revisedLesson = { ...checkedLesson, article: '## Predict\n\nChange the text inside h1 and open the file.' }
+  const repairedLesson = { ...revisedLesson, practice: ['Refresh the page and point to the changed heading.'] }
+  const routeRepair = decision === 'practice' || decision === 'invalid_repair'
+  const calls = []
+  const stages = []
+  vi.stubGlobal('fetch', async (url, init) => {
+    if (url === endpointsUrl) return catalog()
+    if (url.startsWith('https://developer.mozilla.org')) return mdn()
+    const input = JSON.parse(init.body)
+    calls.push(input.model)
+    if (input.model === 'anthropic/claude-opus-5.5') {
+      expect(input.messages[0].content).toContain('Review this draft against the source')
+      return completion({ edits: [opusEdit(0, { article: revisedLesson.article })], notes: [] })
+    }
+    if (input.model === 'typesafe/jev-1.14') {
+      expect(input.provider).toMatchObject({ only: ['typesafe'], allow_fallbacks: false, zdr: true, data_collection: 'deny' })
+      expect(input.state.lessons).toEqual([revisedLesson, unrelated])
+      return Response.json({ answers: {
+        lesson_0: { type: 'choice', choice: routeRepair ? 'practice' : decision, confidence: 0.62 },
+        lesson_1: { type: 'choice', choice: routeRepair ? 'practice' : 'ready', confidence: 0.43 },
+      } })
+    }
+    if (calls.length === 1) return completion({ ...example, lessons: [checkedLesson, unrelated] })
+    expect(JSON.parse(input.messages[1].content).lesson).toEqual(revisedLesson)
+    return completion(decision === 'invalid_repair' ? { ...repairedLesson, citationIds: ['invented'] } : repairedLesson)
+  })
+  const result = await generateDraft(proposal, '# Guide', 'test', new AbortController().signal, stage => stages.push(stage))
+  expect(calls).toEqual(['openai/gpt-6.1-terra', 'anthropic/claude-opus-5.5', 'typesafe/jev-1.14', ...(routeRepair ? ['openai/gpt-6.1-terra'] : [])])
+  expect(stages).toEqual(['references', 'drafting', 'reviewing', 'checking', ...(routeRepair ? ['repairing'] : []), 'validating'])
+  expect(result.lessons).toEqual([decision === 'practice' ? repairedLesson : revisedLesson, unrelated])
+  if (routeRepair) expect(result.reviewNotes.join(' ')).toContain('Read a heading')
+  if (decision === 'instructor') expect(result.reviewNotes.join(' ')).toContain('needs instructor input')
+  if (decision === 'invalid_repair') expect(result.reviewNotes.join(' ')).toContain('could not be applied')
+})
+
+it('rejects knowledge checks whose answer does not match a choice', async () => {
+  vi.stubGlobal('fetch', async url => {
+    if (url === endpointsUrl) return catalog()
+    if (url.startsWith('https://developer.mozilla.org')) return mdn()
+    return completion({ ...example, lessons: [{ ...example.lessons[0],
+      knowledgeChecks: [{ prompt: 'Which tag makes a heading?', choices: ['h1', 'p'], answer: 2 }],
+    }] })
+  })
+  await expect(generateDraft(proposal, '# Guide', 'test', new AbortController().signal)).rejects.toMatchObject({ status: 502 })
+})
+
+it('preserves the Opus revision when Jev is unavailable under the privacy settings', async () => {
+  const revised = { ...example.lessons[0], article: '## Build a heading\n\nChange its text and refresh the page.' }
+  const models = []
+  vi.stubGlobal('fetch', async (url, init) => {
+    if (url.startsWith('https://developer.mozilla.org')) return mdn()
+    if (url === endpointsUrl) {
+      const { data } = await catalog().json()
+      return Response.json({ data: data.filter(endpoint => endpoint.tag !== 'typesafe') })
+    }
+    const { model } = JSON.parse(init.body)
+    models.push(model)
+    return completion(model === 'anthropic/claude-opus-5.5'
+      ? { edits: [opusEdit(0, { article: revised.article })], notes: [] } : example)
+  })
+  const result = await generateDraft(proposal, '# Guide', 'test', new AbortController().signal)
+  expect(models).toEqual(['openai/gpt-6.1-terra', 'anthropic/claude-opus-5.5'])
+  expect(result.lessons[0].article).toBe(revised.article)
+  expect(result.reviewNotes.join(' ')).toContain('Jev’s review could not finish')
+})
+
+it('adds each knowledge check as its own block and saves written prompts for discussion', async () => {
+  vi.stubGlobal('window', { location: { hostname: 'localhost' } })
+  const { materialDraft } = await import('../src/instructor/materialsDraft.ts')
+  const lesson = {
+    ...example.lessons[0],
+    practice: ['Change the heading and refresh the page.'],
+    exitPrompt: 'How did a good heading help you find what you needed?',
+    knowledgeChecks: [
+      { prompt: 'Which tag makes a main heading?', choices: ['p', 'h1'], answer: 1 },
+      { prompt: 'Which file contains your heading text?', choices: ['index.html', 'styles.css'], answer: 0 },
+    ],
+  }
+  const result = materialDraft({ ...example, lessons: [lesson], references: [] })
+  const { activities } = result.lessons[0]
+  expect(result.published).toBe(false)
+  expect(activities.map(item => item.type)).toEqual(['content', 'check', 'check', 'exit'])
+  expect(activities[0].markdown).toContain('## Try it yourself\n\n- Change the heading and refresh the page.')
+  expect(activities.slice(1, 3).map(item => item.questions[0].answer)).toEqual([1, 0])
+  expect(activities[3].questions[0].prompt).toBe(lesson.exitPrompt)
+})
+
+it('still checks and repairs the draft after Opus reaches its output limit', async () => {
+  const repaired = { ...example.lessons[0], practice: ['Change the heading and refresh. Check the new text.'] }
+  const calls = []
+  vi.stubGlobal('fetch', async (url, init) => {
+    if (url === endpointsUrl) return catalog()
+    if (url.startsWith('https://developer.mozilla.org')) return mdn()
+    const input = JSON.parse(init.body)
+    calls.push(input.model)
+    if (input.model === 'anthropic/claude-opus-5.5') {
+      return Response.json({ choices: [{ finish_reason: 'length', message: { content: '{"edits":' } }] })
+    }
+    if (input.model === 'typesafe/jev-1.14') {
+      expect(input.state.lessons).toEqual(example.lessons)
+      return Response.json({ answers: { lesson_0: { type: 'choice', choice: 'practice', confidence: 0.3 } } })
+    }
+    return completion(calls.length === 1 ? example : repaired)
+  })
+  const result = await generateDraft(proposal, '# Guide', 'test', new AbortController().signal)
+  expect(calls).toEqual(['openai/gpt-6.1-terra', 'anthropic/claude-opus-5.5', 'typesafe/jev-1.14', 'openai/gpt-6.1-terra'])
+  expect(result.lessons).toEqual([repaired])
+  expect(result.reviewNotes.join(' ')).toContain('Opus’s review could not finish')
+  expect(result.reviewNotes.join(' ')).toContain('Terra made a targeted edit')
+})
+
+it('places checks after their topic in article order and keeps fenced headings in code', async () => {
+  vi.stubGlobal('window', { location: { hostname: 'localhost' } })
+  const { materialDraft } = await import('../src/instructor/materialsDraft.ts')
+  const source = [
+    '## Link your stylesheet', '', 'Create a separate stylesheet.',
+    '', '```text', '## Example code', '```', '',
+    '## Choose colors', '', 'Set the text color in CSS.',
+  ].join('\n')
+  const questions = [
+    { prompt: 'Which property changes text color?', choices: ['color', 'margin'], answer: 0, afterSection: 'Choose colors' },
+    { prompt: 'Where do you write CSS?', choices: ['styles.css', 'index.html'], answer: 0, afterSection: 'Link your stylesheet' },
+    { prompt: 'What does the browser read?', choices: ['Both files', 'One file'], answer: 0, afterSection: 'Example code' },
+  ]
+  const lesson = { ...example.lessons[0], article: source, knowledgeChecks: questions }
+  const draft = materialDraft({
+    ...example, lessons: [lesson], references: [{ id: 'mdn-html', title: 'HTML', url: 'https://example.org/html' }],
+  })
+  const { activities } = draft.lessons[0]
+  expect(activities.map(item => item.type)).toEqual(['content', 'check', 'content', 'check', 'content', 'check', 'exit'])
+  expect(activities[0].markdown).toContain('```text\n## Example code\n```')
+  expect(activities[1].questions[0].prompt).toBe(questions[1].prompt)
+  expect(activities[2]).toMatchObject({ title: 'Choose colors', markdown: 'Set the text color in CSS.' })
+  expect(activities[3].questions[0].prompt).toBe(questions[0].prompt)
+  expect(activities[4]).toMatchObject({ title: 'Try it yourself', markdown: expect.stringContaining('## References\n\n- [HTML](https://example.org/html)') })
+  expect(activities[5].questions[0].prompt).toBe(questions[2].prompt)
 })
