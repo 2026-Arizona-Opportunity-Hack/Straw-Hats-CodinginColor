@@ -4,6 +4,7 @@ import { isLocalDemo } from '../shared/supabase.ts';
 import { DemoLesson } from '../student/DemoLesson';
 import { LessonContent } from '../student/LessonContent';
 import { CodingLabEditor } from './CodingLabEditor';
+import { DiscussionReview } from './DiscussionReview';
 import { HtmlActivityEditor, HtmlActivityPreview } from './HtmlActivity';
 import { emptyHtml } from './htmlStarter';
 import { BlockPicker } from './BlockPicker';
@@ -441,6 +442,7 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
 }
 
 function ActivityEditor({ activity, onChange, localAuthoring }: { activity: Activity; localAuthoring: boolean; onChange: (fn: (activity: Activity) => Activity) => void }) {
+  const [reviewNotes, setReviewNotes] = useState(false);
   const image = useRef<HTMLInputElement>(null);
   const mediaHintId = useId();
   const [imageError, setImageError] = useState('');
@@ -507,6 +509,13 @@ function ActivityEditor({ activity, onChange, localAuthoring }: { activity: Acti
       <button className="ic-button" type="button" disabled={!alt.trim()} onClick={() => image.current?.click()}><ImagePlus size={16} /> Add image</button>
       {imageError && <p className="ic-error" role="alert">{imageError}</p>}
     </div>}
+    {activity.type === 'worksheet' && (activity.discussionEnabled || activity.questions.some(q => !q.choices.some(choice => choice.trim()))) &&
+      <div className="ic-stack">
+        <label className="ic-checkbox"><input type="checkbox" checked={!!activity.discussionEnabled}
+          onChange={event => set({ discussionEnabled: event.target.checked })} /> Share anonymous answers with the class after submitting</label>
+        {activity.discussionEnabled && !localAuthoring && <button type="button" className="ic-button ic-fit" onClick={() => setReviewNotes(true)}>Review classmate notes</button>}
+      </div>}
+    {reviewNotes && <DiscussionReview activityId={activity.id} onClose={() => setReviewNotes(false)} />}
     {questionTypes.has(activity.type) && <>
       {activity.questions.map((question, index) => {
         const update = (patch: Partial<typeof question>) => onChange(activity => ({ ...activity, questions: activity.questions.map((item, i) => i === index ? { ...item, ...patch } : item) }));

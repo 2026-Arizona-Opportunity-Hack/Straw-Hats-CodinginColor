@@ -49,5 +49,6 @@ function StudentBlock({ activity, lessonId, index, storageKey }: { activity: Act
     {error && <p role="alert">{error}</p>}
   </section>
   const block = previewActivity(activity, lessonId, index)
-  return <Card><ActivityBlock activity={block} onAttempt={input => practiceAttempt(block, input)} /></Card>
+  return <Card><ActivityBlock activity={block} demoDiscussion={!!storageKey && activity.id === 'builder-reflection'}
+    onAttempt={input => practiceAttempt(block, input)} /></Card>
 }

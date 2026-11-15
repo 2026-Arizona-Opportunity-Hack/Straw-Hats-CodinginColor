@@ -52,6 +52,12 @@ Source changes ship before hosted activation.
 Mock snapshots and My blocks remain browser-local. Runnable Python labs use the local runner.
 Run `supabase/tests/student_curriculum_access.sql` against a migrated development database to check both access and grading.
 
+## Anonymous class notes
+
+Migration 1006 scopes opt-in worksheet notes to a class and reveals up to 15 after the student's own submission.
+Instructors can review and hide notes for classes they manage.
+The Cat Photo App demo activation script opts in Maryvale without sharing prior submissions.
+
 ## Roster entry
 
 Class setup and existing classes share the same CSV and manual-entry controls.
@@ -60,6 +66,8 @@ The roster mapping endpoint checks the signed-in Supabase profile and calls Jev 
 Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
 
 ## Log
+
+- 2026-11-15, Ken: added anonymous classmate notes and teacher moderation.
 
 - 2026-11-14, Ken: added the verified Cat Photo App lab and its local demo.
 

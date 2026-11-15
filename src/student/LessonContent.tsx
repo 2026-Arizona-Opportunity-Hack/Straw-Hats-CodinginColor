@@ -1,18 +1,24 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState, type FormEvent } from 'react'
 import Markdown, { defaultUrlTransform } from 'react-markdown'
 import type { ActivityStatus, AttemptInput, recordAttempt } from '../api/student/index.ts'
 import { slidesUrl } from '../instructor/model.ts'
 import { CodeLab, type VerifyWebLab } from '../shared/labs/CodeLab.tsx'
 import { previewCatPhotoChecks } from '../shared/labs/catPhoto.ts'
-import type { Choice } from '../shared/types/activities.ts'
+import type { Choice, DiscussionState } from '../shared/types/activities.ts'
 import type { Activity, Lesson } from '../shared/types/db.ts'
 import { curriculumUrl } from '../shared/ui/curriculumUrl.ts'
 import { InteractiveHtmlFrame } from '../shared/ui/InteractiveHtmlFrame.tsx'
 import { Button, Card } from '../shared/ui/index.tsx'
+import { DiscussionNotes } from './DiscussionNotes'
 import './lessonContent.css'
 
 export type SubmitActivity = (input: AttemptInput) => ReturnType<typeof recordAttempt>
+type LoadDiscussion = (activityId: string) => Promise<DiscussionState>
+const exampleNotes = [
+  { id: 'example-1', answers: { f0: 'A school club could track points in a trivia game.' } },
+  { id: 'example-2', answers: { f0: 'I would use one to count goals at soccer practice.' } },
+]
 
 function AnswerField({ id, prompt, choices }: { id: string; prompt: string; choices?: Choice[] }) {
   return choices?.length ? (
@@ -29,17 +35,31 @@ function AnswerField({ id, prompt, choices }: { id: string; prompt: string; choi
   )
 }
 
-export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScripts = false, verifyLab, labStorageKey }: {
+export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScripts = false, verifyLab, labStorageKey,
+  loadDiscussion, studentId, demoDiscussion = false }: {
   activity: Activity; status?: ActivityStatus; onAttempt: SubmitActivity; onSaved?: () => void; allowScripts?: boolean
   verifyLab?: VerifyWebLab; labStorageKey?: string
+  loadDiscussion?: LoadDiscussion; studentId?: string; demoDiscussion?: boolean
 }) {
   const [started, setStarted] = useState(() => performance.now())
   const formId = useId()
+  const queryClient = useQueryClient()
+  const discussionEnabled = activity.type === 'worksheet' && (activity as Activity<'worksheet'>).content.discussion_enabled === true
+  const discussionKey = ['classmate-notes', studentId, activity.id]
+  const discussion = useQuery({
+    queryKey: discussionKey, enabled: discussionEnabled && !!loadDiscussion,
+    queryFn: () => loadDiscussion!(activity.id),
+  })
+  const canShare = discussionEnabled && (demoDiscussion || discussion.data?.enabled)
   const attempt = useMutation({
     mutationFn: ({ response, score }: { response: unknown; score?: number }) => onAttempt({
       activity_id: activity.id, response, client_score: score, time_on_task_ms: Math.round(performance.now() - started),
     }),
-    onSuccess: () => { setStarted(performance.now()); onSaved?.() },
+    onSuccess: () => {
+      setStarted(performance.now())
+      onSaved?.()
+      if (canShare && loadDiscussion) void queryClient.invalidateQueries({ queryKey: discussionKey })
+    },
   })
   const done = attempt.isSuccess || status?.submitted
   const score = attempt.data ? attempt.data.score : status?.best_score
@@ -49,14 +69,29 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
     if (!fields.length) return <><p>No questions were added to this activity.</p>{!done && complete}</>
     function send(event: FormEvent<HTMLFormElement>) {
       event.preventDefault()
+      if (attempt.isPending || (discussionEnabled && loadDiscussion && discussion.isPending)) return
       const data = new FormData(event.currentTarget)
       const answers = Object.fromEntries(fields.map(field => [field.id, String(data.get(formId + field.id) ?? '').trim()]))
-      submit(key ? { [key]: answers } : answers)
+      submit(key ? { [key]: answers, ...(canShare && key === 'fields' ? { share_discussion: true } : {}) } : answers)
     }
-    return <form className="space-y-3" onSubmit={send}>
-      {fields.map(field => <AnswerField key={field.id} {...field} id={formId + field.id} />)}
-      <Button type="submit" disabled={attempt.isPending}>Submit answer{fields.length > 1 ? 's' : ''}</Button>
-    </form>
+    return <>
+      <form className="space-y-3" onSubmit={send} onKeyDown={canShare ? event => {
+        if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+          event.preventDefault()
+          event.currentTarget.requestSubmit()
+        }
+      } : undefined}>
+        {fields.map(field => <AnswerField key={field.id} {...field} id={formId + field.id} />)}
+        {canShare && <p className="text-sm">Your class can see these answers without your name. Leave out personal details.</p>}
+        {discussionEnabled && !loadDiscussion && !demoDiscussion &&
+          <p className="text-sm">Eligible students see anonymous classmate answers after submitting.</p>}
+        <Button type="submit" disabled={attempt.isPending || !!(discussionEnabled && loadDiscussion && discussion.isPending)}>
+          {canShare ? 'Submit and see classmate answers' : `Submit answer${fields.length > 1 ? 's' : ''}`}
+        </Button>
+      </form>
+      {canShare && (discussion.data?.shared || (demoDiscussion && attempt.isSuccess)) &&
+        <DiscussionNotes notes={demoDiscussion ? exampleNotes : discussion.data?.notes ?? []} fields={fields} />}
+    </>
   }
 
   function body() {
@@ -121,7 +156,7 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
   </div>
 }
 
-export function LessonContent({ lesson, statuses, onAttempt, onSaved, allowScripts, checkLab, studentId }: {
+export function LessonContent({ lesson, statuses, onAttempt, onSaved, allowScripts, checkLab, studentId, loadDiscussion }: {
   lesson: Lesson & { activities: Activity[] }
   statuses?: ReadonlyMap<string, ActivityStatus>
   onAttempt: (activity: Activity, input: AttemptInput) => ReturnType<SubmitActivity>
@@ -129,12 +164,14 @@ export function LessonContent({ lesson, statuses, onAttempt, onSaved, allowScrip
   allowScripts?: boolean
   checkLab?: (activityId: string, source: string, signal: AbortSignal) => ReturnType<VerifyWebLab>
   studentId?: string
+  loadDiscussion?: LoadDiscussion
 }) {
   return <section className="space-y-3">
     <h2 className="text-xl">{lesson.title}</h2>
     {lesson.activities.map(activity => <Card key={activity.id}>
       <ActivityBlock activity={activity} status={statuses?.get(activity.id)} onAttempt={input => onAttempt(activity, input)}
-        onSaved={onSaved} allowScripts={allowScripts} labStorageKey={studentId ? 'cic-learn.live-lab:' + studentId + ':' + activity.id : undefined}
+        onSaved={onSaved} allowScripts={allowScripts} studentId={studentId} loadDiscussion={loadDiscussion}
+        labStorageKey={studentId ? 'cic-learn.live-lab:' + studentId + ':' + activity.id : undefined}
         verifyLab={checkLab && (async (source, signal) => {
           const verified = await checkLab(activity.id, source, signal)
           if (verified.completed) onSaved?.()

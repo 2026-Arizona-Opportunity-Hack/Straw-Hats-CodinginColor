@@ -1,7 +1,7 @@
 // Owner: Jacky. Loads the student's module and submits their attempts.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
-import { checkCatPhotoLab, getModule, listActivityStatus, recordAttempt } from '../api/student/index.ts'
+import { checkCatPhotoLab, getClassmateNotes, getModule, listActivityStatus, recordAttempt } from '../api/student/index.ts'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { isLocalDemo } from '../shared/supabase.ts'
 import { PageHeader } from '../shared/ui/index.tsx'
@@ -35,7 +35,7 @@ export function ModulePlayer() {
     <div className="space-y-6">
       {mod.lessons.map(lesson => <LessonContent key={lesson.id} lesson={lesson} statuses={statuses}
         onAttempt={(_, input) => recordAttempt(input)} onSaved={refreshProgress} allowScripts={isLocalDemo}
-        checkLab={checkCatPhotoLab} studentId={studentId} />)}
+        checkLab={checkCatPhotoLab} studentId={studentId} loadDiscussion={getClassmateNotes} />)}
     </div>
   </>
 }

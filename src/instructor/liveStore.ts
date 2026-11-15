@@ -88,6 +88,7 @@ function toActivity(row: Row): Activity {
     html: str(content.html), instructions: str(content.instructions), reports_score: Boolean(content.reports_score),
   };
   if (content.format === 'open-ended') activity.format = 'open-ended';
+  if (type === 'worksheet') activity.discussionEnabled = content.discussion_enabled === true;
   return activity;
 }
 
@@ -104,7 +105,7 @@ export function activityContent(activity: Activity): Json {
     case 'check': return { ...base, prompt: first?.prompt ?? '', choices: first ? choices(first) : [], answer: first ? answerId(first) : undefined, markdown: activity.markdown };
     case 'exit': return { ...base, prompt: first?.prompt ?? '', choices: first ? choices(first) : [], markdown: activity.markdown };
     case 'worksheet': return {
-      ...base, markdown: activity.markdown, format: activity.format,
+      ...base, markdown: activity.markdown, format: activity.format, discussion_enabled: !!activity.discussionEnabled,
       fields: activity.questions.map((q, i) => q.choices.some(c => c.trim())
         ? { id: 'f' + i, kind: 'multiple_choice', prompt: q.prompt, choices: choices(q) }
         : { id: 'f' + i, kind: activity.format === 'open-ended' ? 'long_answer' : 'short_answer', prompt: q.prompt }),

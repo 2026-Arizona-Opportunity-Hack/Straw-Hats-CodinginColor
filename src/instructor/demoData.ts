@@ -63,7 +63,7 @@ export const BuilderDemo: Course = {
     lessons: [{
       id: 'builder-demo-lesson', title: 'From a variable to a web page', activities: [
         { ...check, id: 'builder-quiz', title: 'Quick quiz' },
-        { ...check, id: 'builder-reflection', type: 'worksheet', title: 'In your own words', format: 'open-ended',
+        { ...check, id: 'builder-reflection', type: 'worksheet', title: 'In your own words', format: 'open-ended', discussionEnabled: true,
           questions: [{ prompt: 'Where could a scoreboard be useful?', choices: [], answer: null, concept: 'Variables' }] },
         { ...article, id: 'builder-widget', type: 'interactive_html', title: 'Try the score widget', markdown: '', interactiveHtml: {
           reports_score: true,
