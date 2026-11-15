@@ -67,6 +67,8 @@ The #27 student "Browse courses" UI was dropped in favor of the Explore page alr
 - No thresholds are hardcoded on the frontend.
   Inactive days, low score, pass mark and post-test tries come from `program_settings` and the `class_module_settings` view (migration 2006); each class gets `rules` in `liveStore.ts`.
   Admin analytics (`src/admin/api.ts`, `metrics.ts`) read the same tables, every row, including self-enrolled students.
+- Admin before/after and learning-gain averages use the same matched student/module pairs.
+  The headline, module growth rows and breakdown table show the matched-pair sample size; unmatched scores stay in individual detail without affecting the aggregate comparison.
 
 ### Assignments and grading
 
@@ -177,6 +179,7 @@ Keep it short; link to code instead of copying it.
 Put each sentence on its own line.
 
 ## Log
+- 2026-11-15, Codex: corrected admin before/after averages to use matched assessment pairs and show sample sizes; verified sparse, disjoint and negative-gain cohorts plus rendered growth labels.
 - 2026-11-15, Ken: added migration 3011 and rollback-only tests for archive/restore with unchanged authenticated claims. Hosted application pending.
 - 2026-11-15 8:55 AM, Ruthvik: rewrote this handoff to cover everything I built (PR list, features, migrations, open work) now that #49 is on `main`. Updated the README instructor section and the Supabase handoff (2006 applied).
 - 2026-11-15 1:20 AM, Ruthvik: opened one PR from `ruthvik/class-library-dashboard` that merges latest `main` with the CIC library, edit-in-class curriculum, class Dashboard drill-downs, DB-driven thresholds (migration 2006, already applied to hosted), the lesson reading view, AI Academy curriculum and embedded HTML activities.
