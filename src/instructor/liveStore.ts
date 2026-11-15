@@ -129,6 +129,7 @@ function toSubmission(row: Row): Submission {
   return {
     id: String(row.id), assignmentId: String(row.assignment_id), studentId: String(row.class_student_id),
     responses: (row.responses ?? {}) as Submission['responses'], manualScores: (row.manual_scores ?? {}) as Submission['manualScores'],
+    rubricScores: (row.rubric_scores ?? {}) as Submission['rubricScores'],
     feedback: str(row.feedback), submittedAt: str(row.submitted_at), gradedAt: (row.graded_at as string | null) ?? null,
   };
 }
@@ -252,7 +253,7 @@ async function syncClass(supabase: SupabaseClient, userId: string, next: ClassGr
   for (const submission of next.submissions ?? []) {
     if (same(prevSubmissions.get(submission.id), submission)) continue;
     const result = await supabase.from('assignment_submissions').update({
-      manual_scores: submission.manualScores, feedback: submission.feedback, graded_at: submission.gradedAt, graded_by: submission.gradedAt ? userId : null,
+      manual_scores: submission.manualScores, rubric_scores: submission.rubricScores, feedback: submission.feedback, graded_at: submission.gradedAt, graded_by: submission.gradedAt ? userId : null,
     }).eq('id', submission.id).select('id');
     fail('save the grade', result.error);
     // RLS hides rows instead of erroring, so an update that matched nothing was not allowed.

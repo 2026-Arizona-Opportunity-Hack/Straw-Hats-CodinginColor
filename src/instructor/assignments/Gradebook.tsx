@@ -1,12 +1,14 @@
 // Grades for class assignments: a student-by-assignment gradebook, and a grading view that
 // walks through one submission block by block with points and feedback.
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ChevronLeft, ChevronRight, Download, FileText, Search } from 'lucide-react';
+import { supabase } from '../../shared/supabase';
 import type { ClassGroup } from '../model';
 import { Dialog, Empty } from '../ui';
 import { formatDue, pointsLabel } from './display';
-import { autoPoints, gradebookCsv, gradeSubmission, isLate, needsInstructor, type Submission } from './grading';
-import { blockLabels, blockPoints, questionKinds, totalPoints, type Assignment, type Block } from './model';
+import { autoPoints, gradebookCsv, gradeSubmission, isFileList, isLate, needsInstructor, rubricResult, type ResponseValue, type Submission, type UploadedFile } from './grading';
+import { RubricPicker } from './Rubric';
+import { blockLabels, blockPoints, hasRubricSupport, questionKinds, totalPoints, type Assignment, type Block, type RubricBlock } from './model';
 
 type Props = { group: ClassGroup; onSave: (group: ClassGroup) => boolean };
 
@@ -127,6 +129,19 @@ function GradeDialog({ assignment, submission, studentName, position, count, onM
     setStatus('');
   }
 
+  /** Choosing a rating per criterion; once every criterion is rated, the block's score is their sum. */
+  function pickRating(block: RubricBlock, criterionId: string, ratingId: string | null) {
+    const picks = { ...(draft.rubricScores?.[block.id] ?? {}) };
+    if (ratingId) picks[criterionId] = ratingId;
+    else delete picks[criterionId];
+    const result = rubricResult(block, picks);
+    const scores = { ...draft.manualScores };
+    if (result.complete) scores[block.id] = result.points;
+    else delete scores[block.id];
+    setDraft({ ...draft, rubricScores: { ...draft.rubricScores, [block.id]: picks }, manualScores: scores });
+    setStatus('');
+  }
+
   function save(thenMove?: number) {
     const next = { ...draft, gradedAt: gradeSubmission(assignment, draft).ungraded ? null : new Date().toISOString() };
     if (dirty && !onSave(next)) return;
@@ -155,7 +170,13 @@ function GradeDialog({ assignment, submission, studentName, position, count, onM
             <span className="ic-note">/ {max}</span></label>
         </div>
         <StudentAnswer block={block} response={response} />
-        <p className="ic-note">{auto === null
+        {hasRubricSupport(block) && block.rubric?.length ? <RubricPicker rubric={block.rubric} blockLabel={label}
+          picks={draft.rubricScores?.[block.id] ?? {}} onPick={(criterionId, ratingId) => pickRating(block, criterionId, ratingId)} /> : null}
+        <p className="ic-note">{hasRubricSupport(block) && block.rubric?.length && manual === undefined
+          ? `Rubric so far: ${rubricResult(block, draft.rubricScores?.[block.id]).points} of ${max}. Pick a rating for every criterion, or type points to override.`
+          : hasRubricSupport(block) && block.rubric?.length && rubricResult(block, draft.rubricScores?.[block.id]).complete && manual === rubricResult(block, draft.rubricScores?.[block.id]).points
+          ? 'Scored with the rubric.'
+          : auto === null
           ? (manual === undefined ? 'Needs your score.' : 'Scored by you.')
           : manual === undefined ? `Auto-graded: ${auto} of ${max}. Type a number to override.` : `Auto-graded ${auto}; you set ${manual}.`}</p>
       </li>;
@@ -175,7 +196,10 @@ function GradeDialog({ assignment, submission, studentName, position, count, onM
   </Dialog>;
 }
 
-function StudentAnswer({ block, response }: { block: Block; response: number[] | string | undefined }) {
+function StudentAnswer({ block, response }: { block: Block; response: ResponseValue | undefined }) {
+  if (block.type === 'file') return <div className="ic-stack ic-answer"><p className="ic-preserve ic-note">{block.prompt}</p>
+    {isFileList(response) && response.length ? <ul className="ic-file-list">{response.map(file => <li key={file.path}><FileLink file={file} /></li>)}</ul> : <p>No file uploaded.</p>}</div>;
+  if (isFileList(response)) return null;
   if (block.type === 'question') {
     const q = block.question;
     const picked = Array.isArray(response) ? response : [];
@@ -197,4 +221,26 @@ function StudentAnswer({ block, response }: { block: Block; response: number[] |
     <pre><code>{typeof response === 'string' && response.trim() ? response : 'No code submitted'}</code></pre></div>;
   if (block.type === 'html') return <p className="ic-answer">{typeof response === 'string' && response !== '' ? `The page reported ${Math.round(Number(response) * 100)}%.` : 'No score reported.'}</p>;
   return null;
+}
+
+const sizeLabel = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
+
+/** Download link for a private submission file: a signed URL that expires after 10 minutes. */
+function FileLink({ file }: { file: UploadedFile }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [problem, setProblem] = useState('');
+  useEffect(() => {
+    if (!supabase || file.path.startsWith('demo/')) return;
+    let cancelled = false;
+    supabase.storage.from('submission-files').createSignedUrl(file.path, 600, { download: file.name }).then(({ data, error }) => {
+      if (cancelled) return;
+      if (error || !data) setProblem('Could not open this file.');
+      else setUrl(data.signedUrl);
+    });
+    return () => { cancelled = true; };
+  }, [file.path, file.name]);
+  const meta = <span className="ic-note"> · {sizeLabel(file.size)}</span>;
+  if (url) return <a href={url} target="_blank" rel="noopener noreferrer" className="ic-file-link"><FileText size={16} aria-hidden="true" />{file.name}{meta}</a>;
+  return <span className="ic-file-link"><FileText size={16} aria-hidden="true" />{file.name}{meta}
+    <span className="ic-note"> · {problem || (file.path.startsWith('demo/') || !supabase ? 'sample file, no download in demo data' : 'preparing download…')}</span></span>;
 }

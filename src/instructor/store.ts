@@ -24,7 +24,7 @@ export const browserInstructorStore: InstructorStore = {
           // Data saved before assignments existed: start from the demo set for demo classes.
           classes: saved.classes.map((group: ClassGroup) => Array.isArray(group.assignments)
             // Older saves stored one fixed type per assignment; convert those to blocks.
-            ? { ...group, assignments: group.assignments.map(a => normalizeAssignment(a as Assignment & Record<string, unknown>)), submissions: group.submissions ?? [] }
+            ? { ...group, assignments: group.assignments.map(a => normalizeAssignment(a as Assignment & Record<string, unknown>)), submissions: (group.submissions ?? []).map(sub => ({ ...sub, rubricScores: sub.rubricScores ?? {} })) }
             : {
               ...group,
               assignments: structuredClone(demoData.classes.find(demo => demo.id === group.id)?.assignments ?? []),

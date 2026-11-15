@@ -113,6 +113,30 @@ const maryvaleAssignments: Assignment[] = [
       { id: 'b-w2', type: 'written', prompt: 'How would you write it as a for loop?', points: 5 },
     ],
   },
+  {
+    ...newAssignment('file'), id: 'file-project', title: 'Project write-up: my first program', published: true, moduleId: 'loops', dueAt: daysFromNow(3),
+    instructions: 'Write one page about the program you built: what it does, how you used a loop, and what you would add next.',
+    blocks: [{
+      id: 'b-f1', type: 'file', prompt: 'Upload your write-up as a PDF or Word document.', fileTypes: ['pdf', 'document'], maxFiles: 1, maxSizeMb: 10, points: 15,
+      rubric: [
+        { id: 'r-explain', title: 'Explains the program', description: 'Says what the program does and who it is for.', ratings: [
+          { id: 'r-explain-5', label: 'Clear', description: 'Anyone could understand it.', points: 5 },
+          { id: 'r-explain-3', label: 'Partly clear', description: 'Some steps are missing.', points: 3 },
+          { id: 'r-explain-0', label: 'Missing', description: '', points: 0 },
+        ] },
+        { id: 'r-loop', title: 'Uses a loop correctly', description: 'Shows the loop and explains why it repeats.', ratings: [
+          { id: 'r-loop-5', label: 'Correct', description: 'Loop is shown and explained.', points: 5 },
+          { id: 'r-loop-2', label: 'Attempted', description: 'Loop is shown but not explained.', points: 2 },
+          { id: 'r-loop-0', label: 'Missing', description: '', points: 0 },
+        ] },
+        { id: 'r-next', title: 'Next steps', description: 'Names one thing to add or improve.', ratings: [
+          { id: 'r-next-5', label: 'Specific', description: '', points: 5 },
+          { id: 'r-next-2', label: 'Vague', description: '', points: 2 },
+          { id: 'r-next-0', label: 'Missing', description: '', points: 0 },
+        ] },
+      ],
+    }],
+  },
 ];
 
 // Fictional submissions so the gradebook has work to grade: some auto-graded, some waiting
@@ -128,19 +152,25 @@ const maryvaleSubmissions: Submission[] = learners.slice(0, 7).flatMap((learner,
   if (index !== 3) list.push({
     id: 'sub-quiz-' + index, assignmentId: 'quiz-variables', studentId: learner.id, submittedAt: at(1 + (index % 3)),
     responses: { 'b-q1': [index % 4 === 2 ? 0 : 1], 'b-q2': [index % 3 === 0 ? 0 : 1], 'b-q3': index % 2 ? 'print' : 'show' },
-    manualScores: {}, feedback: '', gradedAt: at(0),
+    manualScores: {}, rubricScores: {}, feedback: '', gradedAt: at(0),
   });
   if (index < 5) list.push({
     id: 'sub-link-' + index, assignmentId: 'link-reading', studentId: learner.id, submittedAt: at(index),
-    responses: { 'b-q4': String(index === 1 ? 4 : 5), 'b-q5': index === 4 ? [0] : [0, 1] }, manualScores: {}, feedback: '', gradedAt: null,
+    responses: { 'b-q4': String(index === 1 ? 4 : 5), 'b-q5': index === 4 ? [0] : [0, 1] }, manualScores: {}, rubricScores: {}, feedback: '', gradedAt: null,
   });
   if (index < 3) list.push({
     id: 'sub-written-' + index, assignmentId: 'written-reflection', studentId: learner.id,
     // The last one arrives after the due date.
     submittedAt: index === 2 ? at(0) : at(2),
     responses: { 'b-w1': reflections[index][0], 'b-w2': reflections[index][1] },
-    manualScores: index === 0 ? { 'b-w1': 5, 'b-w2': 4 } : {},
+    manualScores: index === 0 ? { 'b-w1': 5, 'b-w2': 4 } : {}, rubricScores: {},
     feedback: index === 0 ? 'Great real-world example. Check the indentation in your loop.' : '', gradedAt: index === 0 ? at(1) : null,
+  });
+  if (index < 3) list.push({
+    id: 'sub-file-' + index, assignmentId: 'file-project', studentId: learner.id, submittedAt: at(index + 1),
+    responses: { 'b-f1': [{ path: `demo/${learner.id}/write-up.pdf`, name: `${learner.name.split(' ')[0]}-write-up.pdf`, size: 182_000 + index * 41_000, type: 'application/pdf' }] },
+    manualScores: index === 0 ? { 'b-f1': 12 } : {}, rubricScores: index === 0 ? { 'b-f1': { 'r-explain': 'r-explain-5', 'r-loop': 'r-loop-5', 'r-next': 'r-next-2' } } : {},
+    feedback: index === 0 ? 'Strong explanation. Next time, name a specific feature you would add.' : '', gradedAt: index === 0 ? at(0) : null,
   });
   return list;
 });
