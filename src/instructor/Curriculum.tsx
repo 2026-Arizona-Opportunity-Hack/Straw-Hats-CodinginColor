@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, ChevronLeft, ChevronRight, Library, ListTree, Pencil, Copy, Eye, FilePlus2, GripVertical, ImagePlus, Plus, Save, Star, Trash2 } from 'lucide-react';
 import { isLocalDemo } from '../shared/supabase.ts';
-import { DemoLesson } from '../student/DemoLesson';
-import { LessonContent } from '../student/LessonContent';
 import { CodingLabEditor } from './CodingLabEditor';
 import { DiscussionReview } from './DiscussionReview';
 import { HtmlActivityEditor, HtmlActivityPreview } from './HtmlActivity';
 import { emptyHtml } from './htmlStarter';
 import { BlockPicker } from './BlockPicker';
+import { FigureMarkupEditor } from './FigureMarkupEditor';
 import { ImportMaterials } from './ImportMaterials';
 import { readAndCheckLesson } from './lessonTemplates';
 import { ActivityPreview, LessonPreview } from './LessonPreview';
-import { practiceAttempt, previewLesson } from './studentPreview';
+import { StudentPreview } from './StudentLessonPreview';
 import {
   activityTypes, blankQuestion, copyBlock, embedUrl, gradedTypes, id, newActivity, newLesson, newModule, questionTypes, reorder, slidesUrl, unresolvedModuleContent,
   type Activity, type Course, type Lesson, type Module,
@@ -21,16 +20,6 @@ import { Dialog, Empty, PageHeader, Panel } from './ui';
 type View = { moduleId?: string; lessonId?: string; activityId?: string };
 type OutlineKind = 'module' | 'lesson' | 'block';
 type DragItem = { kind: OutlineKind; index: number; parent: string };
-
-function StudentPreview({ lessons, moduleId, local }: { lessons: Lesson[]; moduleId: string; local: boolean }) {
-  return <div className="ic-stack ic-student-preview">
-    <p className="ic-note">Student preview of this draft. Answers here are practice only.</p>
-    <div className="cic-student-lessons">
-      {lessons.map((lesson, index) => local ? <DemoLesson lesson={lesson} key={lesson.id} />
-        : <LessonContent key={lesson.id} lesson={previewLesson(lesson, moduleId, index)} onAttempt={practiceAttempt} />)}
-    </div>
-  </div>;
-}
 
 export function CurriculumList({ courses, reviewer = false, onCreate, canEditLibrary = false, libraryOnly = false }: {
   courses: Course[]; reviewer?: boolean; onCreate?: (course: Course) => void; canEditLibrary?: boolean;
@@ -487,7 +476,7 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
     {preview && module && <Dialog wide title="Student preview" onClose={() => setPreview(false)}>
       <StudentPreview lessons={module.lessons} moduleId={module.id} local={localAuthoring} />
     </Dialog>}
-    {importer && <ImportMaterials mode={importer} close={() => setImporter(null)} onMarkdown={text => {
+    {importer && <ImportMaterials mode={importer} local={localAuthoring} close={() => setImporter(null)} onMarkdown={text => {
       if (lesson) insertBlock({ ...newActivity(), markdown: text }, lesson.activities.length);
       setImporter(null);
     }} onDraft={draft => { addModule(draft); setImporter(null); }} />}
@@ -550,7 +539,8 @@ function ActivityEditor({ activity, onChange, localAuthoring }: { activity: Acti
         ? activity.url && !embedUrl(activity.url) ? 'Enter a YouTube, Vimeo, or Google Drive video link.' : 'Supports YouTube, Vimeo, and Google Drive videos.'
         : activity.url && !slidesUrl(activity.url) ? 'Enter a Google Slides or Google Drive link.' : 'Use a slide deck students have permission to view.'}</p>
     </div>}
-    {activity.type !== 'interactive_html' && <label>{activity.type === 'content' ? 'Article Markdown' : activity.type === 'code' ? 'Lab instructions' : 'Instructions (optional Markdown)'}
+    {activity.figure && <FigureMarkupEditor figure={activity.figure} onChange={figure => set({ figure })} />}
+    {activity.type !== 'interactive_html' && !activity.figure && <label>{activity.type === 'content' ? 'Article Markdown' : activity.type === 'code' ? 'Lab instructions' : 'Instructions (optional Markdown)'}
       <textarea className="ic-markdown-input" rows={activity.type === 'content' || activity.type === 'code' ? 10 : 3}
         value={activity.markdown} onChange={event => set({ markdown: event.target.value })}
         placeholder="Use ## for a heading or triple backticks for a code example." />
@@ -570,7 +560,7 @@ function ActivityEditor({ activity, onChange, localAuthoring }: { activity: Acti
           })} />
         </label>)}
       </fieldset>)}
-    {activity.type === 'content' && <div className="ic-image-controls">
+    {activity.type === 'content' && !activity.figure && <div className="ic-image-controls">
       <label>Image description<input value={alt} onChange={event => setAlt(event.target.value)} placeholder="Describe the image for students" maxLength={120} /></label>
       <input ref={image} type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden onChange={event => {
         const file = event.currentTarget.files?.[0];

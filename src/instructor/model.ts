@@ -1,3 +1,4 @@
+import { validLessonFigure, type LessonFigure } from '../shared/curriculum/figure.ts';
 import type { CodingLabSettings, InteractiveHtmlPayload } from '../shared/types/activities.ts';
 import type { Submission } from './assignments/grading';
 import type { Assignment } from './assignments/model';
@@ -27,6 +28,7 @@ export type Activity = {
   code?: { starter: string; tests: string; solution: string; lab?: CodingLabSettings };
   format?: 'open-ended';
   presentation?: 'cic-article';
+  figure?: LessonFigure;
   discussionEnabled?: boolean;
   interactiveHtml?: InteractiveHtmlPayload;
 };
@@ -194,6 +196,10 @@ export function unresolvedModuleContent(module: Module): string | null {
         if (lab.checks.some(check => !check.name.trim() || (lab.language === 'web' && check.kind !== 'stylesheet' && !check.selector?.trim()))) {
           return 'Name each lab check and provide a selector for each HTML/CSS check.';
         }
+      }
+      if (activity.type === 'content' && activity.figure) {
+        if (!validLessonFigure(activity.figure)) return 'Give each lesson image a valid image description and annotations.';
+        continue;
       }
       if ((activity.type === 'content' || activity.type === 'code') && !activity.markdown.trim()) return 'Fill in each article and coding exercise.';
     }

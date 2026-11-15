@@ -4,6 +4,7 @@ import { pipeline } from 'node:stream/promises'
 import type { Plugin } from 'vite'
 import { maxDraftRequest } from '../../src/shared/curriculum/draft.ts'
 import { draftTimeoutMs } from './completion.ts'
+import { localImageQuota, type ImageQuota } from './images.ts'
 import { generateFromRequest } from './request.ts'
 
 const localHosts = ['127.0.0.1', 'localhost', '::1']
@@ -15,7 +16,7 @@ function reject(response: ServerResponse, status: number, error: string) {
   response.end(JSON.stringify({ error }))
 }
 
-async function handleLocalDraft(request: IncomingMessage, response: ServerResponse, key: string) {
+async function handleLocalDraft(request: IncomingMessage, response: ServerResponse, key: string, images: ImageQuota) {
   if (request.method !== 'POST') return reject(response, 405, 'Send a POST request to generate a draft.')
   const { host, origin } = request.headers
   if (!loopbackAddresses.has(request.socket.remoteAddress ?? '') || !host || !localHostHeader.test(host)
@@ -46,7 +47,7 @@ async function handleLocalDraft(request: IncomingMessage, response: ServerRespon
       method: 'POST', body: new Uint8Array(Buffer.concat(chunks)),
       headers: { Accept: request.headers.accept ?? '' }, signal,
     })
-    const draft = await generateFromRequest(draftRequest, key, signal)
+    const draft = await generateFromRequest(draftRequest, key, signal, images)
     if (response.destroyed) {
       await draft.body?.cancel()
       return
@@ -71,9 +72,10 @@ export function localCurriculum(key: string): Plugin {
       if (typeof bind !== 'string' || !localHosts.includes(bind)) {
         throw new Error('Local curriculum generation requires a loopback host such as 127.0.0.1.')
       }
+      const images = localImageQuota()
       server.middlewares.use((request, response, next) => {
         if (request.url !== '/api/curriculum/draft') return next()
-        void handleLocalDraft(request, response, key)
+        void handleLocalDraft(request, response, key, images)
       })
     },
   }

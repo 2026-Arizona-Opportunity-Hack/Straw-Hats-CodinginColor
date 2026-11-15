@@ -27,8 +27,8 @@ export function Empty({ children }: { children: ReactNode }) {
   return <p className="ic-empty">{children}</p>;
 }
 
-export function Dialog({ title, children, onClose, wide = false }: {
-  title: string; children: ReactNode; onClose: () => void; wide?: boolean;
+export function Dialog({ title, children, onClose, wide = false, footer }: {
+  title: string; children: ReactNode; onClose: () => void; wide?: boolean; footer?: ReactNode;
 }) {
   const headingId = useId();
   return <dialog aria-labelledby={headingId} className={wide ? 'ic-dialog ic-dialog-wide' : 'ic-dialog'} ref={node => {
@@ -36,6 +36,7 @@ export function Dialog({ title, children, onClose, wide = false }: {
   }} onCancel={event => { event.preventDefault(); onClose(); }}>
     <header className="ic-panel-heading"><h2 id={headingId}>{title}</h2><button type="button" className="ic-icon" onClick={onClose} aria-label="Close dialog"><X size={20} /></button></header>
     <div className="ic-dialog-content">{children}</div>
+    {footer && <footer className="ic-dialog-footer">{footer}</footer>}
   </dialog>;
 }
 

@@ -3,6 +3,8 @@ import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { defaultUrlTransform } from 'react-markdown'
 import type { ActivityStatus, AttemptInput, recordAttempt } from '../api/student/index.ts'
 import { slidesUrl } from '../instructor/model.ts'
+import { LessonFigure } from '../shared/curriculum/LessonFigure'
+import { validLessonFigure } from '../shared/curriculum/figure'
 import { CicArticle } from '../shared/curriculum/CicArticle.tsx'
 import { CodeLab, type VerifyWebLab } from '../shared/labs/CodeLab.tsx'
 import { previewCatPhotoChecks } from '../shared/labs/catPhoto.ts'
@@ -174,6 +176,7 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
   const { content } = activity
   const title = 'title' in content && typeof content.title === 'string' ? content.title : null
   const markdown = activity.type !== 'code' && 'markdown' in content && typeof content.markdown === 'string' ? content.markdown : null
+  const figure = activity.type === 'content' && (activity as Activity<'content'>).content.figure
   const themedArticle = activity.type === 'content' && (activity as Activity<'content'>).content.presentation === 'cic-article'
   let feedback: string | undefined
   if (choices?.length) {
@@ -189,6 +192,7 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
       {title && <h3 className="text-base font-semibold text-brand">{title}</h3>}
       {markdown && <LessonMarkdown markdown={markdown} title={title ?? undefined} headingBase={4} />}
     </>}
+    {validLessonFigure(figure) && <div id={'lesson-figure-' + activity.id}><LessonFigure figure={figure} /></div>}
     {body()}
     {!!choices?.length && <p role="status" className={attempt.data?.is_correct === false ? 'text-warn' : 'text-brand'}>{feedback}</p>}
     {attempt.isPending && !choices?.length && <p role="status">Saving…</p>}

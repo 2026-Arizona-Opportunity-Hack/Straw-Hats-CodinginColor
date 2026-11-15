@@ -31,7 +31,8 @@ export function DraftLabReview({ module, material, audience, additionalInstructi
     onBusy(true)
     const input: CodingLabRequest = {
       kind: 'coding_lab', moduleTitle: module.title, lessonTitle: lesson.title, audience, material, additionalInstructions,
-      lessons: module.lessons.map(item => ({ title: item.title, article: item.activities.find(activity => activity.type === 'content')?.markdown ?? '' })),
+      lessons: module.lessons.map(item => ({ title: item.title, article: item.activities.filter(activity => activity.type === 'content')
+        .map(activity => `## ${activity.title}\n\n${activity.markdown}`).join('\n\n') })),
     }
     try {
       const result = await requestCodingLab(input, controller.signal, setStage)

@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { isLocalDemo } from '../shared/supabase.ts';
+import { LessonFigure } from '../shared/curriculum/LessonFigure';
 import { CicArticle } from '../shared/curriculum/CicArticle';
 import { CodeLab } from '../shared/labs/CodeLab';
 import { ActivityCard } from '../shared/ui/ActivityCard';
@@ -20,6 +21,7 @@ function ActivityBody({ activity, interactive }: { activity: Activity; interacti
   const embed = activity.type === 'video' ? embedUrl(activity.url) : activity.type === 'slides' ? slidesUrl(activity.url) : null;
   const questions = activity.questions.filter(question => question.prompt);
   return <>
+    {activity.figure && <LessonFigure figure={activity.figure} />}
     {activity.markdown && <LessonMarkdown markdown={activity.markdown} title={title} />}
     {activity.type === 'interactive_html' && activity.interactiveHtml &&
       <HtmlActivityPreview activity={activity.interactiveHtml} title={title} scripts={isLocalDemo} device />}

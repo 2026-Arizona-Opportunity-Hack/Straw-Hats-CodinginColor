@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { draftTimeoutMs } from '../../server/curriculum/completion.ts'
+import { DraftError, draftTimeoutMs } from '../../server/curriculum/completion.ts'
 import { draftFailure, draftJson as reply } from '../../server/curriculum/response.ts'
 import { generateFromRequest } from '../../server/curriculum/request.ts'
 
@@ -22,7 +22,16 @@ export async function POST(request: Request) {
     signal.throwIfAborted()
     if (profile?.role !== 'instructor' && profile?.role !== 'admin') return reply(403, { error: 'Only instructors and admins can generate drafts.' })
 
-    return generateFromRequest(request, key, signal)
+    return generateFromRequest(request, key, signal, {
+      owner: user.id,
+      async reserve(id, expiresAt) {
+        const { data, error } = await client.rpc('reserve_curriculum_image', {
+          p_draft_id: id, p_expires_at: new Date(expiresAt).toISOString(),
+        })
+        if (error) throw new DraftError('The image quota service is unavailable.', 503)
+        return typeof data === 'number' ? data : null
+      },
+    })
   } catch (error) {
     const failure = draftFailure(error, signal)
     return reply(failure.status, { error: failure.error })

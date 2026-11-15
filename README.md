@@ -139,17 +139,21 @@ Metric definitions live in `src/admin/metrics.ts` and on the Impact page. Learni
 
 ### Draft curriculum from materials
 
-In an instructor's course builder, choose **Draft from materials**, paste a proposal or upload a text, Markdown, or PowerPoint file, then review the generated module before adding it. The module starts unpublished and its article, practice, and exit blocks are editable. The [lesson style guide](docs/lesson-style-guide.md) is included in the server prompt. Verified references are selected from the approved catalog in `server/curriculum/references.ts`.
+In an instructor's course builder, choose **Draft from materials**, paste a proposal or upload a text, Markdown, or PowerPoint file, then try the first lesson in the student preview. Switch lessons or open the coding lab before adding it. The module starts unpublished. Hands-on instructions appear in the article. Each knowledge check has its own block after the topic it tests, and written prompts support reflection or discussion. The [lesson style guide](docs/lesson-style-guide.md) is included in the server prompt. Verified references are selected from the approved catalog in `server/curriculum/references.ts`.
 
 PowerPoint import extracts visible slide text and speaker notes in presentation order in the browser. Select up to six PNG or JPEG previews to ask for teaching suggestions about those images. Unselected images stay in the browser. Charts, slide shapes, and unsupported assets are flagged for instructor review. Export Google Slides to `.pptx` to use this flow.
 
-**Standard** uses GPT-6.1 Terra. **High quality** uses Claude Opus 5.5. Both use high reasoning and get up to 265 seconds for generation within a 300-second Vercel Function. Each generation uses the model chosen by the instructor.
+**Reviewed draft** is the default. GPT-6.1 Terra drafts, Claude Opus 5.5 returns changes for specific lesson fields, and Jev checks each lesson for the most important remaining gap. One clear gap can trigger a targeted Terra edit before instructor review. The form shows progress for each step. If a review step fails or leaves a gap, the best validated draft includes a note for the instructor. The two single-pass choices are available for faster drafts. All paths stay within the 300-second function limit.
 
 For a preview, configure the existing Supabase project variables and a dedicated, capped `OPENROUTER_CURRICULUM_API_KEY` in the Vercel server environment. Use a workspace with **ZDR only** and Safety Retention excluded. The API checks eligibility before sending lesson materials. Use `vercel dev` to run the API locally alongside the app. Local Vite defaults to sample mode. To use the real converter with local demo data, set the capped `OPENROUTER_CURRICULUM_API_KEY` in your ignored `.env.local` and run `CIC_LOCAL_CURRICULUM=1 npm run dev -- --host 127.0.0.1`. Local generation uses the same converter and verified references. The opt-in serves requests from the local app.
 
-**Who is this for?** describes the learners and their experience. **Additional instructions** can ask for a focus, practice activity, or resource such as W3Schools. A W3Schools request prioritizes relevant approved tutorials, with reviewed summaries and links in the verified references.
+**Who is this for?** offers editable audience suggestions, including high school students new to programming. **Additional instructions** can ask for a focus, practice activity, or resource such as W3Schools. A W3Schools request prioritizes relevant approved tutorials, with reviewed summaries and links in the verified references.
 
 In draft review, choose a lesson and select **Add a coding lab** to ask GPT-6.1 Sol for an HTML/CSS practice block. Try the starter and the reference solution with **Check your work**. **Add as draft** keeps the starter and checks in the module for editing. The lab uses the same capped key and shows server stages with elapsed time. Sample mode offers a local example lab.
+
+In draft preview, choose **Generate image** to describe a scene for Seedream 5.0 Flash. CIC Learn uses a browser-based model to suggest boxes and masks for recognized objects. Choose **Adjust an annotation** to move points, change the label, or remove a suggestion. You can also draw your own shapes. Add an image description before approving. Approved images appear after the selected lesson block. A module has five image generation attempts. Apply migration 2008 before enabling image generation on the hosted app.
+
+On localhost, **Draft from materials** includes **Local QA** buttons for the lesson preview, image review, and the exhausted image limit. **Test image review** opens a sample photo and runs the same automatic annotations in the browser. The model downloads on first use. The QA buttons make no paid AI requests.
 
 ### Interactive HTML activities
 
