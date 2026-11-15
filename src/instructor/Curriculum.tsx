@@ -65,7 +65,7 @@ export function CourseReviewer({ course }: { course: Course }) {
           {module.lessons.map(lesson => <li key={lesson.id}><button type="button" className="ic-tree-button" aria-pressed={active === lesson.id} onClick={() => setActive(lesson.id)}>{lesson.title}</button></li>)}
         </ul></div>)}
       </Panel>
-      <Panel>{lesson ? <LessonPreview lesson={lesson} /> : <Empty>No published lessons are available.</Empty>}</Panel>
+      {lesson ? <div className="ic-review-lesson"><LessonPreview lesson={lesson} /></div> : <Panel><Empty>No published lessons are available.</Empty></Panel>}
     </div>
   </>;
 }

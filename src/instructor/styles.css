@@ -202,6 +202,8 @@ body:has(.ic-app) { margin: 0; }
 .ic-image-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
 .ic-image-controls label { flex: 1 1 145px; }
 .ic-review-module + .ic-review-module { border-top: 1px solid var(--ic-border); margin-top: 10px; padding-top: 10px; }
+/* The reviewer's lesson sits on the page canvas so its step cards are not boxed twice. */
+.ic-review-lesson { min-width: 0; padding-top: 21px; }
 .ic-review-module ul { list-style: none; margin: 5px 0 0; padding: 0; }
 .ic-article { max-width: 720px; margin-inline: auto; }
 .ic-article + .ic-article { padding-top: 20px; border-top: 1px solid var(--ic-border); margin-top: 20px; }

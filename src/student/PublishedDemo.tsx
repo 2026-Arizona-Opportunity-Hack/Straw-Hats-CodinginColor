@@ -9,6 +9,8 @@ import '../instructor/styles.css'
 import { CodeLab } from '../shared/labs/CodeLab'
 import { isLocalDemo } from '../shared/supabase'
 import { useAuth } from '../shared/auth/AuthContext'
+import { ActivityCard } from '../shared/ui/ActivityCard'
+import { lessonSummary } from '../shared/ui/lessonContent'
 
 function published() {
   return browserInstructorStore.load().courses.flatMap(course => course.modules.filter(module => module.published).map(module => ({ course, module })))
@@ -35,17 +37,20 @@ export function PublishedDemo() {
     <header className="ic-page-header">
       <div><Link className="ic-back" to="/student">My courses</Link><h1>{module.title}</h1><p>{course.title} · Browser demo</p></div>
     </header>
-    <div className="ic-stack">{module.lessons.map(lesson => <article className="ic-panel" key={lesson.id}>
-      <h2>{lesson.title}</h2>
-      {lesson.activities.map(activity => {
+    <div>{module.lessons.map(lesson => <article className="cic-lesson" key={lesson.id} aria-labelledby={'lesson-' + lesson.id}>
+      <header className="cic-lesson-head">
+        <h2 className="cic-lesson-title" id={'lesson-' + lesson.id}>{lesson.title}</h2>
+        <p className="cic-lesson-meta">{lessonSummary(lesson.activities)}</p>
+      </header>
+      {lesson.activities.map((activity, index) => {
         const key = ['cic-learn.demo-attempt', profile.id, module.id, module.revision ?? 1, activity.id].join(':')
-        return <StudentBlock key={key} activity={activity} storageKey={key} />
+        return <StudentBlock key={key} activity={activity} storageKey={key} step={index + 1} total={lesson.activities.length} />
       })}
     </article>)}</div>
   </div>
 }
 
-function StudentBlock({ activity, storageKey }: { activity: Activity; storageKey: string }) {
+function StudentBlock({ activity, storageKey, step, total }: { activity: Activity; storageKey: string; step: number; total: number }) {
   const [result, setResult] = useState<{ score?: number } | null>(() => {
     try {
       const raw = localStorage.getItem(storageKey)
@@ -61,14 +66,14 @@ function StudentBlock({ activity, storageKey }: { activity: Activity; storageKey
       setError('')
     } catch { setError('Could not save completion in this browser.') }
   }
-  if (activity.type === 'code') return <section className="ic-article-activity">
-    <h3>{activity.title}</h3><CodeLab payload={labPayload(activity)} storageKey={storageKey + ':lab'} />
-  </section>
-  if (activity.type === 'interactive_html' && activity.interactiveHtml) return <section className="ic-article-activity ic-article-exercise">
-    <h3>{activity.title}</h3>
-    <HtmlActivityPreview activity={activity.interactiveHtml} title={activity.title} scripts onComplete={finish} completed={!!result} />
-    {result && <p role="status">Activity complete{result.score !== undefined ? ' · Practice score ' + Math.round(result.score * 100) + '%' : ''}.</p>}
-    {error && <p role="alert">{error}</p>}
-  </section>
-  return <ActivityPreview activity={activity} interactive />
+  const card = { id: 'step-' + activity.id, title: activity.title, step, total, done: !!result }
+  if (activity.type === 'code') return <ActivityCard kind="code" {...card}>
+    <CodeLab payload={labPayload(activity)} storageKey={storageKey + ':lab'} />
+  </ActivityCard>
+  if (activity.type === 'interactive_html' && activity.interactiveHtml) return <ActivityCard kind="interactive" {...card}>
+    <HtmlActivityPreview activity={activity.interactiveHtml} title={activity.title} scripts onComplete={finish} completed={!!result} device />
+    <p role="status" className="cic-complete">{result && <>Activity complete{result.score !== undefined ? ' · Practice score ' + Math.round(result.score * 100) + '%' : ''}.</>}</p>
+    {error && <p role="alert" className="cic-error">{error}</p>}
+  </ActivityCard>
+  return <ActivityPreview activity={activity} interactive step={step} total={total} />
 }

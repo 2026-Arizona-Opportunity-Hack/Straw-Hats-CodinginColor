@@ -144,7 +144,7 @@ export function AppLayout() {
       )}
       <div className="flex items-center gap-3">
         <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-white/15 text-sm font-bold text-white ring-2 ring-white/30">
-          {profile.display_name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
+          {profile.display_name.split(/\s+/).filter((w) => /^\p{L}/u.test(w)).map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
         </span>
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-white">{profile.display_name}</p>
