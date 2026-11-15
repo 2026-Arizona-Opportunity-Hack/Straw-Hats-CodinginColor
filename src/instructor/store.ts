@@ -1,6 +1,6 @@
 import { BuilderDemo, demoData, LibraryDemo } from './demoData';
 import { normalizeAssignment, type Assignment } from './assignments/model';
-import type { ClassGroup, Course, InstructorData } from './model';
+import type { ClassGroup, Course, InstructorData, Module, ModuleAction } from './model';
 
 const storeKey = 'cic-learn.instructor-preview.v1';
 const liveDraftKey = (author: string) => 'cic-learn.course-drafts.v1:' + author;
@@ -24,7 +24,10 @@ export interface InstructorStore {
   save(data: InstructorData, previous: InstructorData): void | Promise<void>;
   /** Save a roster change without discarding the caller's draft on failure. */
   saveClass?(group: ClassGroup, previous?: ClassGroup, attempted?: ClassGroup): Promise<void>;
-  publishCourse?(course: Course, previous: Course | undefined, moduleId: string, expectedRevision: number | undefined): Promise<number>;
+  publishCourse?(course: Course, previous: Course | undefined, moduleId: string, expectedRevision: number | undefined):
+    Promise<{ revision: number; assessmentWarning?: string; released?: Module }>;
+  manageModule?(courseId: string, moduleId: string, expectedRevision: number, action: ModuleAction): Promise<number>;
+  addToLibrary?(courseId: string): Promise<void>;
   /**
    * Copies a library course into a course the signed-in person owns and returns the copy.
    * Without it (browser preview) the workspace copies the course itself and saves it.

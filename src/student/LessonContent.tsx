@@ -125,7 +125,14 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, onResult, 
   const done = activity.type !== 'content' && (attempt.isSuccess || status?.submitted)
   /** Answered already and not allowed to answer again. */
   const locked = answerOnce && !!done && activity.type !== 'posttest'
-  const score = attempt.data ? attempt.data.score : status?.best_score
+  const assessment = activity.type === 'pretest' || activity.type === 'posttest'
+  const practice = assessment && attempt.data?.counts === false
+  const latestScore = attempt.data?.score
+  let score = attempt.data ? latestScore : status?.best_score
+  if (assessment) {
+    score = status?.best_score
+    if (!practice && latestScore != null) score = score == null ? latestScore : Math.max(score, latestScore)
+  }
   function submit(response: unknown = {}, score?: number) {
     const sample = clock.beginAttempt()
     if (!sample) return false
@@ -309,6 +316,9 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, onResult, 
     {attempt.isPending && !choices?.length && <p role="status">Saving…</p>}
     {attempt.isError && <p role="alert">Could not save your work. Try again.</p>}
     {done && !choices?.length && <p role="status" className="text-green-800">{score == null ? 'Completed' : `Completed · ${Math.round(score * 100)}%`}</p>}
+    {practice && <p className="text-sm text-cic-muted" role="status">
+      {latestScore == null ? 'Practice attempt saved.' : `Practice score: ${Math.round(latestScore * 100)}%.`} Your counted score stays the same.
+    </p>}
   </div>
 }
 

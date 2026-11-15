@@ -21,3 +21,12 @@ export async function loadStaffProgress(client: SupabaseClient): Promise<StaffMo
   }
   return data.modules;
 }
+
+export async function loadStaffClassProgress(client: SupabaseClient, classId: string, signal?: AbortSignal): Promise<StaffModuleProgress[]> {
+  const request = client.rpc('staff_class_progress', { p_class_id: classId });
+  const { data, error } = await (signal ? request.abortSignal(signal) : request);
+  if (error || !Array.isArray(data?.modules) || data.modules.some((row: StaffModuleProgress | null) => row?.class_id !== classId)) {
+    throw new Error(`Could not load class progress. Check staff access and that migration 3017 is applied. ${error?.message ?? 'Invalid class snapshot.'}`);
+  }
+  return data.modules;
+}

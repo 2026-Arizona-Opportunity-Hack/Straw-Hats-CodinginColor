@@ -63,8 +63,11 @@ The local preview can also run demo HTML activities and coding labs.
 ## Curriculum workspace
 
 Instructors and admins open published lessons from **Curriculum** and can leave staff comments on individual blocks.
-Global edits are an explicit admin action, and class edits follow the class's own curriculum route.
-**CIC Library** shows curated workshop slide decks from published global courses. Admins manage the catalog by selecting **Include in CIC Library** on a Slides block and publishing its module.
+Instructors and admins can edit published global curriculum, and class edits follow the class's own curriculum route.
+**CIC Library** lists shared courses alongside curated slide decks. Staff can list an existing global course, edit it from the library, or publish a new course from the library.
+Module archive preserves lessons and student work for republishing. Permanent delete cascades to lessons, activities, and their student work. Class release links must be removed before either action.
+Apply migrations 3018 and 3019 before deploying the module and library changes.
+Staff curate slide decks by selecting **Include in CIC Library** on a Slides block and publishing its module.
 Migrations 2011 and 2012 add durable class-local scope and staff-only comment threads. Apply them in that order before deploying the workspace.
 See the [curriculum isolation audit](curriculum-isolation-audit-2026-11-15.md) for the current database boundaries and legacy global course links.
 
@@ -123,6 +126,8 @@ The existing class course and Python assignments stay in place.
 ## Sign-in and navigation accessibility
 
 The separate sign-in route has its own main landmark. The sidebar and mobile home link take their accessible name from the visible CIC Learn brand label.
+The unsubmitted final check uses a native modal. Focus stays on **Back to my test** while it is open. Escape or the button returns focus to the test heading. Submitting the final check releases the navigation lock.
+On November 15, Lighthouse 13.6.0 scored 100/100 for accessibility on the hosted homepage, sign-in and sign-up routes and on the local final-check page using demo data. The homepage had an unweighted label-in-name finding on two course links. The open modal was verified by keyboard in Chrome.
 
 ## Roster entry
 
@@ -141,7 +146,28 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 
 The public root introduces AI Academy and Responsive Web Development using the existing CIC brand tokens and fonts. Log in and Sign up open the existing student and staff flows. Featured course links continue to a catalog search after student sign-in. Coming Soon mirrors planned subjects in Student Explore.
 
+## Admin data refresh
+
+Admin overview, classes, people, and analytics share one cached organization snapshot.
+Successful edits refresh it, and **Refresh data** reloads it on demand.
+The command palette requests organization data only when open.
+
+## Selected-class progress
+
+The instructor workspace loads progress on the selected class's Dashboard, Grades, and Roster tabs.
+Class-filtered admin analytics use the same scoped RPC and share their query with the toolbar.
+The partner CSV still requests program-wide data when needed.
+Apply migration 3017 before deploying the frontend change so the scoped reports can load.
+
 ## Log
+
+- 2026-11-15, Codex: added permanent module deletion and reversible archiving, restored global and class editing for instructors, and added CIC Library course creation, editing, and listing.
+
+- 2026-11-15, Codex: scoped canonical progress to the selected class and preserved the existing staff access checks.
+
+- 2026-11-15, Codex: replaced minute-by-minute admin polling with refresh after edits and on demand.
+
+- 2026-11-15, Codex: verified final-check modal focus, Escape and submission navigation in Chrome with local demo data.
 
 - 2026-11-15, Codex: confirmed admin enrollment saves before showing success and verified the roster after immediate reload using disposable PostgreSQL.
 

@@ -1,19 +1,44 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { newAssignment } from './assignments/model';
-import { activityContent, importLibraryCourse, loadLiveData, saveLiveClass, saveLiveData } from './liveStore';
+import { activityContent, importLibraryCourse, loadLiveData, publishLiveCourse, saveLiveClass, saveLiveData } from './liveStore';
 import type { ClassGroup, Course, InstructorData } from './model';
 import { classProgress } from './progress';
 
 type Call = { table: string; op: string; payload?: unknown; filters: [string, ...unknown[]][] };
 type Reply = { data: unknown; error: null | { message: string; code?: string } };
 
+describe('assessment readiness after publication', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each([
+    [Response.json({ ready: true, written: false }), undefined],
+    [Response.json({ ready: false, written: false }), 'incomplete'],
+    [Response.json({}, { status: 503 }), 'Could not verify'],
+  ])('keeps the committed revision when readiness is checked', async (response, warning) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+    const rpc = vi.fn().mockResolvedValue({ data: 7, error: null });
+    const auth = { getSession: vi.fn().mockResolvedValue({ data: { session: { access_token: 'fixture' } } }) };
+    const modules = [{ id: 'module', title: 'Module', published: true, lessons: [] }];
+    const { client: stored } = fakeSupabase(() => ({ data: { publication_revision: 7, modules }, error: null }));
+    const client = { rpc, auth, from: stored.from } as unknown as SupabaseClient;
+    const course: Course = { id: 'course', title: 'Course', description: '', level: 'Beginner',
+      modules: [{ id: 'module', title: 'Module', published: true, lessons: [] }] };
+    const result = await publishLiveCourse(client, course, undefined, 'module', undefined);
+    expect(result.revision).toBe(7);
+    if (warning) expect(result.assessmentWarning).toContain(warning);
+    else {
+      expect(result.assessmentWarning).toBeUndefined();
+      expect(result.released?.id).toBe('module');
+    }
+  });
+});
+
 /** The seeded program_settings row (migration 2006). */
 const settingsRow = { inactive_days: 3, low_score_pct: 60 };
 /** Answers program_settings like the database; everything else from `respond`. */
 const withSettings = (respond: (call: Call) => Reply) => (call: Call): Reply =>
-  call.table === 'program_settings' ? { data: [settingsRow], error: null }
-    : call.table === 'staff_progress_snapshot' ? { data: { modules: [] }, error: null } : respond(call);
+  call.table === 'program_settings' ? { data: [settingsRow], error: null } : respond(call);
 
 /** Records every query; `respond` decides what each one returns. */
 function fakeSupabase(respond: (call: Call) => Reply = () => ({ data: [{ id: 'x' }], error: null })) {
@@ -306,24 +331,20 @@ describe('loadLiveData', () => {
   });
 
   it('refuses to load without the program_settings row', async () => {
-    const { client } = fakeSupabase(call => ({ data: call.table === 'staff_progress_snapshot' ? { modules: [] } : [], error: null }));
+    const { client } = fakeSupabase(() => ({ data: [], error: null }));
     await expect(loadLiveData(client, 'instructor', 'T')).rejects.toThrow(/program_settings has no row/);
   });
 
-  it('requires the live snapshot and maps profile IDs to roster learners', async () => {
-    const canonical = { student_id: 'p1', class_id: 'class-1', course_id: 'course-1', module_id: 'm1', state: 'completed',
-      tested_out: true, required_count: 2, done_count: 1, pretest_score: 0.9, posttest_best: null };
-    const { client } = fakeSupabase(call => ({ data: {
+  it('loads roster profile IDs and released modules without requesting progress', async () => {
+    const { client, calls } = fakeSupabase(call => ({ data: {
       courses: [posttestCourse], classes: [{ ...classRow, class_modules: [
         { module_id: 'm1', released_at: '2000-01-01' }, { module_id: 'm2', released_at: '2999-01-01' },
-      ] }], program_settings: [settingsRow], staff_progress_snapshot: { modules: [canonical] },
+      ] }], program_settings: [settingsRow],
     }[call.table] ?? [], error: null }));
     const loaded = await loadLiveData(client, 'instructor', 'T');
     expect(loaded.classes[0].progressModuleIds).toEqual(['m1']);
-    expect(loaded.classes[0].learners[0].moduleProgress).toEqual([canonical]);
-    const missing = fakeSupabase(call => call.table === 'staff_progress_snapshot'
-      ? { data: null, error: { code: 'PGRST202', message: 'Missing function' } }
-      : { data: call.table === 'program_settings' ? [settingsRow] : [], error: null });
-    await expect(loadLiveData(missing.client, 'instructor', 'T')).rejects.toThrow(/3008_staff_progress_snapshot/);
+    expect(loaded.classes[0].learners[0]).toMatchObject({ id: 'cs1', profileId: 'p1' });
+    expect(loaded.classes[0].learners[0].moduleProgress).toBeUndefined();
+    expect(calls.filter(call => call.op === 'rpc')).toEqual([]);
   });
 });

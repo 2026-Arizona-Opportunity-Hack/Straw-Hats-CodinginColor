@@ -1,12 +1,13 @@
 // Owner: Aryan. Internal impact and learning analytics, with a separate partner export.
 // Story first (headline numbers, reach, growth, instructors, student progress), detail after.
 import { BarChart3, Download, HeartHandshake } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Button, Card, DataTable, EmptyState, Meter, PageHeader, Select, Td, Th } from '../shared/ui/index.tsx'
+import { Button, Card, DataTable, EmptyState, FormStatus, Meter, PageHeader, Select, Td, Th } from '../shared/ui/index.tsx'
 import { GainChart } from './charts.tsx'
 import { LoadState, StatusBadge } from './common.tsx'
-import { useOrg } from './hooks.ts'
+import { orgQueryOptions, useOrg } from './hooks.ts'
 import { partnerImpactCsv, PARTNER_MIN_STUDENTS } from './partnerExport.ts'
 import { GrowthRows, ImpactNumber, JourneyLegend, JourneyPips, OverallProgress, StatusBar, StatusLegend, type Pip } from './impact.tsx'
 import {
@@ -60,9 +61,14 @@ function downloadCsv(content: string, filename: string) {
 }
 
 export function AnalyticsPage() {
+  const queryClient = useQueryClient()
   const { data, isLoading, error } = useOrg()
   const [params, setParams] = useSearchParams()
   const filters = { school: params.get('school') || undefined, classId: params.get('class') || undefined, includeArchived: params.get('archived') === '1' }
+  const partnerExport = useMutation({
+    mutationFn: async (unfilteredData?: OrgData) => unfilteredData ?? queryClient.fetchQuery(orgQueryOptions()),
+    onSuccess: (org) => downloadCsv(partnerImpactCsv(org), 'CIC_PartnerImpactSummary'),
+  })
   const by: GroupBy = (params.get('by') as GroupBy) in GROUPS ? (params.get('by') as GroupBy) : 'class'
   if (!data) return <><PageHeader title="Impact & learning" /><LoadState isLoading={isLoading} error={error} /></>
 
@@ -88,16 +94,18 @@ export function AnalyticsPage() {
             <Download aria-hidden="true" /> Internal student CSV
           </Button>
           <Button
-            onClick={() => downloadCsv(partnerImpactCsv(data), 'CIC_PartnerImpactSummary')}
+            onClick={() => partnerExport.mutate(filters.classId ? undefined : data)}
+            disabled={partnerExport.isPending}
             aria-describedby="partner-csv-note"
           >
-            <Download aria-hidden="true" /> Partner summary CSV
+            <Download aria-hidden="true" /> {partnerExport.isPending ? 'Preparing CSV…' : 'Partner summary CSV'}
           </Button>
         </>}
       />
       <p id="partner-csv-note" className="mb-4 text-sm text-cic-muted">
         The partner CSV summarizes all active classes. Results involving fewer than {PARTNER_MIN_STUDENTS} students are left blank.
       </p>
+      {partnerExport.isError && <FormStatus error="Couldn’t prepare the partner summary. Try again." />}
 
       <form onSubmit={applyFilters} aria-label="Filter the report" className="soft-card mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-divider bg-white p-4">
         <div className="flex flex-col gap-1.5">

@@ -3,7 +3,7 @@
 // Needed policies are listed in README ("Admin pages: database needs").
 import type { PostgrestError } from '@supabase/supabase-js'
 import { supabase } from '../shared/supabase.ts'
-import { loadStaffProgress } from '../shared/staffProgress.ts'
+import { loadStaffClassProgress, loadStaffProgress } from '../shared/staffProgress.ts'
 import type { Role } from '../shared/types/db.ts'
 import type { OrgData } from './metrics.ts'
 
@@ -65,11 +65,16 @@ function tableError(err: PostgrestError, table: string): Error {
 
 type AttemptRow = OrgData['selfPacedAttempts'][number] & { class_id: string | null }
 
-export async function loadOrgData(): Promise<OrgData> {
+export async function loadOrgData(classId?: string): Promise<OrgData> {
   const c = db()
+  // Keep the full list for filter options. An unknown class must never broaden the progress request.
+  // '*' keeps compatibility with databases without archived_at.
+  const classRows = Promise.resolve(c.from('classes').select('*').order('name'))
+  const staffProgress = classId
+    ? classRows.then(({ data }) => data?.some(row => row.id === classId) ? loadStaffClassProgress(c, classId) : [])
+    : loadStaffProgress(c)
   const [classes, courses, ci, enr, cm, mods, acts, people, settings, courseEnrollments, rules, attempts, progress] = await Promise.all([
-    // '*' so pages keep working before archived_at exists (see README: Admin pages).
-    c.from('classes').select('*').order('name'),
+    classRows,
     c.from('courses').select('id, title, delivery_mode'),
     c.from('class_instructors').select('class_id, instructor_id'),
     selectAll<OrgData['enrollments'][number]>('enrollments', 'class_id, student_id', ['class_id', 'student_id']),
@@ -83,7 +88,7 @@ export async function loadOrgData(): Promise<OrgData> {
     selectAll<{ class_id: string; module_id: string; pass_mark: number | string; max_posttest_tries: number }>(
       'class_module_settings', 'class_id, module_id, pass_mark, max_posttest_tries', ['class_id', 'module_id']),
     selectAll<AttemptRow>('activity_attempts', 'id, student_id, activity_id, class_id, attempt_no, score, is_correct, submitted_at, time_on_task_ms', ['id']),
-    loadStaffProgress(c),
+    staffProgress,
   ])
   for (const [result, table] of [[classes, 'classes'], [courses, 'courses'], [ci, 'class_instructors'], [mods, 'modules'], [people, 'profiles'], [settings, 'program_settings']] as const)
     if (result.error) throw tableError(result.error, table)
