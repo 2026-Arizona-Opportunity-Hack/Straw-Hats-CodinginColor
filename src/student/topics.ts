@@ -1,6 +1,9 @@
 // Owner: Jacky. Topics shown on the student home page.
-// A topic with `courseId` shows that course's real modules (from src/api/student).
-// A topic without one shows its outline as "coming soon" until an instructor publishes it.
+// Where a topic's lessons come from, first match wins:
+//   1. `instructorCourseId`: modules an instructor published in the curriculum builder (local demo).
+//   2. `courseId`: the course from src/api/student (Supabase or mock data).
+//   3. Neither: the outline shows as "coming soon".
+// Published instructor courses that no topic lists here get their own tile automatically.
 import type { CourseLevel } from '../shared/types/db.ts'
 
 export interface Topic {
@@ -11,6 +14,8 @@ export interface Topic {
   glyph: string
   level: CourseLevel
   courseId?: string
+  /** Course id in the instructor curriculum builder (src/instructor). */
+  instructorCourseId?: string
   /** Lesson titles shown before the real course exists. */
   outline: string[]
 }
@@ -23,6 +28,7 @@ export const TOPICS: Topic[] = [
     glyph: '>>>',
     level: 'beginner',
     courseId: 'course-intro-python',
+    instructorCourseId: 'python',
     outline: ['Variables', 'Loops', 'Conditionals', 'Functions', 'Lists'],
   },
   {
@@ -31,6 +37,7 @@ export const TOPICS: Topic[] = [
     description: 'Build a real web page, then style it with colors, fonts and layout.',
     glyph: '</>',
     level: 'beginner',
+    instructorCourseId: 'web',
     outline: ['Tags and page structure', 'Text, links and images', 'Styling with CSS', 'Layout with boxes', 'Publish your page'],
   },
   {
@@ -67,3 +74,8 @@ export const TOPICS: Topic[] = [
     outline: ['Asking questions with data', 'Cleaning a dataset', 'Averages and spread', 'Making charts', 'Data story project'],
   },
 ]
+
+/** The home-page topic that shows an instructor course (its own id when no catalog topic lists it). */
+export function topicIdForCourse(instructorCourseId: string) {
+  return TOPICS.find((t) => t.instructorCourseId === instructorCourseId)?.id ?? instructorCourseId
+}

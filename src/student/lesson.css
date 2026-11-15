@@ -1,0 +1,14 @@
+/* Owner: Jacky. Readable lesson text for instructor-written markdown (no typography plugin in this repo). */
+.lesson-prose { font-size: 17px; line-height: 1.65; max-width: 68ch; }
+.lesson-prose > * + * { margin-top: 0.9em; }
+.lesson-prose h3, .lesson-prose h4 { font-size: 1.15em; margin-top: 1.4em; }
+.lesson-prose ul { list-style: disc; padding-left: 1.4em; }
+.lesson-prose ol { list-style: decimal; padding-left: 1.4em; }
+.lesson-prose li + li { margin-top: 0.3em; }
+.lesson-prose a { color: var(--color-brand); text-decoration: underline; text-underline-offset: 3px; }
+.lesson-prose strong { font-weight: 700; }
+.lesson-prose code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.9em; background: var(--color-brand-tint); color: var(--color-brand-dark); padding: 0.1em 0.35em; border-radius: 5px; }
+.lesson-prose pre { background: #0f2a1c; color: #e6f4ed; padding: 14px 16px; border-radius: 12px; overflow-x: auto; font-size: 15px; line-height: 1.55; }
+.lesson-prose pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+.lesson-prose img { max-width: 100%; border-radius: 12px; }
+.lesson-prose blockquote { border-left: 4px solid var(--color-brand-accent); padding-left: 1em; color: var(--color-cic-muted); }

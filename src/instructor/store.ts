@@ -1,4 +1,4 @@
-import { demoData } from './demoData';
+import { BuilderDemo, demoData } from './demoData';
 import { normalizeAssignment, type Assignment } from './assignments/model';
 import type { ClassGroup, InstructorData } from './model';
 
@@ -18,8 +18,10 @@ export const browserInstructorStore: InstructorStore = {
     try {
       const saved = JSON.parse(localStorage.getItem(storeKey) || 'null');
       if (Array.isArray(saved?.classes) && Array.isArray(saved?.courses)) {
+        const courses = saved.courses.some((course: { id?: string }) => course?.id === BuilderDemo.id)
+          ? saved.courses : [...saved.courses, structuredClone(BuilderDemo)];
         return {
-          ...saved,
+          ...saved, courses,
           staff: Array.isArray(saved.staff) && saved.staff.length ? saved.staff : structuredClone(demoData.staff),
           // Data saved before assignments existed: start from the demo set for demo classes.
           classes: saved.classes.map((group: ClassGroup) => Array.isArray(group.assignments)

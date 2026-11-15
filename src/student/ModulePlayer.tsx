@@ -1,163 +1,139 @@
-// Owner: Jacky. Plays a module one step at a time, like a code.org lesson:
-// progress bar, one activity per screen, "Continue" unlocks when the step is done.
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ArrowRight, CheckCircle2, Flag } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { getModule, listModuleStatus } from '../api/student/index.ts'
+// Owner: Jacky. Renders a module as one scrolling page of blocks.
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useId, useState, type FormEvent } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import Markdown, { defaultUrlTransform } from 'react-markdown'
+import { getModule, listActivityStatus, recordAttempt, type ActivityStatus } from '../api/student/index.ts'
+import { useAuth } from '../shared/auth/AuthContext.tsx'
+import type { Choice } from '../shared/types/activities.ts'
 import type { Activity } from '../shared/types/db.ts'
-import { Badge, Button, Card, EmptyState } from '../shared/ui/index.tsx'
-import { ActivityRenderer } from './activities.tsx'
+import { isLocalDemo } from '../shared/supabase.ts'
+import { InteractiveHtmlFrame } from '../shared/ui/InteractiveHtmlFrame.tsx'
+import { Button, Card, PageHeader } from '../shared/ui/index.tsx'
 
-const TYPE_LABEL: Record<Activity['type'], string> = {
-  content: 'Read',
-  video: 'Watch',
-  check: 'Check',
-  worksheet: 'Worksheet',
-  code: 'Code',
-  interactive_html: 'Try it',
-  exit: 'Exit question',
-  pretest: 'Pretest',
-  posttest: 'Post-test',
+function AnswerField({ id, prompt, choices }: { id: string; prompt: string; choices?: Choice[] }) {
+  return choices?.length ? (
+    <fieldset className="space-y-1">
+      <legend className="font-medium">{prompt}</legend>
+      {choices.map(choice => <label key={choice.id} className="flex items-center gap-2">
+        <input type="radio" name={id} value={choice.id} required />{choice.label}
+      </label>)}
+    </fieldset>
+  ) : (
+    <label className="block font-medium">{prompt}
+      <textarea className="block w-full rounded-md border border-divider p-2 font-normal" name={id} rows={3} maxLength={2000} required />
+    </label>
+  )
 }
 
-// TODO(Shivraj): real class id comes from the student's enrollment.
-const CLASS_ID = 'TODO'
+function ActivityBlock({ activity, status, onSaved }: {
+  activity: Activity; status?: ActivityStatus; onSaved: () => void
+}) {
+  const [started, setStarted] = useState(() => performance.now())
+  const formId = useId()
+  const attempt = useMutation({
+    mutationFn: ({ response, score }: { response: unknown; score?: number }) => recordAttempt({
+      activity_id: activity.id, response, client_score: score, time_on_task_ms: Math.round(performance.now() - started),
+    }),
+    onSuccess: () => { setStarted(performance.now()); onSaved() },
+  })
+  const done = attempt.isSuccess || status?.submitted
+  const score = attempt.data ? attempt.data.score : status?.best_score
+  const submit = (response: unknown = {}, score?: number) => attempt.mutate({ response, score })
+  const complete = <Button type="button" disabled={attempt.isPending} onClick={() => submit()}>Mark as done</Button>
+  const responseForm = (fields: { id: string; prompt: string; choices?: Choice[] }[], key?: string) => {
+    if (!fields.length) return <><p>No questions were added to this activity.</p>{!done && complete}</>
+    function send(event: FormEvent<HTMLFormElement>) {
+      event.preventDefault()
+      const data = new FormData(event.currentTarget)
+      const answers = Object.fromEntries(fields.map(field => [field.id, String(data.get(formId + field.id) ?? '').trim()]))
+      submit(key ? { [key]: answers } : answers)
+    }
+    return <form className="space-y-3" onSubmit={send}>
+      {fields.map(field => <AnswerField key={field.id} {...field} id={formId + field.id} />)}
+      <Button type="submit" disabled={attempt.isPending}>Submit answer{fields.length > 1 ? 's' : ''}</Button>
+    </form>
+  }
+
+  function body() {
+    switch (activity.type) {
+      case 'interactive_html': {
+        const { html, instructions, reports_score } = (activity as Activity<'interactive_html'>).content
+        return <>
+          {instructions && <p>{instructions}</p>}
+          <InteractiveHtmlFrame html={html} allowScripts={isLocalDemo} title={activity.concept}
+            onComplete={reports_score && !done && !attempt.isPending ? score => submit({}, score) : undefined} />
+          {!done && (!reports_score || !isLocalDemo) && complete}
+        </>
+      }
+      case 'check':
+      case 'exit': {
+        const { prompt, choices } = (activity as Activity<'check' | 'exit'>).content
+        return responseForm([{ id: choices?.length ? 'choice_id' : 'text', prompt, choices }])
+      }
+      case 'pretest':
+      case 'posttest':
+        return responseForm((activity as Activity<'pretest' | 'posttest'>).content.items ?? [], 'answers')
+      case 'worksheet':
+        return responseForm(((activity as Activity<'worksheet'>).content.fields ?? []).map(field => ({
+          id: field.id, prompt: field.prompt, choices: field.kind === 'multiple_choice' ? field.choices : undefined,
+        })), 'fields')
+      case 'video': {
+        const { url, caption } = (activity as Activity<'video'>).content
+        return <><p><a className="underline" href={defaultUrlTransform(url)} target="_blank" rel="noreferrer">{caption || 'Open video'}</a></p>{!done && complete}</>
+      }
+      case 'content':
+        return <><Markdown skipHtml>{(activity as Activity<'content'>).content.markdown}</Markdown>{!done && complete}</>
+      case 'code': {
+        const { starter_code, prompt } = (activity as Activity<'code'>).content
+        return <>{starter_code && <pre className="overflow-auto"><code>{starter_code}</code></pre>}
+          {responseForm([{ id: 'code', prompt: prompt || 'Write your code' }])}</>
+      }
+      default:
+        return <><p>These materials are not available in the player yet.</p>{!done && complete}</>
+    }
+  }
+
+  return <div className="space-y-3">
+    {body()}
+    {attempt.isPending && <p role="status">Saving…</p>}
+    {attempt.isError && <p role="alert">Could not save your work. Try again.</p>}
+    {done && <p role="status" className="text-green-800">{score == null ? 'Completed' : `Completed · ${Math.round(score * 100)}%`}</p>}
+  </div>
+}
 
 export function ModulePlayer() {
   const { moduleId = '' } = useParams()
-  const navigate = useNavigate()
+  const { profile } = useAuth()
   const queryClient = useQueryClient()
-  const { data: mod, isLoading } = useQuery({ queryKey: ['module', moduleId], queryFn: () => getModule(moduleId) })
-  const { data: siblings = [] } = useQuery({
-    queryKey: ['moduleStatus', mod?.course_id],
-    queryFn: () => listModuleStatus(mod!.course_id),
-    enabled: !!mod,
+  const studentId = profile?.id
+  const { data: mod, isLoading, isError } = useQuery({
+    queryKey: ['module', studentId, moduleId], queryFn: () => getModule(moduleId),
+  })
+  const activityKey = ['moduleActivities', studentId, moduleId]
+  const { data: progress = [], isLoading: progressLoading, isError: progressError } = useQuery({
+    queryKey: activityKey, queryFn: () => listActivityStatus(moduleId), enabled: !!mod,
   })
 
-  const steps = useMemo(
-    () => (mod?.lessons ?? []).flatMap((lesson) => lesson.activities.map((activity) => ({ lesson, activity }))),
-    [mod],
-  )
-  const [index, setIndex] = useState(0)
-  const [done, setDone] = useState<Record<string, true>>({})
-  const startedAt = useRef(0)
-  const headingRef = useRef<HTMLHeadingElement>(null)
+  if (isLoading || (mod && progressLoading)) return <p role="status">Loading lesson…</p>
+  if (isError || progressError) return <p role="alert">Could not load this module. Try reloading the page.</p>
+  if (!mod) return <p>This module is unavailable. <Link className="underline" to="/student">Back to my courses</Link></p>
 
-  // Restart the time-on-task clock and move keyboard focus to the new step.
-  useEffect(() => {
-    startedAt.current = Date.now()
-    headingRef.current?.focus()
-  }, [index])
-
-  if (isLoading) return <p role="status">Loading module…</p>
-  if (!mod) return <EmptyState title="Module not found" description="It may be locked or unpublished." action={<Link to="/student" className="underline">Back to my courses</Link>} />
-  if (steps.length === 0) return <EmptyState title="This module is empty" description="Your instructor has not added activities yet." />
-
-  const finished = index >= steps.length
-  const current = steps[Math.min(index, steps.length - 1)]
-  const currentDone = !!done[current.activity.id] || !current.activity.counts_toward_unlock
-  const completedCount = steps.filter((s) => done[s.activity.id]).length
-  const pct = Math.round((Math.min(index, steps.length) / steps.length) * 100)
-  const position = siblings.findIndex((s) => s.module_id === mod.id)
-  const nextModule = position >= 0 ? siblings[position + 1] : undefined
-
-  function finishModule() {
-    setIndex(steps.length)
-    // TODO(Shivraj): unlocking should come from the server; refetch so the home page updates.
-    void queryClient.invalidateQueries({ queryKey: ['moduleStatus'] })
+  function refreshProgress() {
+    void queryClient.invalidateQueries({ queryKey: activityKey })
+    void queryClient.invalidateQueries({ queryKey: ['moduleStatus', studentId, mod?.course_id] })
   }
+  const statuses = new Map(progress.map(status => [status.activity_id, status]))
 
-  return (
-    <div className="mx-auto max-w-3xl">
-      <Link to="/student" className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-brand underline">
-        <ArrowLeft className="size-4" aria-hidden="true" /> My courses
-      </Link>
-
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-cic-muted">{mod.title} · {current.lesson.title}</p>
-        <p className="text-sm tabular-nums text-cic-muted">
-          {finished ? 'Complete' : `Step ${index + 1} of ${steps.length}`}
-        </p>
-      </div>
-
-      {/* Progress dots: shape + text, never color alone. */}
-      <ol className="mb-6 flex gap-1.5" aria-label={`Progress: ${pct}%`}>
-        {steps.map((s, i) => {
-          const state = done[s.activity.id] ? 'done' : i === index ? 'current' : 'todo'
-          return (
-            <li key={s.activity.id} className="flex-1">
-              <button
-                type="button"
-                onClick={() => i <= index && setIndex(i)}
-                disabled={i > index}
-                aria-current={state === 'current' ? 'step' : undefined}
-                aria-label={`Step ${i + 1}: ${TYPE_LABEL[s.activity.type]}${state === 'done' ? ', done' : ''}`}
-                className={`h-3 w-full rounded-full ${state === 'done' ? 'bg-brand-accent' : state === 'current' ? 'bg-brand' : 'bg-divider'}`}
-              />
-            </li>
-          )
-        })}
-      </ol>
-
-      {finished ? (
-        <Card>
-          <div className="flex flex-col items-center gap-3 py-6 text-center">
-            <CheckCircle2 className="size-14 text-brand-accent" aria-hidden="true" />
-            <h1 ref={headingRef} tabIndex={-1} className="text-3xl">Module complete!</h1>
-            <p className="text-cic-muted">You finished {completedCount} of {steps.length} activities in {mod.title}.</p>
-            <div className="mt-2 flex flex-wrap justify-center gap-2">
-              {nextModule ? (
-                <Button onClick={() => navigate(`/student/module/${nextModule.module_id}`)}>
-                  Next: {nextModule.title} <ArrowRight aria-hidden="true" />
-                </Button>
-              ) : (
-                <Badge tone="brand"><Flag aria-hidden="true" /> Course finished</Badge>
-              )}
-              <Button variant="secondary" onClick={() => navigate('/student')}>Back to my courses</Button>
-            </div>
-          </div>
-        </Card>
-      ) : (
-        <Card>
-          <div className="mb-4 flex items-center gap-2">
-            <Badge tone="brand">{TYPE_LABEL[current.activity.type]}</Badge>
-            {current.lesson.is_checkpoint && <Badge tone="info"><Flag aria-hidden="true" /> Checkpoint</Badge>}
-            <h1 ref={headingRef} tabIndex={-1} className="sr-only">
-              Step {index + 1}: {TYPE_LABEL[current.activity.type]}
-            </h1>
-          </div>
-          <ActivityRenderer
-            activity={current.activity}
-            classId={CLASS_ID}
-            elapsedMs={() => Date.now() - startedAt.current}
-            done={!!done[current.activity.id]}
-            onDone={() => setDone((d) => ({ ...d, [current.activity.id]: true }))}
-          />
-        </Card>
-      )}
-
-      {!finished && (
-        <nav className="mt-4 flex items-center justify-between gap-2" aria-label="Module steps">
-          <Button variant="ghost" onClick={() => setIndex((i) => i - 1)} disabled={index === 0}>
-            <ArrowLeft aria-hidden="true" /> Back
-          </Button>
-          <div className="flex items-center gap-3">
-            {!currentDone && <span className="text-sm text-cic-muted">Finish this step to continue</span>}
-            <Button
-              onClick={() => {
-                // Optional steps (reading, video) count as done once the student moves past them.
-                setDone((d) => ({ ...d, [current.activity.id]: true }))
-                if (index === steps.length - 1) finishModule()
-                else setIndex((i) => i + 1)
-              }}
-              disabled={!currentDone}
-            >
-              {index === steps.length - 1 ? 'Finish module' : 'Continue'} <ArrowRight aria-hidden="true" />
-            </Button>
-          </div>
-        </nav>
-      )}
+  return <>
+    <PageHeader title={mod.title} subtitle={mod.concept} />
+    <div className="space-y-6">
+      {mod.lessons.map(lesson => <section key={lesson.id} className="space-y-3">
+        <h2 className="text-xl">{lesson.title}</h2>
+        {lesson.activities.map(activity => <Card key={activity.id}>
+          <ActivityBlock activity={activity} status={statuses.get(activity.id)} onSaved={refreshProgress} />
+        </Card>)}
+      </section>)}
     </div>
-  )
+  </>
 }

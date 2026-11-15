@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { ArrowDown, ArrowRight, ArrowUp, BookOpen, Eye, FilePlus2, GripVertical, ImagePlus, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowRight, ArrowUp, BookOpen, Copy, Eye, FilePlus2, GripVertical, ImagePlus, Plus, Save, Star, Trash2 } from 'lucide-react';
+import { isLocalDemo } from '../shared/supabase.ts';
+import { CodingLabEditor } from './CodingLabEditor';
+import { HtmlActivityEditor, HtmlActivityPreview } from './HtmlActivity';
+import { emptyHtml } from './htmlStarter';
 import { BlockPicker } from './BlockPicker';
 import { ActivityPreview, LessonPreview } from './LessonPreview';
 import {
-  activityTypes, blankQuestion, embedUrl, gradedTypes, id, newActivity, newLesson, newModule, questionTypes, reorder, slidesUrl, unresolvedModuleContent,
+  activityTypes, blankQuestion, copyBlock, embedUrl, gradedTypes, id, newActivity, newLesson, newModule, questionTypes, reorder, slidesUrl, unresolvedModuleContent,
   type Activity, type Course, type Lesson, type Module,
 } from './model';
 import { Dialog, Empty, PageHeader, Panel } from './ui';
@@ -66,13 +70,20 @@ export function CourseReviewer({ course }: { course: Course }) {
   </>;
 }
 
-export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
+export function CourseBuilder({ initial, released, localAuthoring, onSave, onRelease, assigned, draftModule, library, onSaveLibrary }: {
   initial: Course;
+  released: Course;
+  localAuthoring: boolean;
+  library: Activity[];
+  onSaveLibrary: (blocks: Activity[]) => boolean;
+  onRelease: (course: Course, moduleId: string, selected: Module | null) => boolean;
   onSave: (course: Course) => boolean;
   assigned: Set<string>;
   draftModule: (source: { text: string; file: File | null }) => Promise<Module>;
 }) {
   const [course, setCourse] = useState(initial);
+  const [savedDraft, setSavedDraft] = useState(initial);
+  const [manageBlocks, setManageBlocks] = useState(false);
   const [view, setView] = useState<View>({ moduleId: initial.modules[0]?.id, lessonId: initial.modules[0]?.lessons[0]?.id });
   const [preview, setPreview] = useState(false);
   const [tab, setTab] = useState<'edit' | 'preview'>('edit');
@@ -87,9 +98,32 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
   const module = course.modules.find(module => module.id === view.moduleId);
   const lesson = module?.lessons.find(lesson => lesson.id === view.lessonId);
   const activity = lesson?.activities.find(activity => activity.id === view.activityId);
-  const savedBlocks = new Set(initial.modules.find(item => item.id === module?.id)?.lessons
+  const liveModule = released.modules.find(item => item.id === module?.id && item.published);
+  const savedBlocks = new Set(released.modules.find(item => item.id === module?.id)?.lessons
     .find(item => item.id === lesson?.id)?.activities.map(block => block.id));
-  const unsaved = course !== initial;
+  const unsaved = course !== savedDraft;
+  const saveDraft = useCallback(() => {
+    if (!localAuthoring) {
+      const invalid = course.modules.find(item => item.published && unresolvedModuleContent(item));
+      if (!course.title.trim()) return setError('Give the course a title before saving.');
+      if (invalid) return setError(invalid.title + ' · ' + unresolvedModuleContent(invalid));
+    }
+    if (!onSave(course)) return;
+    setSavedDraft(course);
+  }, [course, localAuthoring, onSave]);
+
+  useEffect(() => {
+    if (!unsaved || !localAuthoring) return;
+    const timer = window.setTimeout(saveDraft, 700);
+    return () => window.clearTimeout(timer);
+  }, [saveDraft, unsaved, localAuthoring]);
+
+  useEffect(() => {
+    if (!unsaved) return;
+    function preventLoss(event: BeforeUnloadEvent) { event.preventDefault(); }
+    window.addEventListener('beforeunload', preventLoss);
+    return () => window.removeEventListener('beforeunload', preventLoss);
+  }, [unsaved]);
 
   function select(next: View) {
     setView(next);
@@ -112,21 +146,31 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
     updateLesson(lesson.id, lesson => ({ ...lesson, activities: lesson.activities.map(activity => activity.id === activityId ? fn(activity) : activity) }));
   }
 
-  function save(next = course, text = 'Course changes saved.') {
-    const invalidModule = next.modules.find(module => module.published && unresolvedModuleContent(module));
-    if (!next.title.trim()) return setError('Give the course a title before saving.');
-    if (invalidModule) return setError(invalidModule.title + ' · ' + unresolvedModuleContent(invalidModule));
-    if (!onSave(next)) return;
-    setCourse(next);
-    setError('');
-    setMessage(text);
-  }
-
   function publish() {
     if (!module) return;
-    if (module.published && assigned.has(module.id)) return setError('Remove this module from its class assignments before unpublishing.');
-    const next = { ...course, modules: course.modules.map(item => item.id === module.id ? { ...item, published: !item.published } : item) };
-    save(next, module.published ? 'Module moved to draft.' : 'Module published and ready to assign.');
+    const issue = unresolvedModuleContent(module);
+    if (!course.title.trim()) return setError('Give the course a title before publishing.');
+    if (issue) return setError(issue);
+    if (!localAuthoring) {
+      const invalid = course.modules.find(item => item.published && item.id !== module.id && unresolvedModuleContent(item));
+      if (invalid) return setError(invalid.title + ' · ' + unresolvedModuleContent(invalid));
+    }
+    const next = { ...course, modules: course.modules.map(item => item.id === module.id ? { ...item, published: true } : item) };
+    if (!onRelease(next, module.id, module)) return;
+    setCourse(next);
+    setSavedDraft(next);
+    setError('');
+    setMessage('Module published and ready to assign.');
+  }
+
+  function unpublish() {
+    if (!module || assigned.has(module.id)) return setError('Remove this module from its class assignments before unpublishing.');
+    const next = { ...course, modules: course.modules.map(item => item.id === module.id ? { ...item, published: false } : item) };
+    if (!onRelease(next, module.id, null)) return;
+    setCourse(next);
+    setSavedDraft(next);
+    setError('');
+    setMessage('Module moved to draft.');
   }
 
   function addModule(next = newModule()) {
@@ -134,11 +178,15 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
     select({ moduleId: next.id });
   }
 
-  function addLesson() {
+  function addLesson(htmlFirst = false) {
     if (!module) return;
     const next = newLesson();
+    if (htmlFirst) {
+      next.htmlFirst = true;
+      next.activities.push({ ...newActivity('interactive_html'), interactiveHtml: { ...emptyHtml } });
+    }
     updateModule(module.id, module => ({ ...module, lessons: [...module.lessons, next] }));
-    select({ moduleId: module.id, lessonId: next.id });
+    select({ moduleId: module.id, lessonId: next.id, activityId: next.activities[0]?.id });
   }
 
   function insertBlock(next: Activity, position: number) {
@@ -161,7 +209,7 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
   }, []);
 
   useEffect(() => {
-    if (!lesson || tab !== 'edit' || preview || importer || removal || picker !== null) return;
+    if (!lesson || tab !== 'edit' || preview || importer || removal || manageBlocks || picker !== null) return;
     function shortcut(event: KeyboardEvent) {
       if (event.key !== '/' || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
       if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable]')) return;
@@ -172,7 +220,7 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
     }
     window.addEventListener('keydown', shortcut);
     return () => window.removeEventListener('keydown', shortcut);
-  }, [lesson, tab, preview, importer, removal, picker]);
+  }, [lesson, tab, preview, importer, removal, manageBlocks, picker]);
 
   function move(kind: OutlineKind, parent: string, from: number, to: number) {
     if (from === to) return;
@@ -215,12 +263,13 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
 
   return <>
     <PageHeader title={course.title || 'Untitled course'} description="Course builder" back={{ label: 'Curriculum', to: '#/curriculum' }}>
+      {localAuthoring && <button type="button" className="ic-button" onClick={() => setManageBlocks(true)}><Star size={16} /> My blocks</button>}
       <button type="button" className="ic-button" onClick={() => setImporter('converter')}><FilePlus2 size={16} /> Draft from materials</button>
       <button type="button" className="ic-button" disabled={!module?.lessons.length} onClick={() => setPreview(true)}><Eye size={16} /> Preview module</button>
-      <button type="button" className="ic-button ic-primary" onClick={() => save()}><Save size={16} /> Save changes</button>
+      <button type="button" className="ic-button ic-primary" onClick={saveDraft}><Save size={16} /> {localAuthoring ? 'Save draft' : 'Save changes'}</button>
     </PageHeader>
     <div className="ic-builder-status">
-      <span>{unsaved ? 'Unsaved changes' : 'Changes saved locally'}</span>
+      <span>{unsaved ? 'Unsaved changes' : localAuthoring ? 'Draft saved locally' : 'Changes saved'}</span>
       <span role="status">{message}</span>
     </div>
     {error && <p className="ic-error" role="alert">{error}</p>}
@@ -246,12 +295,12 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
           <label>Level<select value={course.level} onChange={event => setCourse({ ...course, level: event.target.value })}>
             {['Beginner', 'Intermediate', 'Advanced', 'Expert'].map(value => <option key={value}>{value}</option>)}
           </select></label></div></Panel>}
-        {module && !lesson && <Panel title="Module details" actions={<button type="button" className="ic-button ic-primary" onClick={publish}>{module.published ? 'Unpublish module' : 'Publish module'}</button>}>
+        {module && !lesson && <Panel title="Module details" actions={<button type="button" className="ic-button ic-primary" onClick={publish}>{liveModule ? 'Publish update' : 'Publish module'}</button>}>
           <label>Module title<input value={module.title} maxLength={100} onChange={event => updateModule(module.id, item => ({ ...item, title: event.target.value }))} /></label>
-          <div className="ic-row ic-section-gap"><span className={'ic-status ' + (module.published ? 'is-published' : '')}>{module.published ? 'Published' : 'Draft'}</span><button type="button" className="ic-button" onClick={addLesson}><Plus size={16} /> Add lesson</button></div>
+          <div className="ic-row ic-section-gap"><span className={'ic-status ' + (module.published ? 'is-published' : '')}>{liveModule ? 'Published' : 'Draft'}</span>{liveModule && <button type="button" className="ic-button" onClick={unpublish}>Unpublish module</button>}<button type="button" className="ic-button" onClick={() => addLesson()}><Plus size={16} /> Add lesson</button>{localAuthoring && <button type="button" className="ic-button" onClick={() => addLesson(true)}><Plus size={16} /> Add HTML lesson</button>}</div>
           {module.lessons.length ? <ul className="ic-list ic-section-gap">{module.lessons.map(child => <li key={child.id}><button type="button" className="ic-link-button" onClick={() => select({ moduleId: module.id, lessonId: child.id })}>{child.title}</button><span className="ic-note">{child.activities.length} activities</span></li>)}</ul> : <Empty>Add a lesson to start this module.</Empty>}
         </Panel>}
-        {module && lesson && <section className="ic-panel ic-lesson-page" aria-label="Lesson editor">
+        {module && lesson && <section className={'ic-panel ic-lesson-page' + (lesson.htmlFirst ? ' ic-html-lesson' : '')} aria-label="Lesson editor">
           <div className="ic-lesson-toolbar">
             <span className="ic-note">{module.title} · {module.published ? 'Published' : 'Draft'}</span>
             <div className="ic-mode" role="group" aria-label="Editor view">
@@ -273,7 +322,7 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
                     onKeyDown={event => { if (event.key === '/') { event.preventDefault(); openPicker(index, event.currentTarget); } }}>
                     <Plus size={16} aria-hidden="true" />{!block && <>Add block <kbd>/</kbd></>}
                   </button>
-                  {picker === index && <BlockPicker onClose={closePicker} onPick={next => insertBlock(next, index)} />}
+                  {picker === index && <BlockPicker allowHtml={localAuthoring} library={library} onClose={closePicker} onPick={next => insertBlock(next, index)} />}
                 </div>
                 {block && <div className={`ic-lesson-block${editing ? ' is-editing' : ''}`}
                   onDragOver={event => { if (dragging?.kind === 'block' && dragging.parent === lesson.id) event.preventDefault(); }}
@@ -294,6 +343,10 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
                       <span>{block.format === 'open-ended' ? 'Open-ended question' : block.type === 'check' ? 'Quiz' : activityTypes[block.type]}</span>
                       <div className="ic-tree-controls">
                         {editing && <>
+                          <button type="button" className="ic-icon" aria-label="Duplicate block" onClick={() => insertBlock(copyBlock(block), index + 1)}><Copy size={15} /></button>
+                          {localAuthoring && <button type="button" className="ic-icon" aria-label="Save to My blocks" onClick={() => {
+                            if (onSaveLibrary([...library, copyBlock(block)])) setMessage('Block saved to My blocks.');
+                          }}><Star size={15} /></button>}
                           <button type="button" className="ic-icon" aria-label="Move block up" disabled={index === 0} onClick={() => move('block', lesson.id, index, index - 1)}><ArrowUp size={15} /></button>
                           <button type="button" className="ic-icon" aria-label="Move block down" disabled={index === lesson.activities.length - 1} onClick={() => move('block', lesson.id, index, index + 1)}><ArrowDown size={15} /></button>
                           {(!savedBlocks.has(block.id) || (!module.published && !assigned.has(module.id))) && <button type="button" className="ic-icon" aria-label="Remove block"
@@ -305,7 +358,7 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
                         }}>{editing ? 'Done' : 'Edit'}</button>
                       </div>
                     </div>
-                    {editing ? <ActivityEditor key={block.id} activity={block} onChange={fn => updateActivity(block.id, fn)} />
+                    {editing ? <ActivityEditor key={block.id} activity={block} localAuthoring={localAuthoring} onChange={fn => updateActivity(block.id, fn)} />
                       : <ActivityPreview activity={block} />}
                   </div>
                 </div>}
@@ -316,6 +369,12 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
         </section>}
       </div>
     </div>
+    {manageBlocks && <Dialog title="My blocks" onClose={() => setManageBlocks(false)}>
+      {library.length ? <ul className="ic-list">{library.map(block => <li key={block.id}>
+        <span>{block.title || activityTypes[block.type]}</span>
+        <button type="button" className="ic-link-button" onClick={() => onSaveLibrary(library.filter(item => item.id !== block.id))}>Remove from library</button>
+      </li>)}</ul> : <Empty>Save a configured block to reuse it in any lesson.</Empty>}
+    </Dialog>}
     {preview && module && <Dialog wide title="Student preview" onClose={() => setPreview(false)}>
       {module.lessons.map(item => <LessonPreview lesson={item} key={item.id} interactive />)}
     </Dialog>}
@@ -330,7 +389,7 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
   </>;
 }
 
-function ActivityEditor({ activity, onChange }: { activity: Activity; onChange: (fn: (activity: Activity) => Activity) => void }) {
+function ActivityEditor({ activity, onChange, localAuthoring }: { activity: Activity; localAuthoring: boolean; onChange: (fn: (activity: Activity) => Activity) => void }) {
   const image = useRef<HTMLInputElement>(null);
   const mediaHintId = useId();
   const [imageError, setImageError] = useState('');
@@ -356,6 +415,10 @@ function ActivityEditor({ activity, onChange }: { activity: Activity; onChange: 
   }
   return <div className="ic-stack">
     <label>Block title<input id={'block-title-' + activity.id} value={activity.title} maxLength={100} onChange={event => set({ title: event.target.value })} /></label>
+    {activity.type === 'interactive_html' && <div className="ic-html-editor">
+      {localAuthoring && <HtmlActivityEditor value={activity.interactiveHtml ?? emptyHtml} onChange={interactiveHtml => set({ interactiveHtml })} />}
+      <HtmlActivityPreview activity={activity.interactiveHtml ?? emptyHtml} title={activity.title || 'HTML activity'} scripts={isLocalDemo} />
+    </div>}
     {(activity.type === 'video' || activity.type === 'slides') && <div><label>{activity.type === 'video' ? 'Video URL' : 'Slide deck URL'}<input type="url" aria-describedby={mediaHintId}
       placeholder={activity.type === 'video' ? 'https://www.youtube.com/watch?v=…' : 'https://docs.google.com/presentation/d/…'}
       value={activity.url} onChange={event => set({ url: event.target.value })} /></label>
@@ -363,18 +426,20 @@ function ActivityEditor({ activity, onChange }: { activity: Activity; onChange: 
         ? activity.url && !embedUrl(activity.url) ? 'Enter a YouTube, Vimeo, or Google Drive video link.' : 'Supports YouTube, Vimeo, and Google Drive videos.'
         : activity.url && !slidesUrl(activity.url) ? 'Enter a Google Slides or Google Drive link.' : 'Use a slide deck students have permission to view.'}</p>
     </div>}
-    <label>{activity.type === 'content' ? 'Article Markdown' : activity.type === 'code' ? 'Instructions and starter code (Markdown)' : 'Instructions (optional Markdown)'}
+    {activity.type !== 'interactive_html' && <label>{activity.type === 'content' ? 'Article Markdown' : activity.type === 'code' ? 'Lab instructions' : 'Instructions (optional Markdown)'}
       <textarea className="ic-markdown-input" rows={activity.type === 'content' || activity.type === 'code' ? 10 : 3}
         value={activity.markdown} onChange={event => set({ markdown: event.target.value })}
         placeholder="Use ## for a heading or triple backticks for a code example." />
-    </label>
-    {activity.type === 'code' && <fieldset className="ic-stack"><legend>Coding exercise</legend>
-      {(['starter', 'tests', 'solution'] as const).map((key, index) => <label key={key}>{['Starter code', 'Test cases', 'Instructor solution'][index]}
-        <textarea className="ic-markdown-input" rows={3} value={activity.code?.[key] || ''} onChange={event => set({
-          code: { starter: '', tests: '', solution: '', ...activity.code, [key]: event.target.value },
-        })} />
-      </label>)}
-    </fieldset>}
+    </label>}
+    {activity.type === 'code' && (localAuthoring
+      ? <CodingLabEditor activity={activity} onChange={code => set({ code })} />
+      : <fieldset className="ic-stack"><legend>Coding exercise</legend>
+        {(['starter', 'tests', 'solution'] as const).map((key, index) => <label key={key}>{['Starter code', 'Test cases', 'Instructor solution'][index]}
+          <textarea className="ic-markdown-input" rows={3} value={activity.code?.[key] || ''} onChange={event => set({
+            code: { starter: '', tests: '', solution: '', ...activity.code, [key]: event.target.value },
+          })} />
+        </label>)}
+      </fieldset>)}
     {activity.type === 'content' && <div className="ic-image-controls">
       <label>Image description<input value={alt} onChange={event => setAlt(event.target.value)} placeholder="Describe the image for students" maxLength={120} /></label>
       <input ref={image} type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden onChange={event => {

@@ -79,6 +79,8 @@ npx supabase db push --include-seed   # runs supabase/migrations/ in order, then
 
 With Supabase configured, the instructor workspace reads and writes live data (classes, rosters, assigned modules, assignments, course content); Row Level Security limits each instructor to their own classes.
 
+For the live student curriculum, apply migration `1004_student_curriculum_access.sql` before setting `VITE_LIVE_STUDENT_CURRICULUM=true` and rebuilding. Students can then open published, unlocked modules in their enrolled courses and save attempts to Supabase. Live HTML is scriptless. The full Coding Lab runner is available in the local demo.
+
 Before opening a PR: `npm run build && npm run lint`.
 
 ### Instructor workspace
@@ -148,3 +150,12 @@ parent.postMessage({ type: 'cic:complete', score: 0.8 }, '*') // score is 0..1
 Winning teams finish the project with the nonprofit — the [Definition of Done](https://www.ohack.dev/about/completion) (deployed, nonprofit sign-off, docs, open source) is tracked on your team page. Keep the repo public and the README honest; recruiters do read these.
 
 Need a hand this weekend? [#ask-a-mentor](https://opportunity-hack.slack.com/archives/C01E5CGDQ74) on Slack, or ask in [#the-1000-sunny](https://opportunity-hack.slack.com/app_redirect?channel=the-1000-sunny) and a mentor will drop in.
+
+### Curriculum builder demo
+
+1. Run `npm ci`, then `VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= npm run dev` for mock mode. In another terminal, run `npm run dev:runner`. The Python runner listens only on loopback at port 5178 and serves the pinned runtime from installed dependencies.
+2. At [localhost:5173](http://localhost:5173), choose **Instructor**, open **Curriculum**, and open **Try the curriculum builder**. Use `+` or `/` to insert a reusable block, a Custom HTML activity, or a Python or HTML/CSS Coding Lab. Under **Module details**, use **Add HTML lesson** for a full-width HTML canvas.
+3. **Save draft** (also saves after a short pause) and **Publish module** or **Publish update** are separate actions. Choose **Student** after signing out and open the module under **Instructor-published demos** in the same browser. Each new publication starts a separate demo attempt. Course drafts, reusable blocks, edits, and submissions are kept locally.
+4. Use `npm test`, `npm run build`, `npm run build:instructor`, and `npm run lint` to verify the change.
+
+Custom HTML permits inline styles and runs local scripts in an opaque-origin frame on loopback in mock mode. External scripts and fetches, form submission, and top-level navigation are blocked. Use self-contained files with embedded assets. Live use needs a separate review of navigation within the frame and resource limits. The HTML activity uses manual completion or a `cic:complete` message with an optional practice score. Python labs compare stdout with expected output. The Python runner uses a different loopback hostname from the app to keep app cookies off runner requests. Web labs check declared HTML elements and text. Practice results are local and independent of official assessments.

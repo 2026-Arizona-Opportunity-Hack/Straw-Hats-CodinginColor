@@ -1,31 +1,39 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { emptyHtml } from './htmlStarter'
 import {
   AlignLeft, BookOpen, CircleHelp, ClipboardList, Code2, FileText, ListChecks, MessageSquare, Monitor, Video,
 } from 'lucide-react';
-import { gradedTypes, newActivity, type Activity, type ActivityType } from './model';
+import { copyBlock, gradedTypes, newActivity, type Activity, type ActivityType } from './model';
 
 const blocks = [
   { name: 'Text', detail: 'Explain a concept with headings, links, or images', type: 'content', icon: AlignLeft, keywords: 'article paragraph markdown' },
   { name: 'Worked example', detail: 'Show how to solve a problem step by step', type: 'content', icon: BookOpen, keywords: 'example walkthrough' },
   { name: 'Quiz', detail: 'Multiple-choice questions with a correct answer', type: 'check', icon: ListChecks, keywords: 'multiple choice knowledge check assessment' },
   { name: 'Open-ended question', detail: 'Ask students to respond in their own words', type: 'worksheet', icon: MessageSquare, keywords: 'free response writing reflection' },
-  { name: 'Code exercise', detail: 'Set a coding task with starter code', type: 'code', icon: Code2, keywords: 'python practice' },
+  { name: 'Coding Lab', detail: 'Set a coding task with starter code', type: 'code', icon: Code2, keywords: 'python html css practice code exercise' },
   { name: 'Worksheet', detail: 'Collect responses to a series of prompts', type: 'worksheet', icon: ClipboardList, keywords: 'form practice' },
   { name: 'Video', detail: 'Embed a YouTube, Vimeo, or Drive video', type: 'video', icon: Video, keywords: 'embed media' },
+  { name: 'Custom HTML', detail: 'Build a self-contained page or interactive widget', type: 'interactive_html', icon: Code2, keywords: 'advanced html css javascript' },
   { name: 'Slides', detail: 'Embed a Google Slides or Drive presentation', type: 'slides', icon: Monitor, keywords: 'embed deck' },
   { name: 'Pretest', detail: 'Capture a baseline before instruction', type: 'pretest', icon: FileText, keywords: 'assessment quiz' },
   { name: 'Post-test', detail: 'Measure learning after instruction', type: 'posttest', icon: FileText, keywords: 'posttest assessment quiz' },
   { name: 'Exit question', detail: 'End the lesson with a reflection', type: 'exit', icon: CircleHelp, keywords: 'reflection' },
 ] satisfies { name: string; detail: string; type: ActivityType; icon: typeof AlignLeft; keywords: string }[];
 
-export function BlockPicker({ onPick, onClose }: {
-  onPick: (activity: Activity) => void; onClose: (restoreFocus: boolean) => void;
+export function BlockPicker({ onPick, onClose, library, allowHtml }: {
+  library: Activity[]; allowHtml: boolean; onPick: (activity: Activity) => void; onClose: (restoreFocus: boolean) => void;
 }) {
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const popup = useRef<HTMLDivElement>(null);
-  const matches = blocks.filter(block => `${block.name} ${block.detail} ${block.keywords}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const options = [
+    ...blocks.filter(block => allowHtml || block.type !== 'interactive_html').map(block => ({ ...block, name: block.type === 'code' && !allowHtml ? 'Code exercise' : block.name, key: block.name, saved: undefined as Activity | undefined })),
+    ...library.map(saved => ({
+      name: saved.title, detail: 'From My blocks', type: saved.type, icon: BookOpen, keywords: 'saved reusable', key: saved.id, saved,
+    })),
+  ];
+  const matches = options.filter(block => `${block.name} ${block.detail} ${block.keywords}`.toLowerCase().includes(query.trim().toLowerCase()));
 
   useEffect(() => {
     input.current?.focus();
@@ -36,8 +44,11 @@ export function BlockPicker({ onPick, onClose }: {
     return () => document.removeEventListener('pointerdown', dismiss);
   }, [onClose]);
 
-  function pick(block: typeof blocks[number]) {
+  function pick(block: typeof options[number]) {
+    if (block.saved) return onPick(copyBlock(block.saved));
     const activity = { ...newActivity(block.type), title: block.name };
+    if (block.type === 'code' && allowHtml) activity.code = { starter: '', tests: '', solution: '', lab: { language: 'python', checks: [] } };
+    if (block.type === 'interactive_html') activity.interactiveHtml = { ...emptyHtml };
     if (block.name === 'Open-ended question') activity.format = 'open-ended';
     if (gradedTypes.has(block.type)) activity.questions[0].choices = ['', '', ''];
     onPick(activity);
@@ -66,7 +77,7 @@ export function BlockPicker({ onPick, onClose }: {
   }}>
     <input ref={input} type="search" aria-label="Find a block" placeholder="Find a block…" value={query} onChange={event => { setQuery(event.target.value); setIndex(0); }} />
     <div className="ic-block-options">
-      {matches.map((block, i) => <button type="button" key={block.name} className={i === index ? 'is-highlighted' : ''} onClick={() => pick(block)}>
+      {matches.map((block, i) => <button type="button" key={block.key} className={i === index ? 'is-highlighted' : ''} onClick={() => pick(block)}>
         <block.icon size={18} aria-hidden="true" /><span><strong>{block.name}</strong><small>{block.detail}</small></span>
       </button>)}
       {!matches.length && <p className="ic-note" role="status">No blocks match.</p>}
