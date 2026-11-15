@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { supabase } from '../shared/supabase.ts'
 import { InstructorWorkspace } from './InstructorWorkspace.tsx'
-import { loadLiveData, saveLiveData } from './liveStore.ts'
+import { importLibraryCourse, loadLiveData, saveLiveData } from './liveStore.ts'
 import type { InstructorData, StaffRole } from './model.ts'
 import type { InstructorStore } from './store.ts'
 
@@ -36,12 +36,13 @@ function LiveWorkspace({ role, hash, userId, name }: { role: StaffRole; hash: st
   const store = useMemo<InstructorStore | null>(() => data ? {
     load: () => structuredClone(data),
     save: (next: InstructorData, previous: InstructorData) => {
-      return queue.run(() => saveLiveData(client, userId, previous, next)).catch(problem => {
+      return queue.run(() => saveLiveData(client, userId, previous, next, { editLibrary: role === 'admin' })).catch(problem => {
         setSyncError(`${problem instanceof Error ? problem.message : 'Saving failed.'} The page was reloaded from the database, so recent changes may be missing.`)
         void queryClient.invalidateQueries({ queryKey })
         throw problem
       })
     },
+    importCourse: source => importLibraryCourse(client, source.id),
   } : null, [data, client, userId, queryClient, queryKey, queue])
 
   if (isPending) return <p className="p-6" role="status">Loading your classes…</p>

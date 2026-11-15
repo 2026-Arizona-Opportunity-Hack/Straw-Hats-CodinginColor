@@ -4,7 +4,7 @@ import { ClassSetup } from './ClassSetup';
 import { ClassDashboard, ClassList } from './Classes';
 import { isClassTab } from './classTabIds';
 import { CourseBuilder, CourseReviewer, CurriculumList, demoDraftModule } from './Curriculum';
-import { publishModule, type Activity, type ClassGroup, type Course, type Module, type StaffRole } from './model';
+import { copyCourse, publishModule, type Activity, type ClassGroup, type Course, type Module, type StaffRole } from './model';
 import { AccessSettings, ProgramOverview } from './Operations';
 import { browserInstructorStore, type InstructorStore } from './store';
 import { PageHeader } from './ui';
@@ -144,6 +144,20 @@ export function InstructorWorkspace({
     });
   }
 
+  /** Makes the instructor's own editable copy of a library course; the library is never changed. */
+  async function importCourse(source: Course): Promise<Course> {
+    if (store.importCourse) {
+      const copy = await store.importCourse(source);
+      // Already saved by the database; show it without writing it again.
+      setData(current => ({ ...current, courses: [...current.courses, copy] }));
+      return copy;
+    }
+    const copy = copyCourse(source);
+    const current = store.load();
+    if (!save({ ...current, courses: [...current.courses, copy] })) throw new Error('Could not save the copy in this browser.');
+    return copy;
+  }
+
   function saveLibrary(blocks: Activity[]) {
     const current = store.load();
     return save({ ...current, savedBlocks: { ...current.savedBlocks, [author]: blocks } });
@@ -155,15 +169,16 @@ export function InstructorWorkspace({
   const content = (() => {
     if (!navigation.some(({ path }) => path === section)) return <PageHeader title="Page unavailable for this role" back={{ label: 'Back to workspace', to: home }} />;
     if (section === 'classes') {
-      if (item === 'new') return <ClassSetup courses={data.courses} classes={data.classes} onCreate={group => saveClass(group, true)} />;
+      if (item === 'new') return <ClassSetup courses={data.courses} classes={data.classes} onCreate={group => saveClass(group, true)} onImport={importCourse} />;
       if (group) return <ClassDashboard key={group.id} group={group} course={course} onSave={saveClass} justCreated={newClass === group.id} tab={isClassTab(subpage) ? subpage : 'dashboard'} detail={detail} otherClasses={visibleClasses} />;
       if (!item) return <ClassList groups={visibleClasses} courses={data.courses} />;
     }
     if (section === 'curriculum') {
-      if (course) return <CourseBuilder key={author + ':' + course.id} initial={data.courseDrafts?.[draftKey(course.id)] ?? course}
+      if (course && (!course.library || profile.role === 'admin')) return <CourseBuilder key={author + ':' + course.id} initial={data.courseDrafts?.[draftKey(course.id)] ?? course}
         released={course} localAuthoring={draftsLocal} onSave={saveDraft} onRelease={release} assigned={assigned} draftModule={draftModule}
         library={library} onSaveLibrary={saveLibrary} />;
-      if (!item) return <CurriculumList courses={data.courses.map(item => data.courseDrafts?.[draftKey(item.id)] ?? item)} onCreate={createCourse} />;
+      if (!item) return <CurriculumList courses={data.courses.map(item => data.courseDrafts?.[draftKey(item.id)] ?? item)} onCreate={createCourse}
+        onImport={async source => { window.location.hash = '/curriculum/' + (await importCourse(source)).id; }} />;
     }
     if (section === 'review') {
       if (course?.modules.some(module => module.published)) return <CourseReviewer key={course.id} course={course} />;

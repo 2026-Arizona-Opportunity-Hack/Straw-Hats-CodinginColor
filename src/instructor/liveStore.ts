@@ -214,9 +214,39 @@ async function selectAll(supabase: SupabaseClient, table: string, columns: strin
   }
 }
 
+const courseColumns = 'id, title, description, level, owner_id, is_library, copied_from, created_at, modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))';
+
+function toCourse(c: Row): Course {
+  const course: Course = {
+    id: String(c.id), title: str(c.title), description: str(c.description), level: titleCase(str(c.level) || 'beginner'),
+    modules: (arr(c.modules) as Row[]).sort(byPosition).map(m => ({
+      id: String(m.id), title: str(m.title), published: Boolean(m.published),
+      lessons: (arr(m.lessons) as Row[]).sort(byPosition).map(l => ({
+        id: String(l.id), title: str(l.title), activities: (arr(l.activities) as Row[]).sort(byPosition).map(toActivity),
+      })),
+    })),
+  };
+  if (c.is_library) course.library = true;
+  if (c.copied_from) course.copiedFrom = String(c.copied_from);
+  return course;
+}
+
+/**
+ * Copies a library course into a course the signed-in instructor owns (copy_library_course,
+ * migration 2004) and returns the copy. The database makes the copy, answer keys included.
+ */
+export async function importLibraryCourse(supabase: SupabaseClient, libraryCourseId: string): Promise<Course> {
+  const copied = await supabase.rpc('copy_library_course', { p_course_id: libraryCourseId });
+  fail('import the course', copied.error);
+  const loaded = await supabase.from('courses').select(courseColumns).eq('id', copied.data as string).single();
+  fail('load the imported course', loaded.error);
+  return toCourse(loaded.data as Row);
+}
+
 export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, displayName: string): Promise<InstructorData> {
   const [courses, classes, attempts, rules] = await Promise.all([
-    supabase.from('courses').select('id, title, description, level, owner_id, created_at, modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))').order('created_at'),
+    // Includes published library courses (RLS "read published courses") so instructors can import them.
+    supabase.from('courses').select(courseColumns).order('created_at'),
     supabase.from('classes').select('id, name, school, course_id, join_code, created_at, class_modules (module_id), class_students (id, display_name, passcode, profile_id, created_at), assignments (*), assignment_submissions (*)').order('created_at'),
     selectAll(supabase, 'activity_attempts', 'id, student_id, activity_id, class_id, score, submitted_at, time_on_task_ms, attempt_no, response'),
     supabase.from('module_rules').select('class_id, module_id, max_posttest_tries'),
@@ -225,15 +255,7 @@ export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, di
   fail('load classes', classes.error);
   fail('load module rules', rules.error);
 
-  const courseList: Course[] = (courses.data as Row[]).map(c => ({
-    id: String(c.id), title: str(c.title), description: str(c.description), level: titleCase(str(c.level) || 'beginner'),
-    modules: (arr(c.modules) as Row[]).sort(byPosition).map(m => ({
-      id: String(m.id), title: str(m.title), published: Boolean(m.published),
-      lessons: (arr(m.lessons) as Row[]).sort(byPosition).map(l => ({
-        id: String(l.id), title: str(l.title), activities: (arr(l.activities) as Row[]).sort(byPosition).map(toActivity),
-      })),
-    })),
-  }));
+  const courseList = (courses.data as Row[]).map(toCourse);
   const activityInfo = new Map<string, ActivityInfo>(courseList.flatMap(course => course.modules.flatMap(m =>
     m.lessons.flatMap(l => l.activities.map(a => [a.id, { type: a.type, moduleId: m.id }] as const)))));
   const classList: ClassGroup[] = (classes.data as Row[]).map(c => ({
@@ -351,10 +373,14 @@ async function syncClass(supabase: SupabaseClient, userId: string, next: ClassGr
   }
 }
 
-export async function saveLiveData(supabase: SupabaseClient, userId: string, prev: InstructorData, next: InstructorData) {
+/** `editLibrary`: admins may change shared library courses; everyone else edits their own imported copy. */
+export async function saveLiveData(supabase: SupabaseClient, userId: string, prev: InstructorData, next: InstructorData, { editLibrary = false } = {}) {
   const prevCourses = new Map(prev.courses.map(c => [c.id, c]));
   for (const course of next.courses) {
-    if (!same(prevCourses.get(course.id), course)) await syncCourse(supabase, userId, course, prevCourses.get(course.id));
+    // Library courses are shared: only admins write them; instructors edit their imported copy.
+    const prevCourse = prevCourses.get(course.id);
+    if (!editLibrary && (course.library || prevCourse?.library)) continue;
+    if (!same(prevCourse, course)) await syncCourse(supabase, userId, course, prevCourse);
   }
   const prevClasses = new Map(prev.classes.map(c => [c.id, c]));
   for (const group of next.classes) {

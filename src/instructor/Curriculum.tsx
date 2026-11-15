@@ -10,17 +10,20 @@ import {
   activityTypes, blankQuestion, copyBlock, embedUrl, gradedTypes, id, newActivity, newLesson, newModule, questionTypes, reorder, slidesUrl, unresolvedModuleContent,
   type Activity, type Course, type Lesson, type Module,
 } from './model';
+import { LibraryImport } from './LibraryImport';
 import { Dialog, Empty, PageHeader, Panel } from './ui';
 
 type View = { moduleId?: string; lessonId?: string; activityId?: string };
 type OutlineKind = 'module' | 'lesson' | 'block';
 type DragItem = { kind: OutlineKind; index: number; parent: string };
 
-export function CurriculumList({ courses, reviewer = false, onCreate }: { courses: Course[]; reviewer?: boolean; onCreate?: (course: Course) => void }) {
+export function CurriculumList({ courses, reviewer = false, onCreate, onImport }: {
+  courses: Course[]; reviewer?: boolean; onCreate?: (course: Course) => void; onImport?: (source: Course) => Promise<void>;
+}) {
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
   const [level, setLevel] = useState('Beginner');
-  const visible = reviewer ? courses.filter(course => course.modules.some(module => module.published)) : courses;
+  const visible = reviewer ? courses.filter(course => course.modules.some(module => module.published)) : courses.filter(course => !course.library);
   return <>
     <PageHeader title={reviewer ? 'Curriculum reviewer' : 'Curriculum'} description={reviewer
       ? 'Browse published courses and article-style lessons in the read-only preview.'
@@ -34,11 +37,12 @@ export function CurriculumList({ courses, reviewer = false, onCreate }: { course
           <div className="ic-class-mark"><BookOpen size={21} /></div>
           <div><h2><a href={`#/${reviewer ? 'review' : 'curriculum'}/${course.id}`}>{course.title}</a></h2>
             {course.description && <p>{course.description}</p>}
-            <span className="ic-note">{course.level} · {published} published{!reviewer && ` · ${course.modules.length - published} draft`}</span>
+            <span className="ic-note">{course.level} · {published} published{!reviewer && ` · ${course.modules.length - published} draft`}{course.copiedFrom && ' · Your copy of a library course'}</span>
           </div><a className="ic-button" href={`#/${reviewer ? 'review' : 'curriculum'}/${course.id}`}>{reviewer ? 'Browse course' : 'Open builder'} <ArrowRight size={16} /></a>
         </article>;
       })}
-      {!visible.length && <Panel><Empty>{reviewer ? 'No courses have published modules yet.' : 'Create a course to start authoring.'}</Empty></Panel>}
+      {!visible.length && <Panel><Empty>{reviewer ? 'No courses have published modules yet.' : 'Create a course or import one from the library to start authoring.'}</Empty></Panel>}
+      {onImport && <Panel><LibraryImport courses={courses} onImport={onImport} headingLevel={2} /></Panel>}
     </div>
     {adding && <Dialog title="Create a course" onClose={() => setAdding(false)}>
       <form className="ic-stack" onSubmit={event => {

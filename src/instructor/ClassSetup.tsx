@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { ArrowRight, Check, FileSpreadsheet, Upload } from 'lucide-react';
 import type { ClassGroup, Course } from './model';
-import { id, makeLearners, publishedCourses } from './model';
+import { assignableCourses, id, makeLearners } from './model';
+import { LibraryImport } from './LibraryImport';
 import { readRoster, rosterTemplate, sampleRoster, type RosterRow } from './roster';
 import { PageHeader, Panel } from './ui';
 
@@ -77,10 +78,10 @@ export function RosterUpload({ rows, setRows }: { rows: RosterRow[]; setRows: (r
   </>;
 }
 
-export function ClassSetup({ courses, classes, onCreate }: {
-  courses: Course[]; classes: ClassGroup[]; onCreate: (group: ClassGroup) => void;
+export function ClassSetup({ courses, classes, onCreate, onImport }: {
+  courses: Course[]; classes: ClassGroup[]; onCreate: (group: ClassGroup) => void; onImport: (source: Course) => Promise<Course>;
 }) {
-  const available = publishedCourses(courses);
+  const available = assignableCourses(courses);
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [school, setSchool] = useState('');
@@ -89,6 +90,7 @@ export function ClassSetup({ courses, classes, onCreate }: {
   const [moduleIds, setModuleIds] = useState(available[0]?.modules.map(module => module.id) || []);
   const [error, setError] = useState('');
   const stepHeading = useRef<HTMLHeadingElement>(null);
+  const courseSelect = useRef<HTMLSelectElement>(null);
   const valid = rows.filter(row => !row.issue).map(row => row.name);
   const course = available.find(course => course.id === courseId);
   const selectedModules = course?.modules.filter(module => moduleIds.includes(module.id)) || [];
@@ -136,15 +138,21 @@ export function ClassSetup({ courses, classes, onCreate }: {
         </div>}
         <div hidden={step !== 1}><RosterUpload rows={rows} setRows={next => { setRows(next); setError(''); }} /></div>
         {step === 2 && <div className="ic-stack ic-section-gap">
-          {!available.length ? <p>Publish a module in <a href="#/curriculum">Curriculum</a> before assigning it.</p> : <>
-            <label>Course<select value={courseId} onChange={event => {
+          {!available.length ? <p>Publish a module in <a href="#/curriculum">Curriculum</a> or import a library course below before assigning it.</p> : <>
+            <label>Course<select ref={courseSelect} value={courseId} onChange={event => {
               setCourseId(event.target.value);
               setModuleIds(available.find(course => course.id === event.target.value)?.modules.map(module => module.id) || []);
-            }}>{available.map(course => <option key={course.id} value={course.id}>{course.title}</option>)}</select></label>
+            }}>{available.map(course => <option key={course.id} value={course.id}>{course.title}{course.copiedFrom ? ' (your copy)' : ''}</option>)}</select></label>
             <fieldset><legend>Modules</legend><p className="ic-note">Students see assigned modules in this order.</p>
               {course?.modules.map(module => <label className="ic-checkbox" key={module.id}><input type="checkbox" checked={moduleIds.includes(module.id)} onChange={event => setModuleIds(ids => event.target.checked ? [...ids, module.id] : ids.filter(id => id !== module.id))} />{module.title}</label>)}
             </fieldset>
           </>}
+          <LibraryImport courses={courses} onImport={onImport} onImported={copy => {
+            setCourseId(copy.id);
+            setModuleIds(copy.modules.filter(module => module.published).map(module => module.id));
+            setError('');
+            requestAnimationFrame(() => courseSelect.current?.focus());
+          }} />
         </div>}
         {error && <p className="ic-error" role="alert">{error}</p>}
         <div className="ic-form-footer">

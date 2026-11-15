@@ -121,7 +121,17 @@ Policies today (minimal, a full permissions pass is still open):
 Known gaps for the permissions pass:
 
 - Students cannot read assignments yet (no student policy).
-- Instructors cannot edit library courses owned by the admin.
+- Instructors cannot edit library courses owned by the admin; they import their own copy instead (migration 2004 below).
+
+## Migration 2004: copy a library course (applied)
+
+`supabase/migrations/2004_copy_library_course.sql` adds `copy_library_course(p_course_id uuid) returns uuid`.
+It is `security definer` and only instructors and admins may call it (`INSTRUCTORS_ONLY` otherwise).
+The source must be `is_library and published` (`NOT_A_LIBRARY_COURSE` otherwise).
+It creates a course owned by the caller (`is_library false`, `copied_from` = source, `published true`) and copies every module (keeping its published flag), lesson, activity and `activity_keys` row with new ids.
+Execute is granted to `authenticated` only.
+Checked against a throwaway local Postgres with migrations 0001 to 2004: student refused, non-library course refused, copy and keys correct, library rows unchanged.
+Applied to the hosted project on 2026-11-14 with `npx supabase db push --linked --include-all` (2004 sorts before 3001-3004, so `--include-all` is needed).
 
 ## Gotchas we already hit
 
@@ -135,3 +145,7 @@ Known gaps for the permissions pass:
 
 Plan, not done yet.
 Delete demo auth users and rows (or create a fresh project), apply migrations without `--include-seed`, then create the real CIC admin account in Authentication and a matching `profiles` row with `role = 'admin'`.
+
+## Log
+
+- 2026-11-14 9:00 PM, Ruthvik: added and applied migration 2004 `copy_library_course`. Also loaded `supabase/curriculum/ai-academy.sql` (AI Academy library courses).

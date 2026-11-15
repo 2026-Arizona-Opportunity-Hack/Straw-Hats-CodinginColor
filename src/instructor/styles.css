@@ -550,3 +550,11 @@ body:has(.ic-app) { margin: 0; }
 /* Keep the total visible when many assignments make the gradebook scroll sideways. */
 .ic-gradebook tr > :last-child { position: sticky; right: 0; z-index: 1; background: var(--ic-paper); box-shadow: -1px 0 0 var(--ic-border); }
 .ic-gradebook thead tr > :last-child { background: var(--ic-tint); }
+
+/* Import from library (LibraryImport.tsx) */
+.ic-library { display: grid; gap: 10px; padding-top: 16px; border-top: 1px solid var(--ic-border); }
+.ic-library h2, .ic-library h3 { display: flex; align-items: center; gap: 8px; color: var(--ic-green); font-size: 17px; }
+.ic-library ul { margin: 0; padding: 0; list-style: none; }
+.ic-library .ic-success { margin: 0; }
+.ic-panel > .ic-library { padding-top: 0; border-top: 0; }
+.ic-library .ic-course-row > div:nth-child(2) { flex-basis: 220px; }
