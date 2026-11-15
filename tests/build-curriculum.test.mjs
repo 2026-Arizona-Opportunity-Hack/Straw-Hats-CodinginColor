@@ -112,8 +112,10 @@ test('two library courses share module 1 and only module 1 is published', () => 
   }
   const types = course => rows.activities.filter(a => rows.lessons.some(l => l.id === a.lesson_id &&
     rows.modules.some(m => m.id === l.module_id && m.course_id === course.id))).map(a => a.type)
-  assert.ok(types(rows.courses[0]).includes('interactive_html'))
-  assert.ok(!types(rows.courses[1]).includes('interactive_html'))
+  // Interactive pages are in both courses: alone in self-paced, projected or on devices in a classroom.
+  for (const course of rows.courses) assert.equal(types(course).filter(t => t === 'interactive_html').length, 5)
+  const worksheets = course => types(course).filter(t => t === 'worksheet').length
+  assert.ok(worksheets(rows.courses[1]) > worksheets(rows.courses[0]), 'classroom keeps its group worksheets')
   const project = allActivities.find(a => a.type === 'worksheet' && a.content.title === 'AI App Investigation')
   assert.equal(project.points, 10)
 })
@@ -147,7 +149,8 @@ test('a missing widget fails loudly unless --allow-missing', () => {
   assert.throws(() => buildRows(source, { readWidget: missing }), /Missing widget page widgets\/ai-or-not.html/)
   const warnings = []
   const skipped = buildRows(source, { readWidget: missing, allowMissing: true, warn: w => warnings.push(w) })
-  assert.equal(skipped.activities.length, rows.activities.length - 1)
+  // The page is used by both courses, so one activity drops from each.
+  assert.equal(skipped.activities.length, rows.activities.length - rows.courses.length)
   assert.equal(warnings.length, 1)
 })
 

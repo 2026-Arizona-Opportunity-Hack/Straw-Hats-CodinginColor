@@ -162,6 +162,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-14 10:00 PM, Ruthvik: AI Academy Module 1 reading pages rewritten textbook style (hooks, subheads, tables, `> **Key idea:**`-style callouts for the new lesson renderer, no leading title heading). The 5 interactive pages are now in the classroom course too, next to its worksheets. Regenerated `supabase/curriculum/ai-academy.sql` (not applied to the hosted database).
 - 2026-11-14 9:00 PM, Ruthvik: AI Academy preloaded curriculum from CIC's Week 1 deck (`curriculum/`, see its README). One source builds a self-paced and a classroom library course; Module 1 is full with 5 HTML-and-CSS interactive pages (no scripts, so they run on live); modules 2-6 are stubs. `npm run curriculum` writes `supabase/curriculum/ai-academy.sql`. Teacher notes are in `curriculum/ai-academy/teacher-guide.md`, not in lessons, since students can open every activity. Vitest and oxlint now skip `.claude/` agent worktrees.
 - 2026-11-14 9:00 PM, Ruthvik: students browse and enroll in self-paced courses from My courses (`ruthvik/student-course-enroll`); verified the server flow needs no migration.
 

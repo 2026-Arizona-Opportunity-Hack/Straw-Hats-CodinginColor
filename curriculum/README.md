@@ -6,18 +6,19 @@ Right now that is **AI Academy**, built from CIC's Week 1 deck (`1 - Intro to Co
 One source file produces two library courses:
 
 - **AI Academy (Self-paced)** (`self_paced`): students enroll themselves and work alone.
-  Reading pages replace teacher talk, and interactive pages replace group work.
+  Reading pages replace teacher talk.
 - **AI Academy (Classroom)** (`instructor_led`): teachers import it into a class.
-  Group activities are worksheets.
+  Group activities are worksheets, and the teacher covers the reading pages in class.
   Timings and answer guidance are in [`ai-academy/teacher-guide.md`](ai-academy/teacher-guide.md), outside the lessons, because students can open every lesson activity.
 
-Both courses share the same checks, pretest, project worksheet, exit question and posttest.
+Both courses share the same interactive pages, checks, pretest, project instructions and worksheet, exit question and posttest.
+In the classroom course, a teacher can project an interactive page for the whole class, or students can open it on their own devices next to the worksheet.
 Both are library courses (`is_library = true`, no owner), published, level beginner.
 
 ## Files
 
 - `ai-academy/course.json`: the source. Edit this.
-- `ai-academy/widgets/*.html`: interactive pages for the self-paced course (HTML and CSS only, no scripts).
+- `ai-academy/widgets/*.html`: interactive pages for both courses (HTML and CSS only, no scripts).
 - `../scripts/build-curriculum.mjs`: the generator.
 - `../supabase/curriculum/ai-academy.sql`: the generated SQL. Do not edit it by hand.
 - `../tests/build-curriculum.test.mjs`: checks the source and the generated SQL.
@@ -39,7 +40,7 @@ Both are library courses (`is_library = true`, no owner), published, level begin
               "countsTowardUnlock": true, "versions": ["self_paced", "classroom"],
               "title": "...", "content": { "prompt": "...", "choices": [], "answer": "b" } },
             { "key": "build-the-machine", "type": "interactive_html", "concept": "computer parts", "points": 1,
-              "versions": ["self_paced"], "htmlFile": "widgets/build-the-machine.html", "instructions": "..." }
+              "htmlFile": "widgets/build-the-machine.html", "instructions": "..." }
           ] }
       ] }
   ]
@@ -59,10 +60,15 @@ Both are library courses (`is_library = true`, no owner), published, level begin
 - **type** and **content**: the payload must match `src/shared/types/activities.ts`.
   The generator checks the required fields for each type.
 - **markdown** in a `content` activity can be one string or a list of lines (joined with line breaks), which is easier to edit.
-  Markdown tables do not render in the student player, so use lists.
+  The lesson renderer supports GitHub-flavored Markdown, including tables.
+  Write pages like a textbook: a short hook, `##` and `###` subheads, short paragraphs, lists and tables where they fit.
+- **callouts**: a blockquote whose first paragraph starts with one of these bold labels renders as a callout box:
+  `**Key idea:**`, `**Did you know?**`, `**Try it:**`, `**Watch out:**`, `**Remember:**`, `**Think about it:**`.
+  For example `> **Key idea:** A program is a list of instructions the computer follows.`
+  Each Module 1 reading page has at least one.
 - **answer** (checks) and `items[].answer` (pretest, posttest): put the right choice id here.
   A database trigger moves answers into `activity_keys` so students never see them.
-- **title** (optional): the label the course builder shows. The player does not show it, so content pages repeat it as a heading.
+- **title** (optional): the activity's label. The lesson renderer shows it and drops a leading heading that repeats it, so do not start a page with the title as a heading.
 - **htmlFile** and **instructions** (interactive pages only): the page's HTML goes into `content.html`.
   `reports_score` is `false`, so students tap "Mark as done".
 - **points**: whole number, 0 or more. **countsTowardUnlock** defaults to `true`; optional pages set it to `false`.
