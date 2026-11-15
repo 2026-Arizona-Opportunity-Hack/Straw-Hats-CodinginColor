@@ -13,7 +13,8 @@ const approved = [
 function excerpt(node: Tree.Node, inContent = false): string {
   if (node.nodeName === '#text' && inContent) return (node as Tree.TextNode).value
   if (!('childNodes' in node) || ['script', 'style', 'nav', 'footer', 'aside'].includes(node.nodeName)) return ''
-  return node.childNodes.map(child => excerpt(child, inContent || node.nodeName === 'main' || node.nodeName === 'article')).join(' ')
+  const main = 'attrs' in node && node.attrs.some(attr => attr.name === 'role' && attr.value === 'main')
+  return node.childNodes.map(child => excerpt(child, inContent || main || node.nodeName === 'main' || node.nodeName === 'article')).join(' ')
 }
 
 async function readReference(url: string, signal: AbortSignal) {
