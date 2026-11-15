@@ -49,7 +49,7 @@ Requests for W3Schools prioritize matching approved tutorials using reviewed sum
 **Add a coding lab** gives Sol the source text and article draft for an optional HTML/CSS practice block.
 The reference solution and review notes stay in the draft review. Adding the module keeps only the starter and checks.
 Local Vite can opt in to the real converter while keeping demo course data and browser drafts. Sample imports are labeled in the form.
-See the [README](../README.md#draft-curriculum-from-materials) for preview configuration.
+See the [maintainer guide](../docs/maintainer-guide.md#draft-curriculum-from-materials) for preview configuration.
 
 ## Student preview
 
@@ -81,7 +81,7 @@ Apply migration 1007 before deploying this change so published reading blocks do
 ## Coding labs and student demo
 
 PR #15 adds instructor starter files and practice checks for Python and HTML/CSS.
-Run the app in mock mode and the Python runner on loopback as described in the [README](../README.md#curriculum-builder-demo).
+Run the app in mock mode and the Python runner on loopback as described in the [demo walkthrough](../docs/demo.md#local-demo).
 Publish a module and switch from Instructor to Student in the same browser.
 The demo keeps student edits and submissions locally per published revision.
 Practice results stay out of the live reporting pipeline.
@@ -160,6 +160,8 @@ The partner CSV still requests program-wide data when needed.
 Apply migration 3017 before deploying the frontend change so the scoped reports can load.
 
 ## Log
+
+- 2026-11-15, Codex: drafted the submission README, demo walkthrough and maintainer guide from the merged app. Add the verified demo video link when available.
 
 - 2026-11-15, Codex: added permanent module deletion and reversible archiving, restored global and class editing for instructors, and added CIC Library course creation, editing, and listing.
 
