@@ -66,7 +66,7 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
       if (canShare && loadDiscussion) void queryClient.invalidateQueries({ queryKey: discussionKey })
     },
   })
-  const done = attempt.isSuccess || status?.submitted
+  const done = activity.type !== 'content' && (attempt.isSuccess || status?.submitted)
   const score = attempt.data ? attempt.data.score : status?.best_score
   const submit = (response: unknown = {}, score?: number) => attempt.mutate({ response, score })
   function chooseAnswer(choiceId: string) {
@@ -153,7 +153,7 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
           title={caption || 'Slide deck'} loading="lazy" allowFullScreen />}{!done && complete}</>
       }
       case 'content':
-        return !done && complete
+        return null
       case 'code': {
         const payload = (activity as Activity<'code'>).content
         if (payload.lab?.verifier === 'cat-photo-v1') {

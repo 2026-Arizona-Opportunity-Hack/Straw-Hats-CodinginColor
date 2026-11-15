@@ -87,7 +87,7 @@ export function StudentCourse() {
                 const k = openModules.findIndex((o) => o.module_id === m.module_id)
                 const acts = k < 0 ? [] : contents[k]?.data?.lessons.flatMap((l) => l.activities) ?? []
                 const submitted = new Set((k < 0 ? [] : statuses[k]?.data ?? []).filter((s) => s.submitted).map((s) => s.activity_id))
-                const firstOpen = acts.find((a) => !submitted.has(a.id))?.id
+                const firstOpen = acts.find((a) => a.type !== 'content' && !submitted.has(a.id))?.id
                 return (
                   <li key={m.module_id}>
                     <p className="mb-2 font-semibold">Module {i + 1}: {m.title}{m.tested_out && <span className="ml-2 text-sm font-normal text-cic-muted">· skipped ahead</span>}</p>
@@ -95,11 +95,12 @@ export function StudentCourse() {
                       <p className="text-sm text-cic-muted">🔒 Opens when you finish the module before.</p>
                     ) : (
                       <div className="flex flex-wrap gap-2">
-                        {acts.map((a) => (
-                          <div key={a.id} className="relative">
-                            <button type="button" aria-label={`${STEP[a.type].label}: ${titleOf(a)}${submitted.has(a.id) ? ', done' : ''}`} aria-expanded={popover === a.id}
+                        {acts.map((a) => {
+                          const done = a.type !== 'content' && submitted.has(a.id)
+                          return <div key={a.id} className="relative">
+                            <button type="button" aria-label={`${STEP[a.type].label}: ${titleOf(a)}${done ? ', done' : ''}`} aria-expanded={popover === a.id}
                               onClick={() => setPopover(popover === a.id ? null : a.id)}
-                              className={`st-dot ${submitted.has(a.id) ? 'done' : a.id === firstOpen ? 'next' : ''}`}>
+                              className={`st-dot ${done ? 'done' : a.id === firstOpen ? 'next' : ''}`}>
                               <svg viewBox="0 0 24 24" aria-hidden="true"><path d={STEP[a.type].icon} /></svg>
                             </button>
                             {popover === a.id && (
@@ -107,11 +108,11 @@ export function StudentCourse() {
                                 <button type="button" onClick={() => setPopover(null)} aria-label="Close" className="absolute right-2 top-2 px-2 text-cic-muted">✕</button>
                                 <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: lang.hue }}>{STEP[a.type].label}</p>
                                 <p className="mt-1 font-semibold">{titleOf(a)}</p>
-                                <Link to={`/student/module/${m.module_id}`} className="mt-3 inline-block font-semibold" style={{ color: lang.hue }}>{submitted.has(a.id) ? 'Review' : 'Go to content'} →</Link>
+                                <Link to={`/student/module/${m.module_id}`} className="mt-3 inline-block font-semibold" style={{ color: lang.hue }}>{done ? 'Review' : 'Go to content'} →</Link>
                               </div>
                             )}
                           </div>
-                        ))}
+                        })}
                         {!acts.length && <p className="text-sm text-cic-muted">Loading steps…</p>}
                       </div>
                     )}

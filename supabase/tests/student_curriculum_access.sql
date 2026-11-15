@@ -27,6 +27,11 @@ select ('75000000-0000-0000-0000-00000000000' || n)::uuid,
        '{"prompt":"Pick A","choices":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"answer":"a"}'
 from generate_series(1, 5) as n;
 
+insert into activities (id, lesson_id, position, type, concept, content)
+values ('75000000-0000-0000-0000-000000000006',
+        '74000000-0000-0000-0000-000000000001', 2, 'content', 'Reading',
+        '{"markdown":"Read about variables."}');
+
 insert into classes (id, name, school, course_id, join_code, created_by) values
   ('76000000-0000-0000-0000-000000000001', 'Test class', 'Test school', '72000000-0000-0000-0000-000000000001', 'QA-CURRICULUM', '71000000-0000-0000-0000-000000000001');
 insert into enrollments (class_id, student_id) values
@@ -44,6 +49,9 @@ declare
 begin
   if module_doc #>> '{lessons,0,activities,0,content,prompt}' is distinct from 'Pick A' then
     raise exception 'The enrolled student cannot read the released module';
+  end if;
+  if module_doc #>> '{lessons,0,activities,1,counts_toward_unlock}' is distinct from 'false' then
+    raise exception 'New reading blocks must be visible without requiring a submission';
   end if;
   if module_doc #> '{lessons,0,activities,0,content,answer}' is not null
      or exists (select 1 from activity_keys where activity_id = '75000000-0000-0000-0000-000000000001') then
