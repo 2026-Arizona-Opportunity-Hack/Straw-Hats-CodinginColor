@@ -1,4 +1,4 @@
--- 2005 program settings and per-class module rules. Owner: Ruthvik. Append-only after merge.
+-- 2006 program settings and per-class module rules. Owner: Ruthvik. Append-only after merge.
 --
 -- Every threshold the app shows numbers against now lives in the database:
 --   * program_settings: one row of CIC-wide settings (when a student counts as inactive,

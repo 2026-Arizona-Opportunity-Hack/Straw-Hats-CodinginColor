@@ -179,7 +179,7 @@ type ActivityInfo = { type: string; moduleId: string };
  * Which tries count, matching the database rules in 1001_student_progress.sql
  * (Shivraj's handoff, "Scoring rules other code must match"):
  * pretest counts try #1 only; post-test counts the best of the first N tries
- * (class_module_settings.max_posttest_tries, migration 2005); everything else counts the best try.
+ * (class_module_settings.max_posttest_tries, migration 2006); everything else counts the best try.
  */
 function countedScore(rows: Row[], info: ActivityInfo | undefined, maxTries: number | undefined): number | null {
   const scored = (list: Row[]) => list.map(r => r.score).filter((v): v is number | string => v !== null && v !== undefined).map(Number);
@@ -260,10 +260,10 @@ export async function importLibraryCourse(supabase: SupabaseClient, libraryCours
   return toCourse(loaded.data as Row);
 }
 
-/** program_settings (migration 2005): the single row of CIC-wide thresholds. */
+/** program_settings (migration 2006): the single row of CIC-wide thresholds. */
 function toSettings(rows: Row[] | null): ProgramSettings {
   const row = rows?.[0];
-  if (!row) throw new Error('Could not load program settings: program_settings has no row. Apply supabase/migrations/2005_program_settings_and_rules.sql.');
+  if (!row) throw new Error('Could not load program settings: program_settings has no row. Apply supabase/migrations/2006_program_settings_and_rules.sql.');
   return { inactiveDays: Number(row.inactive_days), lowScorePct: Number(row.low_score_pct) };
 }
 

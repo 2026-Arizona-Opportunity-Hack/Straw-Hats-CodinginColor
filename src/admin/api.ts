@@ -85,7 +85,7 @@ export async function loadOrgData(): Promise<OrgData> {
   ])
   for (const [result, table] of [[classes, 'classes'], [courses, 'courses'], [ci, 'class_instructors'], [mods, 'modules'], [people, 'profiles'], [settings, 'program_settings']] as const)
     if (result.error) throw tableError(result.error, table)
-  if (!settings.data!.length) throw new Error('program_settings has no row, so these numbers can\'t be calculated. Apply supabase/migrations/2005_program_settings_and_rules.sql.')
+  if (!settings.data!.length) throw new Error('program_settings has no row, so these numbers can\'t be calculated. Apply supabase/migrations/2006_program_settings_and_rules.sql.')
   // RLS hides rows instead of erroring. Attempts without any visible enrollment means the admin
   // read policies on enrollments are missing, and every number would silently read as zero.
   if (attempts.some((a) => a.class_id) && enr.length === 0)

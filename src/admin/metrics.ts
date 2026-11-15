@@ -3,7 +3,7 @@
 // Definitions (also shown on the Analytics page — keep in sync):
 // - Only SUBMITTED attempts count (submitted_at set). Scores are stored 0–1.
 // Thresholds are never constants here: each class's pass mark and post-test tries come from
-// class_module_settings, and the inactive days from program_settings (migration 2005).
+// class_module_settings, and the inactive days from program_settings (migration 2006).
 // - Pretest       = the student's FIRST pretest attempt in a module (their starting point).
 // - Post-test     = the student's BEST post-test attempt among the tries that count: the first
 //                   max_posttest_tries in a class (like the database's _course_state), all when self-paced.
@@ -33,9 +33,9 @@ type Attempt = {
 }
 
 export interface OrgData {
-  /** program_settings (migration 2005). */
+  /** program_settings (migration 2006). */
   settings: { inactive_days: number }
-  /** class_module_settings (migration 2005): resolved rules for every module of every class. pass_mark is 0..1. */
+  /** class_module_settings (migration 2006): resolved rules for every module of every class. pass_mark is 0..1. */
   classModuleSettings: { class_id: string; module_id: string; pass_mark: number; max_posttest_tries: number }[]
   /** Students taking a course on their own (1001 course_enrollments). */
   courseEnrollments: { student_id: string; course_id: string }[]

@@ -1,5 +1,5 @@
 // Curriculum progress for one class. Every threshold (pass mark, post-test tries, inactive days)
-// comes from the class's rules, loaded from the database (migration 2005), never from constants.
+// comes from the class's rules, loaded from the database (migration 2006), never from constants.
 import type { Attempt, ClassGroup, Course, Learner } from './model';
 
 export const statuses = ['Complete', 'In progress', 'Stuck', 'Not started'] as const;

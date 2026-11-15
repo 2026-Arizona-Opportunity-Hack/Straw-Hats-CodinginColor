@@ -7,7 +7,7 @@ import type { ClassGroup, Course, InstructorData } from './model';
 type Call = { table: string; op: string; payload?: unknown; filters: [string, ...unknown[]][] };
 type Reply = { data: unknown; error: null | { message: string; code?: string } };
 
-/** The seeded program_settings row (migration 2005). */
+/** The seeded program_settings row (migration 2006). */
 const settingsRow = { inactive_days: 3, low_score_pct: 60 };
 /** Answers program_settings like the database; everything else from `respond`. */
 const withSettings = (respond: (call: Call) => Reply) => (call: Call): Reply =>
@@ -163,7 +163,7 @@ describe('loadLiveData', () => {
     expect(score('post2')).toBeCloseTo(90);
   });
 
-  it('names the missing view when migration 2005 is not applied, instead of guessing numbers', async () => {
+  it('names the missing view when migration 2006 is not applied, instead of guessing numbers', async () => {
     const { client } = fakeSupabase(withSettings(call => call.table === 'class_module_settings'
       ? { data: null, error: { code: 'PGRST205', message: "Could not find the table 'public.class_module_settings' in the schema cache" } }
       : { data: [], error: null }));

@@ -58,7 +58,7 @@ export type Learner = {
   hints: { concept: string; text: string }[];
   lastActive: string | null;
 };
-/** CIC-wide thresholds from the program_settings table (migration 2005). */
+/** CIC-wide thresholds from the program_settings table (migration 2006). */
 export type ProgramSettings = {
   /** More than this many days without submitted work counts as inactive. */
   inactiveDays: number;
@@ -66,7 +66,7 @@ export type ProgramSettings = {
   lowScorePct: number;
 };
 /**
- * The rules one class works by, from class_module_settings and program_settings (migration 2005).
+ * The rules one class works by, from class_module_settings and program_settings (migration 2006).
  * Keyed by module id; pass marks are 0-100 like every score in the workspace.
  */
 export type ClassRules = ProgramSettings & {

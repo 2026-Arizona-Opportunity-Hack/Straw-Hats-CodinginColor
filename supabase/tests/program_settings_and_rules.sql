@@ -1,4 +1,4 @@
--- Migration 2005: program_settings, class_module_settings and the defaults used by grading.
+-- Migration 2006: program_settings, class_module_settings and the defaults used by grading.
 -- Run against a local database with all migrations applied. All fixtures roll back.
 begin;
 
