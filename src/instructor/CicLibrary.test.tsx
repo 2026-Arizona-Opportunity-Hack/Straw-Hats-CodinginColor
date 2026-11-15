@@ -7,7 +7,7 @@ const deck = (title: string, patch: Partial<Activity> = {}): Activity => ({
   id: title, title, type: 'slides', url: 'https://docs.google.com/presentation/d/workshop/edit',
   markdown: '', questions: [], cicLibraryDeck: true, ...patch,
 });
-const course = (id: string, activities: Activity[], patch: Partial<Course & { local: boolean }> = {}): Course & { local?: boolean } => ({
+const course = (id: string, activities: Activity[], patch: Partial<Course> = {}): Course => ({
   id, title: 'Workshop curriculum', level: 'Beginner', description: '', published: true,
   modules: [
     { id: `${id}-m1`, title: 'Introduction', published: true, lessons: [{ id: `${id}-l1`, title: 'Getting started', activities }] },

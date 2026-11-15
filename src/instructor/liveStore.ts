@@ -240,7 +240,7 @@ async function selectAll(supabase: SupabaseClient, table: string, columns: strin
   }
 }
 
-const courseColumns = 'id, title, description, level, owner_id, is_library, copied_from, published, publication_revision, created_at, modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))';
+const courseColumns = 'id, title, description, level, owner_id, is_library, copied_from, published, publication_revision, created_at, local_curricula (course_id), modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))';
 
 function toCourse(c: Row): Course {
   const course: Course = {
@@ -256,6 +256,7 @@ function toCourse(c: Row): Course {
   if (typeof c.published === 'boolean') course.published = c.published;
   if (c.is_library) course.library = true;
   if (c.copied_from) course.copiedFrom = String(c.copied_from);
+  if (Array.isArray(c.local_curricula) ? c.local_curricula.length : c.local_curricula) course.local = true;
   return course;
 }
 

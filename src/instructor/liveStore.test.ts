@@ -119,15 +119,21 @@ describe('library courses', () => {
     expect(calls.find(c => c.table === 'lessons' && c.op === 'upsert')?.payload).toMatchObject([{ id: 'll1', title: 'Intro, edited' }]);
   });
 
-  it('loads library courses as read-only and remembers where a copy came from', async () => {
+  it('loads library courses and retains local scope even when the source was removed', async () => {
     const { client } = fakeSupabase(withSettings(call => ({
       data: call.table === 'courses'
-        ? [{ id: 'lib-1', title: 'AI Academy', is_library: true, modules: [] }, { id: 'mine', title: 'AI Academy', is_library: false, copied_from: 'lib-1', modules: [] }]
+        ? [
+          { id: 'lib-1', title: 'AI Academy', is_library: true, modules: [] },
+          { id: 'mine', title: 'AI Academy', copied_from: 'lib-1', local_curricula: { course_id: 'mine' }, modules: [] },
+          { id: 'orphan', title: 'School lessons', copied_from: null, local_curricula: { course_id: 'orphan' }, modules: [] },
+        ]
         : [],
       error: null,
     })));
     const loaded = await loadLiveData(client, 'instructor', 'T');
-    expect(loaded.courses.map(c => [c.id, c.library, c.copiedFrom])).toEqual([['lib-1', true, undefined], ['mine', undefined, 'lib-1']]);
+    expect(loaded.courses.map(c => [c.id, c.library, c.copiedFrom, c.local])).toEqual([
+      ['lib-1', true, undefined, undefined], ['mine', undefined, 'lib-1', true], ['orphan', undefined, undefined, true],
+    ]);
   });
 
   it('imports through copy_library_course and loads the new copy', async () => {

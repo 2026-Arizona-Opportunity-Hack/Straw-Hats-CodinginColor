@@ -81,8 +81,13 @@ do $$ begin
  exception when raise_exception then if sqlerrm <> 'COURSE_SCOPE_ADMIN_ONLY' then raise; end if; end;
 end $$;
 select set_config('request.jwt.claim.sub','81000000-0000-0000-0000-000000000001',true);
-update activities set content='{"markdown":"Updated global text"}' where id='85000000-0000-0000-0000-000000000001';
-select pg_temp.assert((select content->>'markdown'='School-specific text' from activities where id=(select id from isolation_ids where name='activity')),'Global update overwrote copy');
+select pg_temp.assert(publish_curriculum(
+  '{"id":"82000000-0000-0000-0000-000000000001","title":"Updated global course","description":"","level":"beginner"}',
+  '83000000-0000-0000-0000-000000000001', 0, '[]', '[]',
+  '[{"id":"85000000-0000-0000-0000-000000000001","lesson_id":"84000000-0000-0000-0000-000000000001","position":1,"type":"content","concept":"Fixture","points":0,"content":{"markdown":"Updated global text"}}]',
+  '{}', '{}'
+) = 1,'Global publication failed');
+select pg_temp.assert((select content->>'markdown'='School-specific text' from activities where id=(select id from isolation_ids where name='activity')),'Global publication overwrote copy');
 select set_config('request.jwt.claim.sub','81000000-0000-0000-0000-000000000005',true);
 select pg_temp.assert(exists(select 1 from activities where id=(select id from isolation_ids where name='activity')),'Enrolled student cannot read local content');
 select pg_temp.assert(not exists(select 1 from activity_keys where activity_id=(select id from isolation_ids where name='activity')),'Student sees answer key');

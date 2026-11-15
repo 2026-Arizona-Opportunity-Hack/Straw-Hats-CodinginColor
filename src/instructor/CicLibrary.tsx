@@ -2,9 +2,7 @@ import { ArrowRight, ExternalLink, Presentation } from 'lucide-react';
 import { slidesUrl, type Course } from './model';
 import { Empty, PageHeader, Panel } from './ui';
 
-type LibraryCourse = Course & { local?: boolean };
-
-function libraryDecks(courses: LibraryCourse[]) {
+function libraryDecks(courses: Course[]) {
   return courses.filter(course => !course.local && !course.copiedFrom && course.published !== false).flatMap(course =>
     course.modules.filter(module => module.published).flatMap(module => module.lessons.flatMap(lesson =>
       lesson.activities.filter(block => block.type === 'slides' && block.cicLibraryDeck === true).flatMap(block => {
@@ -15,7 +13,7 @@ function libraryDecks(courses: LibraryCourse[]) {
   );
 }
 
-export function CicLibrary({ courses }: { courses: LibraryCourse[] }) {
+export function CicLibrary({ courses, canCurate = false }: { courses: Course[]; canCurate?: boolean }) {
   const decks = libraryDecks(courses);
   return <>
     <PageHeader title="CIC Library" description="Slide decks curated by Coding in Color for workshops and schools." />
@@ -35,6 +33,8 @@ export function CicLibrary({ courses }: { courses: LibraryCourse[] }) {
           </a>
         </div>
       </article>)}
-    </div> : <Panel><Empty>No curated slide decks yet.</Empty></Panel>}
+    </div> : <Panel><Empty>No curated slide decks yet.</Empty>
+      {canCurate && <p>In <a href="#/curriculum">Curriculum</a>, mark a global Slides block for the library and publish its module.</p>}
+    </Panel>}
   </>;
 }

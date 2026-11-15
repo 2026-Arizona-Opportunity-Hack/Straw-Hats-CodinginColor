@@ -43,6 +43,8 @@ export type Course = {
   library?: boolean;
   /** The library course this one was copied from. */
   copiedFrom?: string;
+  /** A class-local course remains local even after its source or last class is removed. */
+  local?: boolean;
 };
 export type Attempt = {
   activityId: string;
@@ -116,7 +118,7 @@ export function copyCourse(source: Course): Course {
   const course = structuredClone(source);
   delete course.library;
   return {
-    ...course, id: id(), copiedFrom: source.id,
+    ...course, id: id(), copiedFrom: source.id, local: true,
     modules: course.modules.map(module => ({
       ...module, id: id(), revision: undefined,
       lessons: module.lessons.map(lesson => ({ ...lesson, id: id(), activities: lesson.activities.map(copyBlock) })),
