@@ -23,7 +23,8 @@ The team plan is in [`plan.md`](../plan.md); the nonprofit brief is linked from 
 | Branch | State | Notes |
 |---|---|---|
 | `main` | Has everything through PR #14 (tabs, assignments, live data), Shivraj's #16 and #17 (migrations 1001, 1002) | Source of truth |
-| `ruthvik/class-tabs` | PR #20 into `main`, open | Review fixes (stale course saves, 1000-row cap, totals, tests). |
+| `ruthvik/class-tabs` | PR #20 merged | Review fixes (stale course saves, 1000-row cap, totals, tests). |
+| `ruthvik/class-library-dashboard` | PR into `main`, open | Supersedes #26, #27 and #28: library, edit in class, Dashboard, DB rules, reading view, curriculum. |
 | `jacky/student-join-and-player` | Pushed, no PR | Student module player with a renderer per activity type (`src/student/activities.tsx`). |
 | `Shivraj` | 2 commits ahead of `main` | Supabase CLI config (`supabase/config.toml`). Already merged into `ruthvik/class-tabs`. |
 | `Aryan`, `Ken`, `Jacky` | Nothing new beyond `main` | |
@@ -171,6 +172,9 @@ Keep it short; link to code instead of copying it.
 Put each sentence on its own line.
 
 ## Log
+- 2026-11-15 1:20 AM, Ruthvik: opened one PR from `ruthvik/class-library-dashboard` that merges latest `main` with the CIC library, edit-in-class curriculum, class Dashboard drill-downs, DB-driven thresholds (migration 2006, already applied to hosted), the lesson reading view, AI Academy curriculum and embedded HTML activities.
+  Merge choices: course edits for a class use Ken's browser drafts and `publish_curriculum`; the student player stays on main's `LessonContent` (now rendering Markdown with `LessonMarkdown`); the student enrollment UI from #27 is dropped for main's Explore page.
+  Not included: removing mock mode (conflicts with teammates' new work; redo on top of `main` later) and the demo SQL `supabase/demo/assignment_modules_demo.sql` (not run on hosted).
 - 2026-11-14 9:40 PM, Ruthvik: restyled the 5 AI Academy widget pages with one shared look (indigo header band, cyan accent) and CSS-only motion (answer pop and shake, packet flow, bit toggles, 3D flips, score and progress bars, confetti); all motion stops under reduced motion. Score and progress bars are inline, not sticky, because the frame now grows to full height. Content and logic unchanged; SQL regenerated, not applied.
 
 - 2026-11-14 10:00 PM, Ruthvik: AI Academy Module 1 reading pages rewritten textbook style (hooks, subheads, tables, `> **Key idea:**`-style callouts for the new lesson renderer, no leading title heading). The 5 interactive pages are now in the classroom course too, next to its worksheets. Regenerated `supabase/curriculum/ai-academy.sql` (not applied to the hosted database).
