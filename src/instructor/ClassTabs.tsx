@@ -7,7 +7,7 @@ import { assignedModules, classProgress, percent, points, statuses } from './pro
 import { classTabs, type ClassTabId } from './classTabIds';
 import { Gradebook } from './assignments/Gradebook';
 import { formatDue } from './assignments/display';
-import { assignmentTotals, attentionList, gainBreakdown, MASTERY, moduleAssignments, type AttentionReason } from './dashboard';
+import { assignmentTotals, attentionList, gainBreakdown, moduleAssignments, type AttentionReason } from './dashboard';
 import { Empty } from './ui';
 
 export function ClassTabBar({ groupId, active }: { groupId: string; active: ClassTabId }) {
@@ -53,6 +53,10 @@ export function DashboardTab({ group, course }: { group: ClassGroup; course?: Co
   const attention = attentionList(group, course);
   const totals = assignmentTotals(group);
   const gain = gainBreakdown(group, course);
+  const passMarks = [...new Set(mastery.map(item => item.passMark).filter(mark => mark !== null))];
+  const masteryNote = 'Average on tagged checks and post-tests; ' + (passMarks.length === 1
+    ? `${Math.round(passMarks[0])}% (the module pass mark) is mastery.`
+    : 'mastery is the pass mark of the module each check is in.');
   return <div className="ic-tab-page">
     <div className="ic-stat-grid">
       <StatCard label="Avg learning gain" value={points(gain.gain)} tone={gain.gain !== null && gain.gain < 0 ? 'alert' : 'good'}
@@ -92,10 +96,10 @@ export function DashboardTab({ group, course }: { group: ClassGroup; course?: Co
           </details></li>;
         })}</ul> : <Empty>No modules assigned yet.</Empty>}
       </Tile>
-      <Tile title="Concept mastery" note={`Average on tagged checks and post-tests; ${MASTERY}% is mastery.`}>
+      <Tile title="Concept mastery" note={masteryNote}>
         {mastery.length ? <ul className="ic-attention">{mastery.map(item => <li key={item.concept}>
-          <div><strong>{item.concept}</strong><p className="ic-note">{item.assessed ? `${item.mastered} of ${item.assessed} students at mastery` : 'Awaiting assessments'}</p></div>
-          {item.score !== null && <span className={'ic-status ' + (item.score >= MASTERY ? 'is-published' : 'is-stuck')}>{percent(item.score)}</span>}
+          <div><strong>{item.concept}</strong><p className="ic-note">{!item.assessed ? 'Awaiting assessments' : item.mastered === null ? 'Pass mark not loaded yet' : `${item.mastered} of ${item.assessed} students at mastery`}</p></div>
+          {item.score !== null && <span className={'ic-status ' + (item.passMark === null ? '' : item.score >= item.passMark ? 'is-published' : 'is-stuck')}>{percent(item.score)}</span>}
         </li>)}</ul> : <Empty>No tagged assessments yet.</Empty>}
       </Tile>
     </div>

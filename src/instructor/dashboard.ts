@@ -1,13 +1,10 @@
 // Numbers behind the class Dashboard tab: why each student needs attention, the work each
-// module has due, and assignment totals. Pure functions so they can be tested.
+// module has due, and assignment totals. Pure functions so they can be tested. Thresholds come
+// from the class's rules (group.rules, loaded from the database), never from constants here.
 import { gradeSubmission } from './assignments/grading';
 import type { Assignment } from './assignments/model';
 import type { ClassGroup, Course } from './model';
 import { classProgress } from './progress';
-
-const DAY = 86_400_000;
-/** A score under this is below mastery (same line the Concept mastery tile uses). */
-export const MASTERY = 70;
 
 export type AttentionReason =
   | { kind: 'stuck'; text: string }
@@ -26,30 +23,26 @@ const submissionFor = (group: ClassGroup, assignment: Assignment, learnerId: str
 
 /** Every student with at least one concrete reason to check in, most reasons first. */
 export function attentionList(group: ClassGroup, course: Course | undefined, now = Date.now()): AttentionRow[] {
-  const { roster, activities, mastery } = classProgress(group, course);
+  const { roster, activities, mastery } = classProgress(group, course, undefined, now);
   const title = (id: string) => activities.find(activity => activity.id === id)?.title || 'an activity';
   const assignments = published(group);
+  const lowScorePct = group.rules?.lowScorePct;
   return roster.map(row => {
     const reasons: AttentionReason[] = [];
     const { learner } = row;
     if (row.total > 0 && row.completed === 0) reasons.push({ kind: 'not_started', text: 'Has not started any assigned activity' });
-    for (const attempt of row.submitted) {
-      if (attempt.count >= 3 && attempt.score !== null && attempt.score < MASTERY) {
-        reasons.push({ kind: 'stuck', text: `Stuck on "${title(attempt.activityId)}": ${attempt.count} tries, best ${Math.round(attempt.score)}%` });
-      }
+    for (const attempt of row.stuck) {
+      reasons.push({ kind: 'stuck', text: `Stuck on "${title(attempt.activityId)}": ${attempt.count} tries, best ${Math.round(attempt.score ?? 0)}%` });
     }
-    if (learner.lastActive) {
-      const days = Math.floor((now - new Date(learner.lastActive).getTime()) / DAY);
-      if (days > 3) reasons.push({ kind: 'inactive', text: `No activity for ${days} days` });
-    }
+    if (row.inactiveDays !== null) reasons.push({ kind: 'inactive', text: `No activity for ${row.inactiveDays} days` });
     for (const item of mastery) {
       const score = item.scores.get(learner.id);
-      if (score !== undefined && score < MASTERY) reasons.push({ kind: 'concept', text: `Below mastery in ${item.concept} (${Math.round(score)}%)` });
+      if (score !== undefined && item.passMark !== null && score < item.passMark) reasons.push({ kind: 'concept', text: `Below mastery in ${item.concept} (${Math.round(score)}%)` });
     }
     for (const assignment of assignments) {
       const grade = gradeSubmission(assignment, submissionFor(group, assignment, learner.id), now);
       if (grade.status === 'missing') reasons.push({ kind: 'missing', text: `Missing "${assignment.title}"` });
-      else if (grade.status === 'graded' && grade.possible > 0 && grade.earned !== null && grade.earned / grade.possible * 100 < 60) {
+      else if (lowScorePct !== undefined && grade.status === 'graded' && grade.possible > 0 && grade.earned !== null && grade.earned / grade.possible * 100 < lowScorePct) {
         reasons.push({ kind: 'low_score', text: `Scored ${Math.round(grade.earned / grade.possible * 100)}% on "${assignment.title}"` });
       }
     }

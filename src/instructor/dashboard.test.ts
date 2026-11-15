@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { Submission } from './assignments/grading';
 import { newAssignment, newQuestion, type Assignment } from './assignments/model';
 import { assignmentTotals, attentionList, gainBreakdown, moduleAssignments } from './dashboard';
-import type { ClassGroup, Course, Learner } from './model';
+import type { ClassGroup, ClassRules, Course, Learner } from './model';
+import { classProgress } from './progress';
 
 const NOW = new Date('2026-11-15T12:00:00Z').getTime();
 const days = (n: number) => new Date(NOW + n * 86_400_000).toISOString();
@@ -32,8 +33,12 @@ const learner = (id: string, patch: Partial<Learner> = {}): Learner =>
 const submission = (assignmentId: string, studentId: string, answer: number): Submission =>
   ({ id: assignmentId + studentId, assignmentId, studentId, responses: { q: [answer] }, manualScores: {}, rubricScores: {}, feedback: '', submittedAt: days(-1), gradedAt: null });
 
-function klass(learners: Learner[], assignments: Assignment[] = [], submissions: Submission[] = []): ClassGroup {
-  return { id: 'k', name: 'P3', school: 'S', courseId: 'c', joinCode: 'J', moduleIds: ['m1'], learners, assignments, submissions };
+/** Rules as loaded from class_module_settings and program_settings. */
+const rules = (patch: Partial<ClassRules> = {}): ClassRules =>
+  ({ inactiveDays: 3, lowScorePct: 60, passMark: { m1: 70 }, maxTries: { m1: 3 }, ...patch });
+
+function klass(learners: Learner[], assignments: Assignment[] = [], submissions: Submission[] = [], classRules: ClassRules | null = rules()): ClassGroup {
+  return { id: 'k', name: 'P3', school: 'S', courseId: 'c', joinCode: 'J', moduleIds: ['m1'], learners, assignments, submissions, rules: classRules ?? undefined };
 }
 
 describe('attentionList', () => {
@@ -63,6 +68,54 @@ describe('attentionList', () => {
     const rows = attentionList(klass([learner('Dee'), low], [quiz({ id: 'a1', title: 'Quiz', dueAt: days(3) })], [submission('a1', 'Cy', 1)]), course, NOW);
     expect(rows.find(row => row.name === 'Dee')?.reasons.map(reason => reason.kind)).toEqual(['not_started']);
     expect(rows.find(row => row.name === 'Cy')?.reasons.map(reason => reason.text)).toEqual(['Scored 0% on "Quiz"']);
+  });
+});
+
+describe('thresholds come from the class rules', () => {
+  const ava = () => learner('Ava', {
+    lastActive: days(-5),
+    attempts: [
+      { activityId: 'chk', score: 40, minutes: 9, count: 3, submitted: true },
+      { activityId: 'post', score: 50, minutes: 5, count: 1, submitted: true },
+    ],
+  });
+  const kinds = (group: ClassGroup) => attentionList(group, course, NOW)[0]?.reasons.map(reason => reason.kind) ?? [];
+
+  it('is stuck only below the module pass mark after its max tries', () => {
+    expect(kinds(klass([ava()]))).toContain('stuck');
+    expect(kinds(klass([ava()], [], [], rules({ maxTries: { m1: 4 } })))).not.toContain('stuck');
+    expect(kinds(klass([ava()], [], [], rules({ passMark: { m1: 40 } })))).not.toContain('stuck');
+    const retook = learner('Eli', { attempts: [{ activityId: 'pre', score: 10, minutes: 3, count: 5, submitted: true }] });
+    expect(kinds(klass([retook]))).not.toContain('stuck');
+  });
+
+  it('uses the program inactive days for Inactive and for the Stuck status', () => {
+    expect(kinds(klass([ava()], [], [], rules({ inactiveDays: 7, maxTries: { m1: 9 } })))).not.toContain('inactive');
+    expect(classProgress(klass([ava()], [], [], rules({ inactiveDays: 7, maxTries: { m1: 9 } })), course, undefined, NOW).roster[0].status).toBe('In progress');
+    expect(classProgress(klass([ava()], [], [], rules({ inactiveDays: 4, maxTries: { m1: 9 } })), course, undefined, NOW).roster[0].status).toBe('Stuck');
+  });
+
+  it('measures concept mastery against the pass mark of the module the check is in', () => {
+    const at = (passMark: number) => classProgress(klass([ava()], [], [], rules({ passMark: { m1: passMark } })), course, undefined, NOW).mastery[0];
+    expect(at(70)).toMatchObject({ concept: 'binary', passMark: 70, assessed: 1, mastered: 0 });
+    expect(at(45)).toMatchObject({ passMark: 45, mastered: 1 });
+  });
+
+  it('uses the program low-score line for graded work', () => {
+    const half = { ...quiz({ id: 'a1', title: 'Quiz', dueAt: days(3) }) };
+    half.blocks = [...half.blocks, { id: 'q2', type: 'question', question: { ...newQuestion('single'), id: 'qq2', prompt: '?', choices: ['a', 'b'], correct: [0], points: 10 } }];
+    const work = learner('Cy', { attempts: [{ activityId: 'pre', score: 80, minutes: 2, count: 1, submitted: true }] });
+    const sub = { ...submission('a1', 'Cy', 0), responses: { q: [0], q2: [1] } };
+    expect(kinds(klass([work], [half], [sub], rules({ lowScorePct: 60 })))).toEqual(['low_score']);
+    expect(kinds(klass([work], [half], [sub], rules({ lowScorePct: 50 })))).toEqual([]);
+  });
+
+  it('never invents a threshold when a class has no rules yet', () => {
+    const group = klass([ava()], [], [], null);
+    expect(kinds(group)).toEqual([]);
+    const { roster, mastery } = classProgress(group, course, undefined, NOW);
+    expect(roster[0].status).toBe('In progress');
+    expect(mastery[0]).toMatchObject({ passMark: null, mastered: null });
   });
 });
 
