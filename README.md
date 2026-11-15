@@ -12,6 +12,8 @@ Built at [ASU Fall Hackathon 2026 | Phoenix Hackathon for Nonprofits: Nov 14-15]
 |---|---|
 | **Nonprofit** | [Coding in Color](https://www.ohack.dev/nonprofit/YIXYdYCoxIZC08uQ5DL3) |
 | **Problem statement** | [Curriculum & Student Progress Platform (CIC Problem 1)](https://www.ohack.dev/project/d09466fadf1b11f18e63deadc507a848) |
+| **Live app** | [cic-learn.vercel.app](https://cic-learn.vercel.app) |
+| **Demo video** | _link added after recording_ |
 | **Team page** | [Straw Hats](https://www.ohack.dev/hack/fall-2026/team/c7e4c72ee05711f1ae58deadb145c312) · [Team Dashboard](https://www.ohack.dev/hack/fall-2026/manageteam) (story, demo video, submit) |
 | **Slack** | team: [#the-1000-sunny](https://opportunity-hack.slack.com/app_redirect?channel=the-1000-sunny) · nonprofit: [#npo-coding-in-color](https://opportunity-hack.slack.com/app_redirect?channel=npo-coding-in-color) · help: [#ask-a-mentor](https://opportunity-hack.slack.com/archives/C01E5CGDQ74) |
 | **Created by** | Greg V [Staff/Mentor] |
