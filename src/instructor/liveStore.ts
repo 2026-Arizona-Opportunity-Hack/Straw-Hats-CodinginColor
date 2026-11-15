@@ -253,6 +253,7 @@ function toCourse(c: Row): Course {
     publicationRevision: Number(c.publication_revision ?? 0),
     modules: (arr(c.modules) as Row[]).sort(byPosition).map(m => ({
       id: String(m.id), title: str(m.title), published: Boolean(m.published),
+      position: typeof m.position === 'number' ? m.position : undefined,
       lessons: (arr(m.lessons) as Row[]).sort(byPosition).map(l => ({
         id: String(l.id), title: str(l.title), activities: (arr(l.activities) as Row[]).sort(byPosition).map(toActivity),
       })),

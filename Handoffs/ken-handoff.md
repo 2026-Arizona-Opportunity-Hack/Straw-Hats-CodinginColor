@@ -126,6 +126,8 @@ Class setup and existing classes share the same CSV and manual-entry controls.
 Both require confirmation before saving validated names.
 Class setup and existing-class imports show success after the roster write completes.
 Failed saves keep the roster draft available for retry with the same student IDs.
+Class creation maps selected library modules to their copy using the complete course order or stored positions when the library hides unpublished modules.
+A class setup retry keeps the same copied course and selection mapping.
 The roster mapping endpoint checks the signed-in Supabase profile and calls Jev through OpenRouter when `OPENROUTER_API_KEY` is set. Otherwise it uses Vercel AI Gateway.
 Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
 
@@ -159,6 +161,8 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 
 - 2026-11-15, Codex: streamed curriculum generation stages to instructor draft review.
 - 2026-11-15, Codex: fixed early roster success and verified both flows with a delayed demo save, a failed save retry, and an immediate reload after success.
+
+- 2026-11-15, Codex: kept selected modules on library copies when drafts sit between published modules.
 
 - 2026-11-15, Ken: linked the verified Cat Photo App lab and reflection to the Maryvale assignment.
 
