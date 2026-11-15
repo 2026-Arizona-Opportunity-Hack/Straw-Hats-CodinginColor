@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Analytics } from '@vercel/analytics/react'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
@@ -15,5 +16,7 @@ createRoot(document.getElementById('root')!).render(
         <RouterProvider router={router} />
       </AuthProvider>
     </QueryClientProvider>
+    {/* Vercel Web Analytics: cookieless page views, no personal data. Inactive outside Vercel. */}
+    <Analytics />
   </StrictMode>,
 )
