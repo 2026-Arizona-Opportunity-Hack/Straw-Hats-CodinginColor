@@ -3,6 +3,9 @@
 Facilitator notes for the classroom course.
 They live here, not in the lessons, because students can open every lesson activity.
 
+The five interactive pages (Build the Machine, Binary Letters, Then vs. Now, AI or Not AI?, AI App Investigation) are in the classroom course too.
+Project one for the whole class, or let students open it on their own devices before the matching worksheet.
+
 ## Intro to Computers & AI
 
 ### Welcome & class norms
