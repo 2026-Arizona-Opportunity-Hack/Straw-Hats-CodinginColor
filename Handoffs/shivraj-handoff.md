@@ -175,6 +175,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-15, Shivraj: fixed starter-quiz double prompt (refetch placement after skip/submit, no redirect on stale cache), white Start learning/Join buttons, answer card reload (stays mounted, feedback slides in), Review opening the clicked card; My classroom uses course cards with the join box below.
 - 2026-11-15, Shivraj: student usernames + educator Google sign-in (1013), final-check lock, generated parallel warm-ups/final checks with an AI endpoint and checks fallback (1014). Touches Aryan's People & roles and Ken's `liveStore.ts` publish.
 - 2026-11-15, Shivraj: rebuilt Explore as course cards with a module preview and Add course (1012); course page back link goes to My courses. Touches Jacky's `StudentExplore.tsx` and `StudentCourse.tsx`.
 - 2026-11-15, Shivraj: added the module-complete banner on the course page (touches Jacky's `StudentCourse.tsx`).

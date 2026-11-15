@@ -53,3 +53,8 @@
 .cic-figure-editing circle:active { cursor: grabbing; }
 .cic-figure-editing circle:focus-visible { stroke: #006d61; stroke-width: 4; }
 .cic-teaching-figure figcaption { margin-top: 8px; color: var(--color-cic-muted, #516359); font-size: .875rem; }
+
+/* Answer feedback slides in under the question instead of the card reloading. */
+.lc-reveal { animation: lc-reveal .28s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes lc-reveal { from { opacity: 0; transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .lc-reveal { animation: none; } }

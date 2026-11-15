@@ -276,9 +276,9 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, onResult, 
     </>}
     {validLessonFigure(figure) && <div id={'lesson-figure-' + activity.id}><LessonFigure figure={figure} /></div>}
     {body()}
-    {!!choices?.length && feedback && <p role="status" className={`rounded-xl px-4 py-3 font-semibold ${correct === false
+    {!!choices?.length && feedback && <p key={feedback} role="status" className={`lc-reveal rounded-xl px-4 py-3 font-semibold ${correct === false
       ? 'bg-warn-soft text-warn' : 'bg-brand-tint text-brand'}`}>{correct === false ? '✗ ' : correct ? '✓ ' : ''}{feedback}</p>}
-    {(rightChoice || explanation) && <div className="rounded-xl border border-divider bg-canvas px-4 py-3">
+    {(rightChoice || explanation) && <div className="lc-reveal rounded-xl border border-divider bg-canvas px-4 py-3">
       {rightChoice && <p><span className="font-semibold">Right answer:</span> {rightChoice.label}</p>}
       {explanation && <p className={rightChoice ? 'mt-1' : ''}><span className="font-semibold">Why:</span> {explanation}</p>}
     </div>}

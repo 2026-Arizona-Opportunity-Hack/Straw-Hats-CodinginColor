@@ -7,7 +7,7 @@ import { joinClass } from '../api/student/auth.ts'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import type { ActivityType } from '../shared/types/activities.ts'
 import type { Activity } from '../shared/types/db.ts'
-import { Button, FormStatus, Input } from '../shared/ui/index.tsx'
+import { FormStatus, Input } from '../shared/ui/index.tsx'
 import { languageOf } from './languages.ts'
 import { ModuleFinished } from './ModuleFinished.tsx'
 import { isShowcase, withShowcase } from './showcase.ts'
@@ -120,7 +120,7 @@ export function StudentCourse() {
                                 <button type="button" onClick={() => setPopover(null)} aria-label="Close" className="absolute right-2 top-2 px-2 text-cic-muted">✕</button>
                                 <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: lang.hue }}>{STEP[a.type].label}</p>
                                 <p className="mt-1 font-semibold">{titleOf(a)}</p>
-                                <Link to={`/student/module/${m.module_id}`} className="mt-3 inline-block font-semibold" style={{ color: lang.hue }}>{done ? 'Review' : 'Go to content'} →</Link>
+                                <Link to={`/student/module/${m.module_id}?step=${acts.indexOf(a) + 1}`} className="mt-3 inline-block font-semibold" style={{ color: lang.hue }}>{done ? 'Review' : 'Go to content'} →</Link>
                               </div>
                             )}
                           </div>
@@ -154,7 +154,11 @@ function Action({ course, enrolled, nextModuleId }: { course: CatalogCourse; enr
   if (isShowcase(course.id)) return <p className="inline-block rounded-lg bg-white/15 px-4 py-2 font-semibold text-white">Coming soon</p>
   if (course.delivery_mode === 'self_paced') return (
     <>
-      <Button onClick={() => enroll.mutate()} disabled={enroll.isPending} className={light}>{enroll.isPending ? 'Adding…' : 'Start learning'}</Button>
+      {/* Plain button: the shared Button's white text overrode the light style (white on white). */}
+      <button type="button" onClick={() => enroll.mutate()} disabled={enroll.isPending}
+        className={`inline-flex min-h-11 items-center rounded-lg px-5 font-semibold disabled:opacity-60 ${light}`}>
+        {enroll.isPending ? 'Adding…' : 'Start learning →'}
+      </button>
       <div className="mt-2 text-white"><FormStatus error={enroll.error?.message} /></div>
     </>
   )
@@ -163,7 +167,7 @@ function Action({ course, enrolled, nextModuleId }: { course: CatalogCourse; enr
       <label htmlFor="course-code" className="mb-2 block text-sm text-white/85">Join with your class code</label>
       <div className="flex gap-2">
         <Input id="course-code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="Class code" autoComplete="off" className="min-w-0 flex-1 font-mono tracking-widest" />
-        <Button type="submit" disabled={join.isPending} className={light}>Join</Button>
+        <button type="submit" disabled={join.isPending} className={`min-h-11 rounded-lg px-5 font-semibold disabled:opacity-60 ${light}`}>Join</button>
       </div>
       <div className="mt-2"><FormStatus error={join.error?.message} /></div>
     </form>

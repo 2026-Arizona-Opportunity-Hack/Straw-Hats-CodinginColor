@@ -1,5 +1,6 @@
-// Owner: Shivraj. "My classroom" page: join a class with a code and see the classes you're in.
-import { ClassRow, JoinClass } from './StudentHome.tsx'
+// Owner: Shivraj. "My classroom" page: the classes you're in as course cards (like My courses),
+// with the join-a-class box centered underneath.
+import { CourseCard, JoinClass } from './StudentHome.tsx'
 import { useMyCourseProgress } from './useMyCourseProgress.ts'
 import './student.css'
 
@@ -13,20 +14,24 @@ export function StudentClassroom() {
         <h1 className="st-serif text-4xl">My classroom</h1>
         <p className="mt-1 text-cic-muted">Classes you joined with a code from your teacher.</p>
       </header>
-      <div className="mt-8 grid items-start gap-6 md:grid-cols-2">
+
+      <section aria-label="My classes" className="mt-8">
+        {isLoading && <p role="status">Loading your classes…</p>}
+        {isError && <p role="alert">Could not load your classes. Try reloading.</p>}
+        {!isLoading && !isError && !classes.length && (
+          <p className="rounded-2xl border border-dashed border-cic-gray p-8 text-center text-cic-muted">
+            You haven't joined a class yet. Enter your teacher's code below.
+          </p>
+        )}
+        {classes.length > 0 && (
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {classes.map((c) => <CourseCard key={c.id} course={c} modules={modulesOf(c.id)} />)}
+          </div>
+        )}
+      </section>
+
+      <div className="mx-auto mt-10 w-full max-w-md">
         <JoinClass />
-        <section aria-label="My classes">
-          {isLoading && <p role="status">Loading your classes…</p>}
-          {isError && <p role="alert">Could not load your classes. Try reloading.</p>}
-          {!isLoading && !isError && !classes.length && (
-            <p className="rounded-2xl border border-dashed border-cic-gray p-6 text-center text-cic-muted">You haven't joined a class yet.</p>
-          )}
-          {classes.length > 0 && (
-            <ul className="divide-y divide-divider rounded-2xl bg-white/60">
-              {classes.map((c) => <ClassRow key={c.id} course={c} modules={modulesOf(c.id)} />)}
-            </ul>
-          )}
-        </section>
       </div>
     </>
   )

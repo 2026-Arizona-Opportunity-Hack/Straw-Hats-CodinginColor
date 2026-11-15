@@ -10,11 +10,12 @@ import { languageOf } from '../languages.ts'
 
 export function PlacementCard() {
   const { profile } = useAuth()
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isFetching, isError } = useQuery({
     queryKey: ['placement', profile?.id], queryFn: getMyPlacement, enabled: placementAvailable,
   })
   if (!placementAvailable || isLoading || isError) return null
-  if (data === null) return <Navigate to="/student/start" replace />
+  // Only redirect on a fresh answer: a cached "never taken" from before the quiz must not win.
+  if (data === null) return isFetching ? null : <Navigate to="/student/start" replace />
 
   const course = data?.result?.course
   if (!course) {
