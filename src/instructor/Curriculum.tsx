@@ -482,7 +482,13 @@ function ActivityEditor({ activity, onChange, localAuthoring }: { activity: Acti
         value={activity.markdown} onChange={event => set({ markdown: event.target.value })}
         placeholder="Use ## for a heading or triple backticks for a code example." />
     </label>}
-    {activity.type === 'code' && (localAuthoring
+    {activity.type === 'code' && (activity.code?.lab?.verifier === 'cat-photo-v1'
+      ? <div className="ic-stack">
+        <label>Starter HTML<textarea className="ic-markdown-input" rows={5} value={activity.code.starter}
+          onChange={event => set({ code: { ...activity.code!, starter: event.target.value } })} /></label>
+        <p className="ic-note">Cat Photo App checks the page heading, a short introduction, and the photo description.</p>
+      </div>
+      : localAuthoring
       ? <CodingLabEditor activity={activity} onChange={code => set({ code })} />
       : <fieldset className="ic-stack"><legend>Coding exercise</legend>
         {(['starter', 'tests', 'solution'] as const).map((key, index) => <label key={key}>{['Starter code', 'Test cases', 'Instructor solution'][index]}

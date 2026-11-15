@@ -77,7 +77,13 @@ function toActivity(row: Row): Activity {
     markdown: str(content.markdown) || (type === 'code' ? str(content.prompt) : ''),
     url: str(content.url), questions,
   };
-  if (type === 'code') activity.code = { starter: str(content.starter_code), tests, solution: str(content.solution) };
+  if (type === 'code') {
+    const lab = content.lab as Json | undefined;
+    activity.code = { starter: str(content.starter_code), tests, solution: str(content.solution) };
+    if (lab?.verifier === 'cat-photo-v1') activity.code.lab = {
+      language: 'web', verifier: 'cat-photo-v1', starterCss: str(lab.starterCss), checks: [],
+    };
+  }
   if (type === 'interactive_html') activity.interactiveHtml = {
     html: str(content.html), instructions: str(content.instructions), reports_score: Boolean(content.reports_score),
   };
@@ -113,6 +119,7 @@ export function activityContent(activity: Activity): Json {
       ...base, prompt: activity.markdown, markdown: activity.markdown, starter_code: activity.code?.starter ?? '',
       tests: (activity.code?.tests ?? '').split('\n').filter(line => line.trim()).map((assertion, i) => ({ name: 'Test ' + (i + 1), assertion })),
       solution: activity.code?.solution ?? '',
+      ...(activity.code?.lab?.verifier === 'cat-photo-v1' ? { lab: activity.code.lab } : {}),
     };
   }
 }

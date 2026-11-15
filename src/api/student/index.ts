@@ -3,6 +3,7 @@
 import type { Activity, Course, Lesson, Module } from '../../shared/types/db.ts'
 import { MOCK_ACTIVITIES, MOCK_COURSES, MOCK_LESSONS, MOCK_MODULES, mockDelay } from '../fixtures.ts'
 import { supabase } from '../../shared/supabase.ts'
+import type { VerifyWebLab } from '../../shared/labs/CodeLab.tsx'
 
 const curriculumBackend = import.meta.env.VITE_LIVE_STUDENT_CURRICULUM === 'true' ? supabase : null
 
@@ -85,6 +86,11 @@ export async function recordAttempt(input: AttemptInput): Promise<AttemptResult>
     p_time_on_task_ms: input.time_on_task_ms,
   }))
   return mockDelay({ is_correct: null, score: input.client_score ?? null })
+}
+
+export async function checkCatPhotoLab(activityId: string, source: string, signal: AbortSignal): ReturnType<VerifyWebLab> {
+  if (curriculumBackend) return result(curriculumBackend.functions.invoke('cat-photo-check', { body: { activityId, source }, signal }))
+  return (await import('../../shared/labs/catPhoto.ts')).previewCatPhotoChecks(source)
 }
 
 /** Where a student (including a late joiner) should start. */
