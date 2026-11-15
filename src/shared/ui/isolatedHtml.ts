@@ -49,3 +49,7 @@ export function readCompletion(data: unknown): { score?: number } | null {
     ? { score: data.score }
     : null
 }
+
+export function readFrameCompletion(event: Pick<MessageEvent, 'source' | 'origin' | 'data'>, active: Window | null | undefined) {
+  return active && event.source === active && event.origin === 'null' ? readCompletion(event.data) : null
+}

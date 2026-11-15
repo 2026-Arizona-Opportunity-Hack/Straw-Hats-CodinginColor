@@ -1,4 +1,4 @@
-import { demoData } from './demoData';
+import { BuilderDemo, demoData } from './demoData';
 import type { InstructorData } from './model';
 
 const storeKey = 'cic-learn.instructor-preview.v1';
@@ -13,7 +13,9 @@ export const browserInstructorStore: InstructorStore = {
     try {
       const saved = JSON.parse(localStorage.getItem(storeKey) || 'null');
       if (Array.isArray(saved?.classes) && Array.isArray(saved?.courses)) {
-        return { ...saved, staff: Array.isArray(saved.staff) && saved.staff.length ? saved.staff : structuredClone(demoData.staff) };
+        const courses = saved.courses.some((course: { id?: string }) => course?.id === BuilderDemo.id)
+          ? saved.courses : [...saved.courses, structuredClone(BuilderDemo)];
+        return { ...saved, courses, staff: Array.isArray(saved.staff) && saved.staff.length ? saved.staff : structuredClone(demoData.staff) };
       }
     } catch {
       // Fall back to the demo when browser storage is unavailable.

@@ -10,7 +10,7 @@ const blocks = [
   { name: 'Worked example', detail: 'Show how to solve a problem step by step', type: 'content', icon: BookOpen, keywords: 'example walkthrough' },
   { name: 'Quiz', detail: 'Multiple-choice questions with a correct answer', type: 'check', icon: ListChecks, keywords: 'multiple choice knowledge check assessment' },
   { name: 'Open-ended question', detail: 'Ask students to respond in their own words', type: 'worksheet', icon: MessageSquare, keywords: 'free response writing reflection' },
-  { name: 'Code exercise', detail: 'Set a coding task with starter code', type: 'code', icon: Code2, keywords: 'python practice' },
+  { name: 'Coding Lab', detail: 'Set a coding task with starter code', type: 'code', icon: Code2, keywords: 'python html css practice code exercise' },
   { name: 'Worksheet', detail: 'Collect responses to a series of prompts', type: 'worksheet', icon: ClipboardList, keywords: 'form practice' },
   { name: 'Video', detail: 'Embed a YouTube, Vimeo, or Drive video', type: 'video', icon: Video, keywords: 'embed media' },
   { name: 'Custom HTML', detail: 'Build a self-contained page or interactive widget', type: 'interactive_html', icon: Code2, keywords: 'advanced html css javascript' },
@@ -47,6 +47,7 @@ export function BlockPicker({ onPick, onClose, library }: {
   function pick(block: typeof options[number]) {
     if (block.saved) return onPick(copyBlock(block.saved));
     const activity = { ...newActivity(block.type), title: block.name };
+    if (block.type === 'code') activity.code = { starter: '', tests: '', solution: '', lab: { language: 'python', checks: [] } };
     if (block.type === 'interactive_html') activity.interactiveHtml = { ...emptyHtml };
     if (block.name === 'Open-ended question') activity.format = 'open-ended';
     if (gradedTypes.has(block.type)) activity.questions[0].choices = ['', '', ''];

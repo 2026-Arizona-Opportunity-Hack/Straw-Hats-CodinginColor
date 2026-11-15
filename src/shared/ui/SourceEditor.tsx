@@ -10,9 +10,8 @@ export function SourceEditor({ label, language, value, onChange }: {
   const host = useRef<HTMLDivElement>(null)
   const editor = useRef<EditorView | null>(null)
   const change = useRef(onChange)
-  change.current = onChange
   const current = useRef(value)
-  current.current = value
+  useEffect(() => { change.current = onChange }, [onChange])
   useEffect(() => {
     if (!host.current) return
     const view = new EditorView({ parent: host.current, doc: current.current, extensions: [
@@ -24,6 +23,7 @@ export function SourceEditor({ label, language, value, onChange }: {
     return () => { view.destroy(); editor.current = null }
   }, [label, language])
   useEffect(() => {
+    current.current = value
     const view = editor.current
     if (view && view.state.doc.toString() !== value) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } })
   }, [value])

@@ -6,6 +6,7 @@ import { LoginPage } from './LoginPage.tsx'
 import { RequireRole } from './shared/auth/RequireRole.tsx'
 import { AppLayout } from './shared/ui/AppLayout.tsx'
 import { ModulePlayer } from './student/ModulePlayer.tsx'
+import { PublishedDemo } from './student/PublishedDemo.tsx'
 import { StudentHome } from './student/StudentHome.tsx'
 
 export const router = createBrowserRouter([
@@ -18,6 +19,7 @@ export const router = createBrowserRouter([
         path: 'student',
         element: <RequireRole roles={['student']}><StudentHome /></RequireRole>,
       },
+      { path: 'student/demo/:moduleId', element: <RequireRole roles={['student']}><PublishedDemo /></RequireRole> },
       {
         path: 'student/module/:moduleId',
         element: <RequireRole roles={['student']}><ModulePlayer /></RequireRole>,
