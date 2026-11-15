@@ -49,7 +49,7 @@ export interface OrgData {
   modules: { id: string; course_id: string; title: string; position: number; concept: string; published: boolean }[]
   activities: { id: string; module_id: string; type: ActivityType; concept: string; counts_toward_unlock: boolean }[]
   attempts: (Attempt & { class_id: string })[]
-  people: { id: string; role: 'student' | 'instructor' | 'admin' | 'reviewer'; display_name: string; school: string | null; archived_at?: string | null }[]
+  people: { id: string; role: 'student' | 'instructor' | 'admin' | 'reviewer'; display_name: string; school: string | null; username?: string | null; archived_at?: string | null }[]
 }
 
 interface StudentModule {
