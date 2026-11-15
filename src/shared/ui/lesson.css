@@ -100,7 +100,10 @@
 :root .cic-prose .cic-callout--think { --tone: #0a5e63; --tone-bg: #e6f5f5; --tone-line: #93cfd1; }
 
 /* ---- Lesson and step cards ---------------------------------------------------- */
-:root .cic-lesson { display: grid; gap: 20px; }
+/* One reading column: cards stay about 70-75 characters wide, so prose, code, options and frames share edges. */
+:root .cic-lesson { display: grid; gap: 20px; max-width: 740px; margin-inline: auto; }
+:root .cic-card .cic-prose { max-width: none; }
+:root .cic-player-main .cic-lesson { margin-inline: 0; }
 :root .cic-lesson + .cic-lesson { margin-top: 44px; }
 :root .cic-lesson-head { display: grid; gap: 8px; padding-bottom: 4px; }
 :root .cic-eyebrow { margin: 0; color: var(--cic-muted); font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }

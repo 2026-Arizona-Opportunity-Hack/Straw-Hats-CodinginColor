@@ -63,6 +63,17 @@ Course saves now also write only changed modules, lessons and activities, so a s
 - Progress on live data follows Shivraj's scoring rules: pretest try #1, post-test best of the first `module_rules.max_posttest_tries` (default 3), otherwise best try.
 - Admin pages (Aryan, `src/admin/`) still read from `src/admin/mocks.ts`, not Supabase.
 
+### Lesson reading view (branch `ruthvik/lesson-reading-view`, not pushed)
+
+All lesson content now renders through `src/shared/ui/LessonMarkdown.tsx` and `src/shared/ui/ActivityCard.tsx`, styled by `src/shared/ui/lesson.css` (`cic-*` classes).
+Used by the student player (`src/student/ModulePlayer.tsx`), `LessonPreview`/`ActivityPreview` (reviewer, builder, "Student preview" dialog) and the browser demo (`src/student/PublishedDemo.tsx`).
+Lesson authors get callouts by starting a blockquote with a bold label: `> **Key idea:**`, `**Did you know?**`, `**Try it:**`, `**Watch out:**`, `**Remember:**`, `**Think about it:**`.
+Any other blockquote is a plain quote.
+A leading `#`/`##` heading equal to the activity title is dropped, so titles never repeat.
+Tables use `remark-gfm` (new dependency) and scroll inside their own box.
+Every rule in `lesson.css` starts with `:root` so it outranks Tailwind's reset and the `.ic-app` element rules whatever the load order; keep that when adding rules.
+Data contracts, scoring and the responses sent to `recordAttempt`/`submit_attempt` are unchanged; the player only shows "Correct"/"Not quite" on a single multiple-choice question when the server returns `is_correct`.
+
 ### Not done yet (pick these up)
 
 1. **Student sign-in with class code + passcode.**
@@ -145,6 +156,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-14 9:45 PM, Ruthvik: lesson reading view. Shared Markdown renderer with callouts and tables, typed step cards with step count and read time, framed HTML pages, 16:9 video, large answer options, module header with progress and a sticky outline; checked on live AI Academy (read-only) and mock student at 1280 and 390 px.
 - 2026-11-14 8:30 PM, Ruthvik: fixes from a code review (ponytail-review checklist). Course saves write only changed rows; attempts load in pages past Supabase's 1000-row cap; first tests (Vitest, 12); gradebook shows "Not due yet" and leaves not-due and ungraded work out of totals; warning when a saved score no longer matches an edited rubric; pages load per section (main bundle is now framework only); gradebook total column stays visible.
 - 2026-11-14 7:30 PM, Ruthvik: merged `main` (Shivraj's 1001, 1002). Did Shivraj's items 4 (answer keys in the builder) and 5 (scoring rules). Found and fixed the stale-save data loss above. Moved handoffs from `docs/` to `Handoffs/`. Restored the two demo assignments by re-running `supabase/demo/*.sql`; opened PR #18.
 - 2026-11-14 6:45 PM, Ruthvik: rubrics and file uploads. Migration 2003 (rubric scores, private `submission-files` bucket, `file` assignment type) and `supabase/demo/rubric_demo.sql` plus three sample PDFs applied to the hosted project. Checked that another class's instructor and anonymous users cannot read the files.
