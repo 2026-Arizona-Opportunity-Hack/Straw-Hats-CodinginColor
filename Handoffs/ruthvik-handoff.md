@@ -153,6 +153,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-15 1:15 AM, Ruthvik: class Dashboard rebuilt (`src/instructor/dashboard.ts`, tested). Top cards: learning gain with pretest/post-test averages ("pts" replaces "pp"), average assignment score, waiting to grade, missing work. Students needing attention open to show exact reasons (stuck activity, inactive days, concept below 70%, missing or low-scored assignments, post-test drop). Each module opens to its linked assignments with due dates and turn-in counts. Status donut removed.
 - 2026-11-15 12:30 AM, Ruthvik: instructors edit curriculum inside the class card (Curriculum tab, Edit curriculum, `#/classes/<id>/curriculum/edit`); the top-level page is now "CIC library" (preview only; admins edit library courses). A class still on a library course gets its own copy via "Edit for this class". Create a class offers library courses only. Instructors' standalone courses are hidden, not deleted. Reviewer preview left the instructor sidebar (library Preview covers it).
 - 2026-11-14 11:30 PM, Ruthvik: organized Curriculum into My courses and CIC library (Preview; admins also Edit). Library courses are picked directly in Create a class step 3 and imported when the class is created; `LibraryImport.tsx` is gone.
 - 2026-11-14 9:00 PM, Ruthvik: import a library course as the instructor's own copy (Create a class and Curriculum), migration 2004 `copy_library_course` (applied 9:10 PM), library courses never written back by `saveLiveData`, tests.
