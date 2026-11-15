@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { ArrowRight, BookOpen, Clipboard, GraduationCap, Plus, Printer, Search, Users } from 'lucide-react';
 import { RosterUpload } from './RosterUpload';
-import { makeLearners, type ClassGroup, type Course, type Learner } from './model';
+import { makeLearners, type Activity, type ClassGroup, type Course, type Learner } from './model';
 import { attemptFor, classProgress, percent, points } from './progress';
 import {
   ClassTabBar, CurriculumTab, DashboardTab, GradesTab, RosterTab,
@@ -34,11 +34,12 @@ export function ClassList({ groups, courses }: { groups: ClassGroup[]; courses: 
   </>;
 }
 
-export function ClassDashboard({ group, course, onSave, onAddStudents, justCreated, tab, detail, otherClasses, editor, onMakeEditable }: {
+export function ClassDashboard({ group, course, onSave, onAddStudents, justCreated, tab, detail, otherClasses, editor, blockActions, onMakeEditable }: {
   group: ClassGroup; course?: Course; onSave: (group: ClassGroup) => boolean; justCreated: boolean; tab: ClassTabId;
   onAddStudents: (students: Learner[]) => Promise<void>;
   /** Course builder shown inside the Curriculum tab while editing this class's curriculum. */
   editor?: ReactNode;
+  blockActions?: (activity: Activity) => ReactNode;
   /** Present when the class still uses a shared library course: gives the class its own copy to edit. */
   onMakeEditable?: () => Promise<void>;
   /** Item inside the tab, e.g. an assignment id. */
@@ -91,7 +92,8 @@ export function ClassDashboard({ group, course, onSave, onAddStudents, justCreat
     {justCreated && <p className="ic-success" role="status">Class created with {group.learners.length} students. Open student login cards to see the example link and passcodes.</p>}
     <ClassTabBar groupId={group.id} active={tab} />
     {tab === 'dashboard' && <DashboardTab group={group} course={course} />}
-    {tab === 'curriculum' && (editor ?? <CurriculumTab group={group} course={course} onEditAssignment={editAssignment} onMakeEditable={onMakeEditable} />)}
+    {tab === 'curriculum' && (editor ?? <CurriculumTab group={group} course={course} onEditAssignment={editAssignment}
+      onMakeEditable={onMakeEditable} viewing={detail === 'view'} blockActions={blockActions} />)}
     {tab === 'assignments' && <AssignmentsTab group={group} course={course} otherClasses={otherClasses} assignmentId={detail} onSave={onSave} />}
     {tab === 'grades' && <GradesTab group={group} course={course} onSelect={setSelected} onSave={onSave} />}
     {tab === 'roster' && <RosterTab group={group} course={course} onSave={onSave} onImport={openImport} onCards={openCards} />}

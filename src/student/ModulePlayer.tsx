@@ -3,7 +3,7 @@
 // the sidebar uses it. Next unlocks once the card is finished; readings can always continue.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { checkCatPhotoLab, getActivityResponse, getCheckAnswer, getClassmateNotes, getModule, listActivityStatus, recordAttempt } from '../api/student/index.ts'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { isLocalDemo } from '../shared/supabase.ts'
@@ -61,6 +61,26 @@ export function ModulePlayer() {
     if (!hasStep && steps.length && progressReady) setParams({ step: String(current + 1) }, { replace: true })
   }, [hasStep, steps.length, progressReady, current, setParams])
   useEffect(() => { heading.current?.focus() }, [current, moduleId])
+
+  // The final check locks the student in until they submit it: every way out (Back, the step
+  // bar, the sidebar, browser back) is blocked and a popup nudges them back, shaking each time.
+  // The warm-up never locks. A final check submitted before (a retake) doesn't lock either.
+  const testLocked = steps[current]?.activity.type === 'posttest' && !isDone(current)
+  const [nudges, setNudges] = useState(0)
+  const [nudgeOpen, setNudgeOpen] = useState(false)
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+    const block = testLocked && new URLSearchParams(currentLocation.search).has('step')
+      && (currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search)
+    if (block) { setNudges((n) => n + 1); setNudgeOpen(true) }
+    return block
+  })
+  useEffect(() => { if (blocker.state === 'blocked') blocker.reset() }, [blocker])
+  useEffect(() => {
+    if (!testLocked) return
+    const stay = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', stay)
+    return () => window.removeEventListener('beforeunload', stay)
+  }, [testLocked])
   useEffect(() => {
     if (!cheer) return
     const t = setTimeout(() => setCheer(null), 1800)
@@ -105,6 +125,7 @@ export function ModulePlayer() {
       <article key={activity.id} className="sp-card relative mt-5 rounded-3xl bg-white p-5 shadow-[0_18px_40px_-28px_rgb(20_24_26/0.5)] sm:p-8">
         {cheer && <Celebration key={cheer.key} cheer={cheer.text} />}
         <p className="text-xs font-semibold uppercase tracking-widest text-brand">{STEP_LABEL[activity.type] ?? 'Step'} · {lesson.title}</p>
+        {testLocked && <p className="mt-3 rounded-xl bg-warn-soft px-4 py-2 text-sm font-semibold text-warn">🔒 Final check: finish and submit it before leaving this page.</p>}
         <h1 ref={heading} tabIndex={-1} className={ownTitle ? 'st-serif mb-5 mt-1 text-3xl focus:outline-none' : 'sr-only'}>{stepTitle(activity)}</h1>
         {answeredBefore && savedLoading ? <p role="status">Loading your answer…</p> :
         <ActivityBlock activity={activity} status={statuses.get(activity.id)} onAttempt={recordAttempt} hideTitle answerOnce
@@ -129,6 +150,21 @@ export function ModulePlayer() {
             : <Button type="button" disabled={!done} onClick={() => go(current + 1)}>{done ? 'Next ›' : 'Finish this step to continue'}</Button>}
         </div>
       </div>
+
+      {nudgeOpen && testLocked && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-[rgb(11_61_35/0.45)] p-4 backdrop-blur-[2px]" onClick={() => setNudgeOpen(false)}>
+          <div key={nudges} role="alertdialog" aria-modal="true" aria-labelledby="nudge-title" aria-describedby="nudge-text"
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl ${nudges > 1 ? 'sp-shake' : 'sp-nudge-in'}`}>
+            <p className="text-4xl" aria-hidden="true">✋</p>
+            <h2 id="nudge-title" className="mt-2 text-xl font-bold">Finish the final check first</h2>
+            <p id="nudge-text" className="mt-1 text-cic-muted">
+              {nudges > 2 ? 'Still here! Submit your answers, then you can go anywhere.' : 'You can leave once you submit your answers. It shows what you learned in this module.'}
+            </p>
+            <Button type="button" className="mt-5 w-full" autoFocus onClick={() => setNudgeOpen(false)}>Back to my test</Button>
+          </div>
+        </div>
+      )}
 
       {allDone && last && (
         <p role="status" className="mt-6 flex items-center gap-3 rounded-2xl bg-brand-tint p-4 font-semibold text-brand">

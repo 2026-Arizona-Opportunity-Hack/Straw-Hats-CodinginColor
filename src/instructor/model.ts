@@ -30,17 +30,21 @@ export type Activity = {
   presentation?: 'cic-article';
   figure?: LessonFigure;
   discussionEnabled?: boolean;
+  cicLibraryDeck?: boolean;
   interactiveHtml?: InteractiveHtmlPayload;
 };
 export type Lesson = { id: string; title: string; activities: Activity[]; htmlFirst?: boolean };
 export type Module = { id: string; title: string; published: boolean; revision?: number; lessons: Lesson[] };
 export type Course = {
   id: string; title: string; description: string; level: string; modules: Module[];
+  published?: boolean;
   publicationRevision?: number;
   /** Shared library course: read-only, instructors import their own copy. */
   library?: boolean;
   /** The library course this one was copied from. */
   copiedFrom?: string;
+  /** A class-local course remains local even after its source or last class is removed. */
+  local?: boolean;
 };
 export type Attempt = {
   activityId: string;
@@ -114,7 +118,7 @@ export function copyCourse(source: Course): Course {
   const course = structuredClone(source);
   delete course.library;
   return {
-    ...course, id: id(), copiedFrom: source.id,
+    ...course, id: id(), copiedFrom: source.id, local: true,
     modules: course.modules.map(module => ({
       ...module, id: id(), revision: undefined,
       lessons: module.lessons.map(lesson => ({ ...lesson, id: id(), activities: lesson.activities.map(copyBlock) })),

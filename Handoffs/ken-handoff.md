@@ -57,6 +57,14 @@ Selecting a multiple-choice knowledge check answer gives feedback in both the st
 Hosted previews use the live response types, safe Markdown and slides support.
 The local preview can also run demo HTML activities and coding labs.
 
+## Curriculum workspace
+
+Instructors and admins open published lessons from **Curriculum** and can leave staff comments on individual blocks.
+Global edits are an explicit admin action, and class edits follow the class's own curriculum route.
+**CIC Library** shows curated workshop slide decks from published global courses. Admins manage the catalog by selecting **Include in CIC Library** on a Slides block and publishing its module.
+Migrations 2011 and 2012 add durable class-local scope and staff-only comment threads. Apply them in that order before deploying the workspace.
+See the [curriculum isolation audit](curriculum-isolation-audit-2026-11-15.md) for the current database boundaries and legacy global course links.
+
 ## Read & check
 
 Choose **Read & check** when creating a course, or apply the template to any empty lesson.
@@ -113,6 +121,8 @@ The roster mapping endpoint checks the signed-in Supabase profile and calls Jev 
 Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
 
 ## Log
+
+- 2026-11-15, Codex: restored Curriculum for instructors and admins with view-first navigation, staff comments, and database isolation for local copies.
 
 - 2026-11-15, Codex: added automatic browser image annotations and verified adjusting, approving, and rejecting them through local image QA.
 

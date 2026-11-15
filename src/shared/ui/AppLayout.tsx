@@ -8,6 +8,7 @@ import {
   Home,
   KeyRound,
   LayoutDashboard,
+  Library,
   LogOut,
   Menu,
   School,
@@ -40,11 +41,14 @@ const NAV: Record<Role, NavItem[]> = {
   ],
   instructor: [
     { to: '/instructor', section: 'classes', defaultSection: true, label: 'Classes', icon: LayoutDashboard },
-    { to: '/instructor', section: 'curriculum', label: 'CIC library', icon: BookOpen },
+    { to: '/instructor', section: 'curriculum', label: 'Curriculum', icon: BookOpen },
+    { to: '/instructor', section: 'library', label: 'CIC Library', icon: Library },
   ],
   admin: [
     { to: '/admin', label: 'Overview', icon: LayoutDashboard },
     { to: '/admin/classes', label: 'Schools & classes', icon: School },
+    { to: '/instructor', section: 'curriculum', label: 'Curriculum', icon: BookOpen },
+    { to: '/instructor', section: 'library', label: 'CIC Library', icon: Library },
     { to: '/admin/users', label: 'People & roles', icon: Users },
     { to: '/admin/analytics', label: 'Impact & learning', icon: BarChart3 },
     { to: '/admin/settings', label: 'Settings & API', icon: Settings },
@@ -152,6 +156,7 @@ export function AppLayout() {
         </span>
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-white">{profile.display_name}</p>
+          {profile.username && <p className="truncate font-mono text-xs text-white/90">@{profile.username}</p>}
           <p className="text-xs text-sidebar-muted">{ROLE_LABEL[profile.role]}{previewRole && ' (preview)'}</p>
         </div>
       </div>
