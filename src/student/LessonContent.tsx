@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useId, useRef, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { defaultUrlTransform } from 'react-markdown'
 import type { ActivityStatus, AttemptInput, recordAttempt } from '../api/student/index.ts'
 import { slidesUrl } from '../instructor/model.ts'
@@ -197,6 +197,13 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
   </div>
 }
 
+export function LessonLayout({ title, children }: { title: string; children: ReactNode }) {
+  return <section className="cic-student-lesson">
+    <h2 className="text-xl">{title}</h2>
+    {children}
+  </section>
+}
+
 export function LessonContent({ lesson, statuses, onAttempt, onSaved, allowScripts, checkLab, studentId, loadDiscussion }: {
   lesson: Lesson & { activities: Activity[] }
   statuses?: ReadonlyMap<string, ActivityStatus>
@@ -207,8 +214,7 @@ export function LessonContent({ lesson, statuses, onAttempt, onSaved, allowScrip
   studentId?: string
   loadDiscussion?: LoadDiscussion
 }) {
-  return <section className="space-y-3">
-    <h2 className="text-xl">{lesson.title}</h2>
+  return <LessonLayout title={lesson.title}>
     {lesson.activities.map(activity => <Card key={activity.id}>
       <ActivityBlock activity={activity} status={statuses?.get(activity.id)} onAttempt={input => onAttempt(activity, input)}
         onSaved={onSaved} allowScripts={allowScripts} studentId={studentId} loadDiscussion={loadDiscussion}
@@ -219,5 +225,5 @@ export function LessonContent({ lesson, statuses, onAttempt, onSaved, allowScrip
           return verified
         })} />
     </Card>)}
-  </section>
+  </LessonLayout>
 }

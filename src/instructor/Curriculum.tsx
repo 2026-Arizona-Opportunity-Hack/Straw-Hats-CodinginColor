@@ -23,10 +23,12 @@ type OutlineKind = 'module' | 'lesson' | 'block';
 type DragItem = { kind: OutlineKind; index: number; parent: string };
 
 function StudentPreview({ lessons, moduleId, local }: { lessons: Lesson[]; moduleId: string; local: boolean }) {
-  return <div className="ic-stack">
+  return <div className="ic-stack ic-student-preview">
     <p className="ic-note">Student preview of this draft. Answers here are practice only.</p>
-    {lessons.map((lesson, index) => local ? <DemoLesson lesson={lesson} key={lesson.id} />
-      : <LessonContent key={lesson.id} lesson={previewLesson(lesson, moduleId, index)} onAttempt={practiceAttempt} />)}
+    <div className="cic-student-lessons">
+      {lessons.map((lesson, index) => local ? <DemoLesson lesson={lesson} key={lesson.id} />
+        : <LessonContent key={lesson.id} lesson={previewLesson(lesson, moduleId, index)} onAttempt={practiceAttempt} />)}
+    </div>
   </div>;
 }
 
