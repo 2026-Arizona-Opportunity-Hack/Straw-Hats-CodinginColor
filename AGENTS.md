@@ -5,8 +5,8 @@ You are helping **Straw Hats** build a project for **Coding in Color** at
 
 ## Start here: the handoff files
 
-Before you change anything, read the handoff files in `docs/`: [`docs/ruthvik-handoff.md`](docs/ruthvik-handoff.md) (current state, branches, what is half done) and, for database work, [`docs/ruthvik-handoff-supabase.md`](docs/ruthvik-handoff-supabase.md).
-Teammates may add their own `docs/<name>-handoff.md`; read those too.
+Before you change anything, read every file in [`Handoffs/`](Handoffs/), one per teammate: current state, branches, what is half done, what each person needs from others.
+For database work also read [`Handoffs/ruthvik-handoff-supabase.md`](Handoffs/ruthvik-handoff-supabase.md).
 When you finish a change, update the handoff file you own (or the one covering that area) in the same branch: the sections your change affects plus one line in its Log.
 Teammates work with different AI tools; this file is how context carries between them.
 
