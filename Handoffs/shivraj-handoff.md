@@ -53,9 +53,9 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 
 ### Student sign-up and sign-in (1003)
 
-- Login page has a Student / Teacher-or-staff switch. Students get Google sign-in and email + password (`src/student/auth/StudentAuthCard.tsx`, `src/api/student/auth.ts`).
-- `student_sign_up(email, password, display_name, school, class_code)` is callable signed out. It creates a confirmed account, a student profile and, with a code, a class enrollment, all in one transaction. Errors: `BAD_EMAIL`, `BAD_PASSWORD`, `BAD_NAME`, `BAD_CLASS_CODE`, `EMAIL_TAKEN`.
-- A trigger on `auth.users` gives **every** new account a student profile (Google included). Staff are promoted by an admin.
+- Login page has a Student / Teacher-or-staff switch. Students use login cards or generated usernames (1013); Google sign-in is for educators. Legacy email/password accounts still work.
+- `student_sign_up(email, password, display_name, school, class_code)` is internal only after 3006. It creates a confirmed account and optional enrollment for the trusted username/staff RPCs.
+- The 1013 Auth trigger assigns Google accounts the reviewer role; other new accounts start as students. Admins provision other staff roles.
 - `join_class(code)` joins later. Progress from a self-chosen copy of the same course moves into the class.
 - Google needs setup in Google Cloud and the Supabase dashboard (redirect URI `https://aeatfaxavfppeauncbts.supabase.co/auth/v1/callback`). The client secret goes in the dashboard only.
 
@@ -194,3 +194,8 @@ Put each sentence on its own line.
 - 2026-11-14, Shivraj: created. Migrations 1001 (grading, unlock rules, self-chosen courses) and 1002 (answer mover trigger, assigned modules only), both tested locally, not yet applied.
 
 - 2026-11-15, Codex: reconciled login cards with PR #75; preserved generated username accounts, legacy email access and staff Google sign-in.
+
+- 2026-11-15, Codex: preserved 1013 username and educator Google onboarding while blocking direct personal-email student signup and email changes.
+  Append-only 3012 reconciles the 3006 guard using server-owned username markers; People & roles retains email-free student creation.
+  Tested anonymous PostgREST and Auth worker sessions separately from trusted SQL fixtures; hosted activation remains pending.
+  Local browser fixtures confirmed card/username/signup modes, educator Google visibility and email-free admin student provisioning.

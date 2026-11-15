@@ -173,7 +173,7 @@ export interface NewPerson {
   /** Filled in after adding a student. */
   username?: string
   password: string
-  role: 'student' | 'instructor' | 'admin'
+  role: 'student' | 'instructor' | 'admin' | 'reviewer'
   school: string
   class_id: string
 }
@@ -190,7 +190,7 @@ const ADD_ERRORS: Record<string, string> = {
  * Students have no email: they get a username like jsmith1 (1013), which is returned. */
 export async function addPerson(p: NewPerson): Promise<string | null> {
   if (p.role === 'student') {
-    const [first, ...rest] = p.display_name.trim().split(/s+/)
+    const [first, ...rest] = p.display_name.trim().split(/\s+/)
     const { data, error } = await db().rpc('admin_create_student', {
       p_first_name: first ?? '', p_last_name: rest.join(' '), p_password: p.password, p_class_id: p.class_id || null,
     })
