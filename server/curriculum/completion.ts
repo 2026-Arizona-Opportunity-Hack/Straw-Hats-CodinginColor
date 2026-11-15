@@ -36,9 +36,11 @@ async function verifyEndpoint(route: (typeof routes)[DraftQuality], signal: Abor
   }
 }
 
+type MessagePart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }
+
 export async function completeDraft({ quality, key, signal, guideVersion, instructions, source, schema }: {
   quality: DraftQuality; key: string; signal: AbortSignal; guideVersion: string | undefined
-  instructions: string; source: string; schema: object
+  instructions: string; source: string | MessagePart[]; schema: object
 }) {
   const route = routes[quality]
   await verifyEndpoint(route, signal)

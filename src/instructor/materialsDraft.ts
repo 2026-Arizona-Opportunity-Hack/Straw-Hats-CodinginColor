@@ -1,15 +1,20 @@
-import type { DraftReference, DraftResponse, LessonDraftSource } from '../shared/curriculum/draft'
+import type { DraftReference, DraftResponse, DraftSource } from '../shared/curriculum/draft'
 import { supabase } from '../shared/supabase'
 import { blankQuestion, id, newActivity, newLesson, type Module } from './model'
 
 export type MaterialDraft = { module: Module; reviewNotes: string[]; references: DraftReference[] }
 
-export async function requestMaterialsDraft(source: LessonDraftSource, signal: AbortSignal): Promise<MaterialDraft> {
+export async function requestMaterialsDraft(source: DraftSource, signal: AbortSignal): Promise<MaterialDraft> {
   if (!supabase) {
-    const title = source.text.split('\n').find(line => line.trim())?.replace(/^#+\s*/, '').trim().slice(0, 100) || 'Imported lesson'
+    const text = source.kind === 'lesson_plan' ? source.text : source.slides.filter(slide => slide.text.trim())
+      .map(slide => '## Slide ' + slide.number + '\n\n' + slide.text).join('\n\n')
+    if (!text) throw new Error('The local preview needs visible text in your materials.')
+    const flags = source.kind === 'slide_deck' ? source.slides.flatMap(slide => slide.reviewFlags.map(flag => `Slide ${slide.number}: ${flag}`)) : []
+    const titleSource = source.kind === 'slide_deck' ? source.slides.find(slide => slide.text.trim())?.text || text : text
+    const title = titleSource.split('\n').find(line => line.trim())?.replace(/^#+\s*/, '').trim().slice(0, 100) || 'Imported lesson'
     return materialDraft({
-      moduleTitle: title, references: [], reviewNotes: ['Local preview. Connect the converter to generate a lesson from this material.'],
-      lessons: [{ title, article: source.text, citationIds: [],
+      moduleTitle: title, references: [], reviewNotes: ['Local preview. Connect the converter to generate a lesson from this material.', ...flags],
+      lessons: [{ title, article: text, citationIds: [],
         practice: ['Try one example from the reading. What did you change?'], exitPrompt: 'What did you learn, and what would you try next?' }],
     })
   }
