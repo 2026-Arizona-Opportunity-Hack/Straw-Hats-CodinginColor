@@ -110,8 +110,9 @@ RLS is enabled on every table.
 Policies today (minimal, a full permissions pass is still open):
 
 - `profiles`: read your own row; admins manage all.
-- `courses`: read if published, owned by you, or you are admin; write if owner or admin.
-- `modules`, `lessons`, `activities`: read all; write if you can edit the parent course (`can_edit_course`: owner or admin).
+- `courses`: read if published, owned by you, or you are admin; after migration 2010, write if instructor-owner or admin.
+- `modules`, `lessons`, `activities`: curriculum reads follow migration 1004's enrollment/publication rules; after 2010, writes require an instructor-owner or admin through `can_edit_course`.
+- `activity_keys`: 2010 applies the same write boundary through `can_edit_activity`; the separate staff/reviewer read policy remains.
 - `classes`: read if you teach it, created it, are enrolled, or are admin; insert by instructors and admins; update and delete if `can_manage_class` (teacher, creator, or admin).
 - `class_modules`, `class_students`, `assignments`: full access if `can_manage_class`.
 - `activity_attempts`: students insert their own; read by the student, their teacher, or admin.
@@ -155,6 +156,14 @@ Applied to the hosted project on 2026-11-15 with `npx supabase db push --linked 
 It was first numbered 2005, but Ken's `2005_publish_curriculum` already held that version on hosted, so the CLI would have skipped it; check `npx supabase migration list --linked` before numbering a migration.
 After applying: `program_settings` has its row and `class_module_settings` returned 29 rows.
 
+## Migration 2010: course role boundaries (not applied to hosted)
+
+Ownership alone no longer authorizes curriculum or answer-key writes.
+Students and reviewers cannot create courses or edit legacy courses they own; demoting an instructor removes write access immediately.
+Instructor owners retain access to their own trees, and admins retain access across owners.
+`supabase/tests/course_role_boundaries.sql` checks actual RLS, parent moves, role changes and published reads on a disposable migrated database.
+Run with `psql -v ON_ERROR_STOP=1 -f supabase/tests/course_role_boundaries.sql`; fixtures roll back.
+
 ## Gotchas we already hit
 
 - Supabase keeps `pgcrypto` in the `extensions` schema: call `extensions.crypt(...)` and `extensions.gen_salt(...)`, not the bare names.
@@ -169,6 +178,8 @@ Plan, not done yet.
 Delete demo auth users and rows (or create a fresh project), apply migrations without `--include-seed`, then create the real CIC admin account in Authentication and a matching `profiles` row with `role = 'admin'`.
 
 ## Log
+
+- 2026-11-15, Codex: added migration 2010 and local RLS regression coverage for course, nested content and answer-key role boundaries; not applied to hosted.
 
 - 2026-11-15 8:55 AM, Ruthvik: migration 2006 is applied on hosted (renumbered from 2005); every migration through 2008 is applied. `supabase/demo/assignment_modules_demo.sql` is still not run on hosted.
 
