@@ -142,7 +142,7 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
             <label>Course<select ref={courseSelect} value={courseId} onChange={event => {
               setCourseId(event.target.value);
               setModuleIds(available.find(course => course.id === event.target.value)?.modules.map(module => module.id) || []);
-            }}>{available.map(course => <option key={course.id} value={course.id}>{course.title}{course.copiedFrom ? ' (your copy)' : ''}</option>)}</select></label>
+            }}>{available.map(course => <option key={course.id} value={course.id}>{course.title}</option>)}</select></label>
             <fieldset><legend>Modules</legend><p className="ic-note">Students see assigned modules in this order.</p>
               {course?.modules.map(module => <label className="ic-checkbox" key={module.id}><input type="checkbox" checked={moduleIds.includes(module.id)} onChange={event => setModuleIds(ids => event.target.checked ? [...ids, module.id] : ids.filter(id => id !== module.id))} />{module.title}</label>)}
             </fieldset>
