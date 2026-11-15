@@ -155,6 +155,16 @@ Applied to the hosted project on 2026-11-15 with `npx supabase db push --linked 
 It was first numbered 2005, but Ken's `2005_publish_curriculum` already held that version on hosted, so the CLI would have skipped it; check `npx supabase migration list --linked` before numbering a migration.
 After applying: `program_settings` has its row and `class_module_settings` returned 29 rows.
 
+## Migration 3008: canonical staff progress (not applied)
+
+`staff_progress_snapshot()` returns `{ modules: [...] }` from `_course_state` for report consumers.
+Active instructors see only classes they manage; active admins also see all classes and self-enrollments.
+Students, reviewers, archived profiles and anonymous callers are denied.
+Rows contain authorized student/course/class/module IDs, state, test-out flag, required/done counts and canonical pre/post scores; they contain no answers or keys.
+This is the database prerequisite for the separate completion-reporting UI PR.
+Validate with `supabase/tests/staff_progress_snapshot.sql` on a migrated disposable database.
+Migration 3008 has not been applied to hosted.
+
 ## Gotchas we already hit
 
 - Supabase keeps `pgcrypto` in the `extensions` schema: call `extensions.crypt(...)` and `extensions.gen_salt(...)`, not the bare names.
@@ -169,6 +179,8 @@ Plan, not done yet.
 Delete demo auth users and rows (or create a fresh project), apply migrations without `--include-seed`, then create the real CIC admin account in Authentication and a matching `profiles` row with `role = 'admin'`.
 
 ## Log
+
+- 2026-11-15, Codex: added the canonical staff progress RPC and authorization/state regression tests as the database prerequisite for accurate teacher/admin completion reports; no hosted changes.
 
 - 2026-11-15 8:55 AM, Ruthvik: migration 2006 is applied on hosted (renumbered from 2005); every migration through 2008 is applied. `supabase/demo/assignment_modules_demo.sql` is still not run on hosted.
 
