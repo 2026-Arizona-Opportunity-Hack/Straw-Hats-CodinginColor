@@ -23,7 +23,7 @@ The team plan is in [`plan.md`](../plan.md); the nonprofit brief is linked from 
 | Branch | State | Notes |
 |---|---|---|
 | `main` | Has everything through PR #14 (tabs, assignments, live data), Shivraj's #16 and #17 (migrations 1001, 1002) | Source of truth |
-| `ruthvik/class-tabs` | PR #18 into `main`, open | Grading (2002), rubrics and file uploads (2003), answer keys in the builder, scoring rules, the stale-save fix below. |
+| `ruthvik/class-tabs` | Ahead of `main` (PR #18 merged) | Review fixes below; needs a PR. |
 | `jacky/student-join-and-player` | Pushed, no PR | Student module player with a renderer per activity type (`src/student/activities.tsx`). |
 | `Shivraj` | 2 commits ahead of `main` | Supabase CLI config (`supabase/config.toml`). Already merged into `ruthvik/class-tabs`. |
 | `Aryan`, `Ken`, `Jacky` | Nothing new beyond `main` | |
@@ -33,12 +33,12 @@ On a case-insensitive disk `git fetch` fails with "cannot lock ref".
 Fetch it under another name: `git fetch origin refs/heads/jacky/student-join-and-player:refs/remotes/origin-jacky/student-join-and-player`.
 Renaming one of the two branches on GitHub fixes it for everyone.
 
-### Fixed on `ruthvik/class-tabs`, not yet on `main` (data loss)
+### Fixed (data loss), merged in PR #18
 
 The live save in `main` deletes every assignment, roster student, module, lesson or activity that the saving browser does not know about.
 A browser opened before a teammate added something deletes it on its next save; on Nov 14 this removed two demo assignments and their submissions.
 `ruthvik/class-tabs` now deletes only rows the user removed in that browser (`deleteRemoved` in `src/instructor/liveStore.ts`).
-Until it reaches `main`, reload the app before editing if someone else may have changed the class.
+Course saves now also write only changed modules, lessons and activities, so a stale browser cannot put back deleted items or overwrite a teammate's edits.
 
 ### What works today (on `ruthvik/class-tabs`)
 
@@ -106,13 +106,18 @@ and `liveStore.ts` converts them to and from the database rows and the shared ac
 Activity `content` in the database always carries the shared contract fields (what the student app reads) plus a `questions` list and `title` for the course builder.
 Keep that true if you touch either side.
 
+## Tests
+
+`npm test` runs Vitest: `src/instructor/assignments/grading.test.ts` (scores, rubrics, late, not-due, CSV) and `src/instructor/liveStore.test.ts` (saves never delete unloaded rows, only changed rows are written, attempts load past 1000 rows).
+Each liveStore test was checked to fail against the old code it guards.
+
 ## Running it
 
 ```bash
 npm install
 npm run dev            # http://localhost:5173, live data if .env has Supabase keys
 VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= npm run dev -- --port 5181   # force mock mode
-npm run build && npm run lint   # run before every PR
+npm run build && npm run lint && npm test   # run before every PR
 ```
 
 Demo logins (password `cic-learn-demo`): `admin@cic.demo`, `teacher@cic.demo` (Maryvale), `ana.lopez@cic.demo` (Desert Edge, Carl Hayden), `reviewer@cic.demo`.
@@ -140,6 +145,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-14 8:30 PM, Ruthvik: fixes from a code review (ponytail-review checklist). Course saves write only changed rows; attempts load in pages past Supabase's 1000-row cap; first tests (Vitest, 12); gradebook shows "Not due yet" and leaves not-due and ungraded work out of totals; warning when a saved score no longer matches an edited rubric; pages load per section (main bundle is now framework only); gradebook total column stays visible.
 - 2026-11-14 7:30 PM, Ruthvik: merged `main` (Shivraj's 1001, 1002). Did Shivraj's items 4 (answer keys in the builder) and 5 (scoring rules). Found and fixed the stale-save data loss above. Moved handoffs from `docs/` to `Handoffs/`. Restored the two demo assignments by re-running `supabase/demo/*.sql`; opened PR #18.
 - 2026-11-14 6:45 PM, Ruthvik: rubrics and file uploads. Migration 2003 (rubric scores, private `submission-files` bucket, `file` assignment type) and `supabase/demo/rubric_demo.sql` plus three sample PDFs applied to the hosted project. Checked that another class's instructor and anonymous users cannot read the files.
 - 2026-11-14 6:00 PM, Ruthvik: grading. Migration 2002 (`assignment_submissions`) and `supabase/demo/grading_demo.sql` applied to the hosted project; gradebook and grading dialog in the Grades tab, live and mock.

@@ -28,7 +28,8 @@ export type Submission = {
   gradedAt: string | null;
 };
 
-export type GradeStatus = 'missing' | 'needs_grading' | 'graded';
+/** not_due: nothing turned in yet, but the due date has not passed (or there is none to miss). */
+export type GradeStatus = 'not_due' | 'missing' | 'needs_grading' | 'graded';
 
 /** Blocks that only the instructor can score. */
 export function needsInstructor(block: Block) {
@@ -66,17 +67,23 @@ export function rubricResult(block: RubricBlock, picks: Record<string, string> =
   return { points, complete: rated === (block.rubric?.length ?? 0) };
 }
 
-export function gradeSubmission(assignment: Assignment, submission: Submission | undefined) {
+export function gradeSubmission(assignment: Assignment, submission: Submission | undefined, now = Date.now()) {
   const possible = assignment.blocks.reduce((sum, block) => sum + blockPoints(block), 0);
-  if (!submission) return { status: 'missing' as GradeStatus, earned: null, possible, ungraded: 0 };
+  if (!submission) {
+    const overdue = assignment.dueAt !== null && new Date(assignment.dueAt).getTime() < now;
+    return { status: (overdue ? 'missing' : 'not_due') as GradeStatus, earned: null, possible, ungraded: 0, countedPossible: overdue ? possible : 0 };
+  }
   let earned = 0;
   let ungraded = 0;
+  let ungradedPoints = 0;
   for (const block of assignment.blocks) {
     const score = blockScore(block, submission);
-    if (score === null) ungraded += 1;
+    if (score === null) { ungraded += 1; ungradedPoints += blockPoints(block); }
     else earned += score;
   }
-  return { status: (ungraded ? 'needs_grading' : 'graded') as GradeStatus, earned, possible, ungraded };
+  // Parts still waiting on the instructor count toward nothing yet, so a student is not marked
+  // down for work that has not been graded.
+  return { status: (ungraded ? 'needs_grading' : 'graded') as GradeStatus, earned, possible, ungraded, countedPossible: possible - ungradedPoints };
 }
 
 export function isLate(assignment: Assignment, submission: Submission | undefined) {
@@ -91,17 +98,18 @@ const csvCell = (value: string | number) => {
   return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 };
 
+
 /** Gradebook as CSV: one row per student, one column per assignment, then totals. */
-export function gradebookCsv(students: { id: string; name: string }[], assignments: Assignment[], submissions: Submission[]) {
+export function gradebookCsv(students: { id: string; name: string }[], assignments: Assignment[], submissions: Submission[], now = Date.now()) {
   const header = ['Student', ...assignments.map(a => `${a.title} (${gradeSubmission(a, undefined).possible})`), 'Total', 'Possible', 'Percent'];
   const rows = students.map(student => {
     let total = 0;
     let possible = 0;
     const cells = assignments.map(a => {
-      const grade = gradeSubmission(a, submissions.find(s => s.assignmentId === a.id && s.studentId === student.id));
-      possible += grade.possible;
+      const grade = gradeSubmission(a, submissions.find(s => s.assignmentId === a.id && s.studentId === student.id), now);
+      possible += grade.countedPossible;
       if (grade.earned !== null) total += grade.earned;
-      return grade.status === 'missing' ? 'missing' : grade.status === 'needs_grading' ? `${grade.earned} (needs grading)` : grade.earned ?? '';
+      return grade.status === 'not_due' ? 'not due' : grade.status === 'missing' ? 'missing' : grade.status === 'needs_grading' ? `${grade.earned} (needs grading)` : grade.earned ?? '';
     });
     return [student.name, ...cells, total, possible, possible ? Math.round((total / possible) * 100) + '%' : ''];
   });

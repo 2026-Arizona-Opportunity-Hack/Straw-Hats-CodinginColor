@@ -198,16 +198,27 @@ function learnersFor(classId: string, roster: Row[], attempts: Row[], activities
 
 // ---- Load ----
 
+/** Supabase returns at most `max_rows` (1000) rows per request; read every page. */
+const PAGE = 1000;
+async function selectAll(supabase: SupabaseClient, table: string, columns: string): Promise<Row[]> {
+  const rows: Row[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase.from(table).select(columns).order('id').range(from, from + PAGE - 1);
+    fail(`load ${table}`, error);
+    rows.push(...((data ?? []) as unknown as Row[]));
+    if (!data || data.length < PAGE) return rows;
+  }
+}
+
 export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, displayName: string): Promise<InstructorData> {
   const [courses, classes, attempts, rules] = await Promise.all([
     supabase.from('courses').select('id, title, description, level, owner_id, created_at, modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))').order('created_at'),
     supabase.from('classes').select('id, name, school, course_id, join_code, created_at, class_modules (module_id), class_students (id, display_name, passcode, profile_id, created_at), assignments (*), assignment_submissions (*)').order('created_at'),
-    supabase.from('activity_attempts').select('student_id, activity_id, class_id, score, submitted_at, time_on_task_ms, attempt_no, response'),
+    selectAll(supabase, 'activity_attempts', 'id, student_id, activity_id, class_id, score, submitted_at, time_on_task_ms, attempt_no, response'),
     supabase.from('module_rules').select('class_id, module_id, max_posttest_tries'),
   ]);
   fail('load courses', courses.error);
   fail('load classes', classes.error);
-  fail('load progress', attempts.error);
   fail('load module rules', rules.error);
 
   const courseList: Course[] = (courses.data as Row[]).map(c => ({
@@ -224,7 +235,7 @@ export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, di
   const classList: ClassGroup[] = (classes.data as Row[]).map(c => ({
     id: String(c.id), name: str(c.name), school: str(c.school), courseId: String(c.course_id), joinCode: str(c.join_code),
     moduleIds: (arr(c.class_modules) as Row[]).map(m => String(m.module_id)),
-    learners: learnersFor(String(c.id), arr(c.class_students) as Row[], attempts.data as Row[], activityInfo, rules.data as Row[]),
+    learners: learnersFor(String(c.id), arr(c.class_students) as Row[], attempts, activityInfo, rules.data as Row[]),
     assignments: (arr(c.assignments) as Row[]).sort((a, b) => str(a.created_at).localeCompare(str(b.created_at))).map(toAssignment),
     submissions: (arr(c.assignment_submissions) as Row[]).map(toSubmission),
   }));
@@ -255,31 +266,44 @@ async function upsert(supabase: SupabaseClient, table: string, rows: Row[]) {
   if (rows.length) fail(`save ${table}`, (await supabase.from(table).upsert(rows)).error);
 }
 
-async function syncCourse(supabase: SupabaseClient, userId: string, course: Course, prev: Course | undefined) {
-  const existed = Boolean(prev);
-  const level = course.level.toLowerCase();
-  const row: Row = { id: course.id, title: course.title.trim() || 'Untitled course', description: course.description, level: levels.includes(level) ? level : 'beginner' };
-  if (!existed) Object.assign(row, { owner_id: userId, published: true });
-  fail('save the course', (await supabase.from('courses').upsert(row)).error);
-
-  const modules = course.modules;
-  const lessons = modules.flatMap(m => m.lessons.map((l, position) => ({ l, m, position: position + 1 })));
-  const activities = lessons.flatMap(({ l }) => l.activities.map((a, position) => ({ a, l, position: position + 1 })));
-  // Remove rows the user deleted first, so their positions are free.
-  const prevModules = prev?.modules ?? [];
-  const prevLessons = prevModules.flatMap(m => m.lessons);
-  await deleteRemoved(supabase, 'activities', prevLessons.flatMap(l => l.activities.map(a => a.id)), activities.map(({ a }) => a.id));
-  await deleteRemoved(supabase, 'lessons', prevLessons.map(l => l.id), lessons.map(({ l }) => l.id));
-  await deleteRemoved(supabase, 'modules', prevModules.map(m => m.id), modules.map(m => m.id));
-  await upsert(supabase, 'modules', modules.map((m, i) => ({
+/** Database rows for one course's modules, lessons and activities, in display order. */
+function courseRows(course: Course) {
+  const modules = course.modules.map((m, i) => ({
     id: m.id, course_id: course.id, position: i + 1, title: m.title.trim() || 'Untitled module',
     concept: m.lessons.flatMap(l => l.activities).flatMap(a => a.questions).find(q => q.concept.trim())?.concept.trim() || m.title, published: m.published,
-  })));
-  await upsert(supabase, 'lessons', lessons.map(({ l, m, position }) => ({ id: l.id, module_id: m.id, position, title: l.title.trim() || 'Untitled lesson', is_checkpoint: false })));
-  await upsert(supabase, 'activities', activities.map(({ a, l, position }) => ({
-    id: a.id, lesson_id: l.id, position, type: a.type, concept: a.questions.find(q => q.concept.trim())?.concept.trim() || '',
+  }));
+  const lessons = course.modules.flatMap(m => m.lessons.map((l, i) => ({ id: l.id, module_id: m.id, position: i + 1, title: l.title.trim() || 'Untitled lesson', is_checkpoint: false })));
+  const activities = course.modules.flatMap(m => m.lessons.flatMap(l => l.activities.map((a, i) => ({
+    id: a.id, lesson_id: l.id, position: i + 1, type: a.type, concept: a.questions.find(q => q.concept.trim())?.concept.trim() || '',
     points: a.questions.length || (a.type === 'code' ? 1 : 0), content: activityContent(a),
-  })));
+  }))));
+  return { modules, lessons, activities };
+}
+
+/** Rows that are new or differ from what this browser loaded. Unchanged rows are not rewritten. */
+function changedRows<T extends { id: string }>(before: T[], after: T[]) {
+  const old = new Map(before.map(row => [row.id, row]));
+  return after.filter(row => !same(old.get(row.id), row));
+}
+
+async function syncCourse(supabase: SupabaseClient, userId: string, course: Course, prev: Course | undefined) {
+  const level = course.level.toLowerCase();
+  const row: Row = { id: course.id, title: course.title.trim() || 'Untitled course', description: course.description, level: levels.includes(level) ? level : 'beginner' };
+  if (!prev) Object.assign(row, { owner_id: userId, published: true });
+  const prevRow = prev && { title: prev.title.trim() || 'Untitled course', description: prev.description, level: prev.level.toLowerCase() };
+  if (!prev || !same(prevRow, { title: row.title, description: row.description, level })) fail('save the course', (await supabase.from('courses').upsert(row)).error);
+
+  // Write only what this browser changed. Rewriting every row would put back modules a teammate
+  // deleted and overwrite their newer edits (and answer keys) with this browser's older copy.
+  const next = courseRows(course);
+  const before = prev ? courseRows(prev) : { modules: [], lessons: [], activities: [] };
+  // Remove rows the user deleted first, so their positions are free.
+  await deleteRemoved(supabase, 'activities', before.activities.map(a => a.id), next.activities.map(a => a.id));
+  await deleteRemoved(supabase, 'lessons', before.lessons.map(l => l.id), next.lessons.map(l => l.id));
+  await deleteRemoved(supabase, 'modules', before.modules.map(m => m.id), next.modules.map(m => m.id));
+  await upsert(supabase, 'modules', changedRows(before.modules, next.modules));
+  await upsert(supabase, 'lessons', changedRows(before.lessons, next.lessons));
+  await upsert(supabase, 'activities', changedRows(before.activities, next.activities));
 }
 
 async function syncClass(supabase: SupabaseClient, userId: string, next: ClassGroup, prev: ClassGroup | undefined) {

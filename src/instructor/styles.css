@@ -539,3 +539,8 @@ body:has(.ic-app) { margin: 0; }
   .ic-pick-row { grid-template-columns: 1fr; }
 }
 .ic-rubric-view tbody tr:last-child th { border-bottom: 0; }
+.ic-grade-missing.is-overdue { color: var(--ic-alert); font-weight: 700; }
+.ic-app .ic-drift { color: var(--ic-alert); font-weight: 600; }
+/* Keep the total visible when many assignments make the gradebook scroll sideways. */
+.ic-gradebook tr > :last-child { position: sticky; right: 0; z-index: 1; background: var(--ic-paper); box-shadow: -1px 0 0 var(--ic-border); }
+.ic-gradebook thead tr > :last-child { background: var(--ic-tint); }

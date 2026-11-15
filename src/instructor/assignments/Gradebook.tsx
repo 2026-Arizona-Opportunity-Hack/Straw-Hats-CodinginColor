@@ -46,7 +46,7 @@ export function Gradebook({ group, onSave }: Props) {
   return <div className="ic-tab-page">
     <div className="ic-stat-grid">
       <div className="ic-stat-card"><span>Needs grading</span><strong className={needsGrading ? 'is-alert' : undefined}>{needsGrading}</strong><small>Submissions waiting on you</small></div>
-      <div className="ic-stat-card"><span>Missing</span><strong>{missing}</strong><small>Published work not turned in</small></div>
+      <div className="ic-stat-card"><span>Missing</span><strong>{missing}</strong><small>Past due, not turned in</small></div>
       <div className="ic-stat-card"><span>Graded</span><strong className="is-good">{graded.length}</strong><small>Fully scored submissions</small></div>
       <div className="ic-stat-card"><span>Class average</span><strong>{classAverage === null ? '—' : Math.round(classAverage) + '%'}</strong><small>Across graded submissions</small></div>
     </div>
@@ -73,10 +73,10 @@ export function Gradebook({ group, onSave }: Props) {
                 {assignments.map(a => {
                   const submission = find(a.id, learner.id);
                   const grade = gradeSubmission(a, submission);
-                  possible += grade.possible;
+                  possible += grade.countedPossible;
                   earned += grade.earned ?? 0;
                   const late = isLate(a, submission);
-                  if (!submission) return <td key={a.id}><span className="ic-grade-missing">Missing</span></td>;
+                  if (!submission) return <td key={a.id}><span className={grade.status === 'missing' ? 'ic-grade-missing is-overdue' : 'ic-grade-missing'}>{grade.status === 'missing' ? 'Missing' : 'Not due yet'}</span></td>;
                   return <td key={a.id}>
                     <button type="button" className={'ic-grade-cell' + (grade.status === 'needs_grading' ? ' is-pending' : '')}
                       aria-label={`${learner.name}, ${a.title}: ${grade.status === 'needs_grading' ? 'needs grading' : `${grade.earned} of ${grade.possible}`}${late ? ', late' : ''}. Open to grade.`}
@@ -91,7 +91,7 @@ export function Gradebook({ group, onSave }: Props) {
             })}</tbody>
           </table>
         </div>}
-      <p className="ic-note ic-section-gap">Totals count missing work as zero. Questions are graded automatically; written and code answers wait for you.</p>
+      <p className="ic-note ic-section-gap">Totals count missing work (past due) as zero and leave out work that is not due or not graded yet. Questions are graded automatically; written, code and file answers wait for you.</p>
     </section>
     {open && (() => {
       const assignment = assignments.find(a => a.id === open.assignmentId);
@@ -172,6 +172,7 @@ function GradeDialog({ assignment, submission, studentName, position, count, onM
         <StudentAnswer block={block} response={response} />
         {hasRubricSupport(block) && block.rubric?.length ? <RubricPicker rubric={block.rubric} blockLabel={label}
           picks={draft.rubricScores?.[block.id] ?? {}} onPick={(criterionId, ratingId) => pickRating(block, criterionId, ratingId)} /> : null}
+        {hasRubricSupport(block) && block.rubric?.length ? <RubricDrift block={block} picks={draft.rubricScores?.[block.id] ?? {}} saved={manual} /> : null}
         <p className="ic-note">{hasRubricSupport(block) && block.rubric?.length && manual === undefined
           ? `Rubric so far: ${rubricResult(block, draft.rubricScores?.[block.id]).points} of ${max}. Pick a rating for every criterion, or type points to override.`
           : hasRubricSupport(block) && block.rubric?.length && rubricResult(block, draft.rubricScores?.[block.id]).complete && manual === rubricResult(block, draft.rubricScores?.[block.id]).points
@@ -243,4 +244,21 @@ function FileLink({ file }: { file: UploadedFile }) {
   if (url) return <a href={url} target="_blank" rel="noopener noreferrer" className="ic-file-link"><FileText size={16} aria-hidden="true" />{file.name}{meta}</a>;
   return <span className="ic-file-link"><FileText size={16} aria-hidden="true" />{file.name}{meta}
     <span className="ic-note"> · {problem || (file.path.startsWith('demo/') || !supabase ? 'sample file, no download in demo data' : 'preparing download…')}</span></span>;
+}
+
+/**
+ * Warns when a saved score no longer matches the rubric: a rating it used was deleted, or the
+ * points add up differently now (the rubric was edited after grading, or the score was typed).
+ */
+function RubricDrift({ block, picks, saved }: { block: RubricBlock; picks: Record<string, string>; saved: number | undefined }) {
+  const picked = Object.entries(picks);
+  if (!picked.length) return null;
+  const ratingIds = new Set((block.rubric ?? []).flatMap(c => c.ratings.map(r => r.id)));
+  const lost = picked.filter(([, ratingId]) => !ratingIds.has(ratingId)).length;
+  const result = rubricResult(block, picks);
+  if (lost) return <p className="ic-error" role="status">{lost} rating{lost === 1 ? '' : 's'} picked for this answer no longer exist{lost === 1 ? 's' : ''} in the rubric. Pick again to update the score.</p>;
+  if (result.complete && saved !== undefined && saved !== result.points) {
+    return <p className="ic-note ic-drift" role="status">Saved score {saved} differs from the rubric ({result.points}): it was typed by hand or the rubric changed. Click a rating to use the rubric.</p>;
+  }
+  return null;
 }
