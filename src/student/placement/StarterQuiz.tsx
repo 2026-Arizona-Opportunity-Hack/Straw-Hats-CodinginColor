@@ -25,7 +25,7 @@ function isAnswered(item: PlacementItem, value: Value) {
   return typeof value === 'string'
 }
 
-function Intro({ onStart, onSkip, skipping }: { onStart: () => void; onSkip: () => void; skipping: boolean }) {
+function Intro({ onStart, onSkip, skipping, error }: { onStart: () => void; onSkip: () => void; skipping: boolean; error?: string }) {
   const { profile } = useAuth()
   return (
     <div className="st-banner mx-auto max-w-2xl px-6 py-14 text-center sm:px-12">
@@ -40,6 +40,7 @@ function Intro({ onStart, onSkip, skipping }: { onStart: () => void; onSkip: () 
           {skipping ? 'One moment…' : 'Skip for now'}
         </Button>
       </div>
+      {error && <p role="alert" className="mt-4 font-semibold text-white">Couldn't skip: {error}</p>}
     </div>
   )
 }
@@ -163,7 +164,7 @@ export function QuizResult({ result }: { result: PlacementResult }) {
 export function StarterQuiz() {
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { profile } = useAuth()
+  const { profile, previewRole } = useAuth()
   const { data: items = [], isLoading, isError } = useQuery({ queryKey: ['placementItems'], queryFn: listPlacementItems })
   const [step, setStep] = useState(-1) // -1 = intro
   const [value, setValue] = useState<Value>(undefined)
@@ -180,7 +181,8 @@ export function StarterQuiz() {
   const done = () => qc.refetchQueries({ queryKey: ['placement', profile?.id], type: 'all' })
   // Write the skip into the cache before leaving, so Home sees it at once and never redirects back.
   const skip = useMutation({
-    mutationFn: skipPlacement,
+    // A staff preview has nothing to save (skip_placement is students-only): just go Home.
+    mutationFn: () => (previewRole ? Promise.resolve() : skipPlacement()),
     onSuccess: () => {
       qc.setQueryData<MyPlacement | null>(['placement', profile?.id], (old) => old ?? { skipped: true, result: null, taken_at: new Date().toISOString() })
       navigate('/student', { replace: true })
@@ -212,7 +214,7 @@ export function StarterQuiz() {
   if (isError || (!isLoading && !items.length)) {
     return <p role="alert">The starter quiz isn't available right now. <Link className="underline" to="/student">Go to my home</Link></p>
   }
-  if (step < 0) return <Intro onStart={() => show(0)} onSkip={() => skip.mutate()} skipping={skip.isPending} />
+  if (step < 0) return <Intro onStart={() => show(0)} onSkip={() => skip.mutate()} skipping={skip.isPending} error={skip.error?.message} />
   if (submit.isPending) return <p role="status" className="py-16 text-center text-lg">Finding your course…</p>
 
   const item = items[step]
