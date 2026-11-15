@@ -134,7 +134,7 @@ It only fills `assignments.module_id` where it is empty and is safe to re-run.
 
 1. **Security fixes from a code review (Nov 14):**
    - The live admin login `admin` / `cic-learn-demo` is published in the README and `seed.sql`; rotate it before real use (hosted write).
-   - `profiles.archived_at` is checked nowhere, so archived staff keep access; `current_role_is()` and `teaches_class()` should require `archived_at is null` (new migration).
+   - Apply migration 3011 to enforce account archiving in database policies and RPCs. The app rechecks visible sessions every 15 seconds and on tab return. Restore clears the archive flag without losing class or progress records.
 2. **Correctness:**
    - Student `time_on_task_ms` is overcounted: the timer starts at page open, not at the last save.
    - `src/shared/labs/checks.ts` compares whole output, so a Python lab with 2+ checks never passes.
@@ -197,6 +197,7 @@ Put each sentence on its own line.
 
 ## Log
 - 2026-11-15, Codex: corrected admin before/after averages to use matched assessment pairs and show sample sizes; verified sparse, disjoint and negative-gain cohorts plus rendered growth labels.
+- 2026-11-15, Ken: added migration 3011 and rollback-only tests for archive/restore with unchanged authenticated claims. Hosted application pending.
 - 2026-11-15 8:55 AM, Ruthvik: rewrote this handoff to cover everything I built (PR list, features, migrations, open work) now that #49 is on `main`. Updated the README instructor section and the Supabase handoff (2006 applied).
 - 2026-11-15 1:20 AM, Ruthvik: opened one PR from `ruthvik/class-library-dashboard` that merges latest `main` with the CIC library, edit-in-class curriculum, class Dashboard drill-downs, DB-driven thresholds (migration 2006, already applied to hosted), the lesson reading view, AI Academy curriculum and embedded HTML activities.
   Merge choices: course edits for a class use Ken's browser drafts and `publish_curriculum`; the student player stays on main's `LessonContent` (now rendering Markdown with `LessonMarkdown`); the student enrollment UI from #27 is dropped for main's Explore page.

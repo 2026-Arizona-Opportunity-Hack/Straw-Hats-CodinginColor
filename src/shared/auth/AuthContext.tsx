@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { isMockMode, supabase } from '../supabase.ts'
 import type { Profile, Role } from '../types/db.ts'
@@ -27,6 +28,7 @@ const MOCK_PROFILES: Record<Role, Profile> = {
 
 const MOCK_ROLE_KEY = 'cic-mock-role'
 const PREVIEW_KEY = 'cic-preview-role'
+const PROFILE_RECHECK_MS = 15_000
 
 function readPreview(): Role | null {
   try {
@@ -63,15 +65,13 @@ async function loadProfile(userId: string): Promise<Profile | null> {
     .from('profiles')
     .select('id, role, display_name, school, username')
     .eq('id', userId)
-    .single()
-  if (error) {
-    console.error('Failed to load profile', error)
-    return null
-  }
-  return data as Profile
+    .maybeSingle()
+  if (error) throw error
+  return data as Profile | null
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
   const [profile, setProfile] = useState<Profile | null>(readMockProfile)
   const [loading, setLoading] = useState(!isMockMode)
   const [previewRole, setPreview] = useState<Role | null>(readPreview)
@@ -89,15 +89,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!supabase) return
     const client = supabase
-    client.auth.getSession().then(async ({ data }) => {
-      setProfile(data.session ? await loadProfile(data.session.user.id) : null)
-      setLoading(false)
+    let userId: string | null = null
+    let request = 0
+    let pending: number | undefined
+    let hadAccess = false
+
+    async function recheckProfile() {
+      const currentRequest = ++request
+      try {
+        const nextProfile = userId ? await loadProfile(userId) : null
+        if (currentRequest !== request) return
+        if (hadAccess && !nextProfile) queryClient.clear()
+        hadAccess = Boolean(nextProfile)
+        setProfile(nextProfile)
+      } catch (error) {
+        if (currentRequest === request) console.error('Failed to load profile', error)
+      } finally {
+        if (currentRequest === request) setLoading(false)
+      }
+    }
+
+    const { data: sub } = client.auth.onAuthStateChange((_event, session) => {
+      const nextUserId = session?.user.id ?? null
+      if (userId !== nextUserId) {
+        request++
+        if (hadAccess) queryClient.clear()
+        hadAccess = false
+        setProfile(null)
+        setLoading(Boolean(nextUserId))
+        userId = nextUserId
+      }
+      // Make requests after the auth callback returns.
+      window.clearTimeout(pending)
+      pending = window.setTimeout(() => void recheckProfile(), 0)
     })
-    const { data: sub } = client.auth.onAuthStateChange(async (_event, session) => {
-      setProfile(session ? await loadProfile(session.user.id) : null)
-    })
-    return () => sub.subscription.unsubscribe()
-  }, [])
+    const recheckWhenVisible = () => {
+      if (userId && document.visibilityState === 'visible') void recheckProfile()
+    }
+    const interval = window.setInterval(recheckWhenVisible, PROFILE_RECHECK_MS)
+    document.addEventListener('visibilitychange', recheckWhenVisible)
+    return () => {
+      request++
+      window.clearTimeout(pending)
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', recheckWhenVisible)
+      sub.subscription.unsubscribe()
+    }
+  }, [queryClient])
 
   const activePreview = canPreview ? previewRole : null
   const value: AuthState = {
