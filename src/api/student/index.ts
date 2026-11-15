@@ -122,6 +122,12 @@ export async function listActivityStatus(moduleId: string): Promise<ActivityStat
 }
 
 /** The student's latest saved answer for one activity (null if never answered), to show it again. */
+/** The right choice id of a check the student already answered (1011). Null before answering. */
+export async function getCheckAnswer(activityId: string): Promise<string | null> {
+  if (curriculumBackend) return result(curriculumBackend.rpc('my_check_answer', { p_activity_id: activityId }))
+  return null
+}
+
 export async function getActivityResponse(activityId: string): Promise<Record<string, unknown> | null> {
   if (curriculumBackend) return result(curriculumBackend.rpc('my_activity_response', { p_activity_id: activityId }))
   return null

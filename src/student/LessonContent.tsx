@@ -56,7 +56,7 @@ function LinkedVideos({ markdown }: { markdown: string }) {
 }
 
 export function ActivityBlock({ activity, status, onAttempt, onSaved, onResult, hideTitle = false, answerOnce = false, previousResponse,
-  allowScripts = false, verifyLab, labStorageKey, loadDiscussion, studentId, demoDiscussion = false }: {
+  loadCheckAnswer, allowScripts = false, verifyLab, labStorageKey, loadDiscussion, studentId, demoDiscussion = false }: {
   activity: Activity; status?: ActivityStatus; onAttempt: SubmitActivity; onSaved?: () => void
   /** Called with each saved attempt's result, e.g. to celebrate a correct answer. */
   onResult?: (result: Awaited<ReturnType<SubmitActivity>>) => void
@@ -67,6 +67,8 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, onResult, 
   answerOnce?: boolean
   /** The student's last saved answer, shown on a locked card instead of an empty form. */
   previousResponse?: Record<string, unknown> | null
+  /** Loads the right choice of an answered check, shown after a wrong answer on a locked card. */
+  loadCheckAnswer?: (activityId: string) => Promise<string | null>
   allowScripts?: boolean
   verifyLab?: VerifyWebLab; labStorageKey?: string
   loadDiscussion?: LoadDiscussion; studentId?: string; demoDiscussion?: boolean
@@ -186,7 +188,7 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, onResult, 
             className="w-full justify-start text-left aria-pressed:bg-brand-tint"
             aria-pressed={selectedChoice === choice.id}
             aria-disabled={locked || attempt.isPending || (selectedChoice === choice.id && attempt.isSuccess)}
-            onClick={() => chooseAnswer(choice.id)}>{choice.label}</Button>)}
+            onClick={() => chooseAnswer(choice.id)}>{choice.label}{rightChoice?.id === choice.id && <span className="ml-auto pl-2 text-brand">✓ Right answer</span>}</Button>)}
         </fieldset>
       }
       case 'exit': {
@@ -255,6 +257,16 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, onResult, 
         : answerOnce ? 'Incorrect. Keep going, you\'ll see this idea again.' : 'Incorrect. Try another answer.'
     } else if (!attempt.isError && correct) feedback = 'You answered correctly.'
   }
+  // Once a check is locked (answer once), explain it, and after a wrong answer show the right choice.
+  const reveal = !!choices?.length && locked && !attempt.isPending
+  const rightAnswer = useQuery({
+    queryKey: ['checkAnswer', studentId, activity.id],
+    // Live content never carries the answer (it lives in activity_keys); mock and preview content may.
+    queryFn: async () => (loadCheckAnswer ? await loadCheckAnswer(activity.id) : null) ?? check?.answer ?? null,
+    enabled: reveal && correct === false,
+  })
+  const rightChoice = rightAnswer.data ? choices?.find(choice => choice.id === rightAnswer.data) : undefined
+  const explanation = reveal && check?.explanation?.trim()
 
   return <div className="min-w-0 space-y-3">
     {themedArticle ? <CicArticle title={title || 'Read and explore'} markdown={markdown || ''} /> : <>
@@ -266,6 +278,10 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, onResult, 
     {body()}
     {!!choices?.length && feedback && <p role="status" className={`rounded-xl px-4 py-3 font-semibold ${correct === false
       ? 'bg-warn-soft text-warn' : 'bg-brand-tint text-brand'}`}>{correct === false ? '✗ ' : correct ? '✓ ' : ''}{feedback}</p>}
+    {(rightChoice || explanation) && <div className="rounded-xl border border-divider bg-canvas px-4 py-3">
+      {rightChoice && <p><span className="font-semibold">Right answer:</span> {rightChoice.label}</p>}
+      {explanation && <p className={rightChoice ? 'mt-1' : ''}><span className="font-semibold">Why:</span> {explanation}</p>}
+    </div>}
     {attempt.isPending && !choices?.length && <p role="status">Saving…</p>}
     {attempt.isError && <p role="alert">Could not save your work. Try again.</p>}
     {done && !choices?.length && <p role="status" className="text-green-800">{score == null ? 'Completed' : `Completed · ${Math.round(score * 100)}%`}</p>}

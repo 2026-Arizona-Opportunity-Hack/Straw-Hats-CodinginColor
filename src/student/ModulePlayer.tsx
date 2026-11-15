@@ -4,7 +4,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { checkCatPhotoLab, getActivityResponse, getClassmateNotes, getModule, listActivityStatus, recordAttempt } from '../api/student/index.ts'
+import { checkCatPhotoLab, getActivityResponse, getCheckAnswer, getClassmateNotes, getModule, listActivityStatus, recordAttempt } from '../api/student/index.ts'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { isLocalDemo } from '../shared/supabase.ts'
 import { Button } from '../shared/ui/index.tsx'
@@ -127,7 +127,7 @@ export function ModulePlayer() {
         <h1 ref={heading} tabIndex={-1} className={ownTitle ? 'st-serif mb-5 mt-1 text-3xl focus:outline-none' : 'sr-only'}>{stepTitle(activity)}</h1>
         {answeredBefore && savedLoading ? <p role="status">Loading your answer…</p> :
         <ActivityBlock activity={activity} status={statuses.get(activity.id)} onAttempt={recordAttempt} hideTitle answerOnce
-          previousResponse={savedAnswer}
+          previousResponse={savedAnswer} loadCheckAnswer={getCheckAnswer}
           onSaved={() => { setFinishedHere((s) => new Set(s).add(activity.id)); refreshProgress() }}
           onResult={(r) => { if (r.is_correct) setCheer({ text: CHEERS[Math.floor(Math.random() * CHEERS.length)], key: Date.now() }) }}
           allowScripts={isLocalDemo} studentId={studentId} loadDiscussion={getClassmateNotes}
