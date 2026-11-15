@@ -1,0 +1,1749 @@
+{
+  "courses": [
+    {
+      "key": "self-paced",
+      "title": "AI Academy (Self-paced)",
+      "description": "Learn how computers and artificial intelligence work, at your own pace. You will explore how computers process information, AI history and common AI tools, problem-solving with Scratch and Python, data and prediction, and AI ethics, then design an AI idea for your community. Goals: explain how computers and AI systems work, build confidence through hands-on projects, practice critical thinking, and weigh AI's benefits, risks and limits. For grades 6-12. No experience needed.",
+      "level": "beginner",
+      "deliveryMode": "self_paced",
+      "version": "self_paced"
+    },
+    {
+      "key": "classroom",
+      "title": "AI Academy (Classroom)",
+      "description": "Coding in Color's AI Academy for teachers. Students explore how computers process information, AI history and common AI tools, problem-solving with Scratch and Python, data and prediction, and AI ethics and social good, then design and present an AI solution for a real community need. Group activities come as worksheets, and a teacher guide with timings and answer guidance is in the repo (curriculum/ai-academy/teacher-guide.md). For grades 6-12. No experience needed.",
+      "level": "beginner",
+      "deliveryMode": "instructor_led",
+      "version": "classroom"
+    }
+  ],
+  "modules": [
+    {
+      "key": "m1-intro",
+      "title": "Intro to Computers & AI",
+      "concept": "How computers work and what AI is",
+      "published": true,
+      "lessons": [
+        {
+          "key": "welcome",
+          "title": "Welcome & class norms",
+          "activities": [
+            {
+              "key": "welcome",
+              "type": "content",
+              "title": "Welcome to AI Academy",
+              "concept": "class norms",
+              "points": 0,
+              "content": {
+                "markdown": [
+                  "## Welcome to AI Academy",
+                  "",
+                  "Welcome! In AI Academy you will learn how computers work and what artificial intelligence (AI) really is.",
+                  "You do not need any experience. You just need to be curious.",
+                  "",
+                  "### What will we learn?",
+                  "",
+                  "1. Computers and how they process information",
+                  "2. AI history and common AI technologies",
+                  "3. Problem-solving with Scratch and Python",
+                  "4. Data, patterns, and prediction",
+                  "5. Ethics, sustainability, and social good",
+                  "6. A community-focused AI project (capstone)",
+                  "",
+                  "### Course goals",
+                  "",
+                  "By the end, you will be able to:",
+                  "",
+                  "- Explain how computers and AI systems work",
+                  "- Build confidence through hands-on projects",
+                  "- Practice critical thinking and problem-solving",
+                  "- Judge AI's benefits, risks, and limits",
+                  "- Design and present an AI idea for a real need in your community",
+                  "",
+                  "### How we learn together",
+                  "",
+                  "- Be curious - questions are always welcome.",
+                  "- Try before saying, \"I can't.\"",
+                  "- Help others without taking over.",
+                  "- Critique ideas, not people.",
+                  "- Use AI honestly and protect personal information.",
+                  "- Make something you are proud to share."
+                ]
+              }
+            },
+            {
+              "key": "meet-your-classmates",
+              "versions": [
+                "classroom"
+              ],
+              "type": "worksheet",
+              "concept": "class norms",
+              "points": 1,
+              "content": {
+                "title": "Meet Your Classmates",
+                "fields": [
+                  {
+                    "id": "interest",
+                    "kind": "short_answer",
+                    "prompt": "What is one interest your partner shared? (Do not write their last name or other personal details.)"
+                  },
+                  {
+                    "id": "problem",
+                    "kind": "long_answer",
+                    "prompt": "What is one problem your partner hopes technology could help solve?"
+                  },
+                  {
+                    "id": "intro",
+                    "kind": "long_answer",
+                    "prompt": "How will you introduce your partner to the class in one or two sentences?"
+                  }
+                ]
+              }
+            },
+            {
+              "key": "check-norms",
+              "type": "check",
+              "concept": "class norms",
+              "points": 1,
+              "content": {
+                "prompt": "You want an AI chatbot to help write a birthday invitation for a friend. What fits our class norms?",
+                "choices": [
+                  {
+                    "id": "a",
+                    "label": "Paste in your friend's full name, home address and phone number"
+                  },
+                  {
+                    "id": "b",
+                    "label": "Leave out the address and use made-up details"
+                  },
+                  {
+                    "id": "c",
+                    "label": "Ask the chatbot to find your friend's address online"
+                  },
+                  {
+                    "id": "d",
+                    "label": "Tell everyone the AI wrote it by itself with no help"
+                  }
+                ],
+                "answer": "b",
+                "explanation": "Protect personal information. An invitation can be drafted with made-up details, and you can add the real ones yourself later."
+              }
+            }
+          ]
+        },
+        {
+          "key": "pretest",
+          "title": "Pretest: what do you already know?",
+          "activities": [
+            {
+              "key": "pre-survey",
+              "versions": [
+                "classroom"
+              ],
+              "type": "content",
+              "title": "Pre Survey",
+              "concept": "pretest",
+              "points": 0,
+              "countsTowardUnlock": false,
+              "content": {
+                "markdown": [
+                  "## Pre Survey",
+                  "",
+                  "Your teacher will ask you to fill out Coding in Color's short survey before we begin.",
+                  "",
+                  "[Open the Pre Survey](https://tinyurl.com/4wnbsfuw)"
+                ]
+              }
+            },
+            {
+              "key": "pretest",
+              "type": "pretest",
+              "title": "What do you already know?",
+              "concept": "pretest",
+              "points": 0,
+              "content": {
+                "items": [
+                  {
+                    "id": "p1",
+                    "concept": "computer parts",
+                    "prompt": "Which part of a computer follows a program's instructions to process data?",
+                    "choices": [
+                      {
+                        "id": "a",
+                        "label": "Keyboard"
+                      },
+                      {
+                        "id": "b",
+                        "label": "CPU (processor)"
+                      },
+                      {
+                        "id": "c",
+                        "label": "Monitor"
+                      },
+                      {
+                        "id": "d",
+                        "label": "Speaker"
+                      }
+                    ],
+                    "answer": "b"
+                  },
+                  {
+                    "id": "p2",
+                    "concept": "binary",
+                    "prompt": "Computers store text, pictures and sound using:",
+                    "choices": [
+                      {
+                        "id": "a",
+                        "label": "Bits: 0s and 1s"
+                      },
+                      {
+                        "id": "b",
+                        "label": "Only the letters A to Z"
+                      },
+                      {
+                        "id": "c",
+                        "label": "Tiny printed photos"
+                      },
+                      {
+                        "id": "d",
+                        "label": "Recorded sound waves"
+                      }
+                    ],
+                    "answer": "a"
+                  },
+                  {
+                    "id": "p3",
+                    "concept": "early vs modern computers",
+                    "prompt": "Charles Babbage proposed the Difference Engine in 1822. What was it?",
+                    "choices": [
+                      {
+                        "id": "a",
+                        "label": "A steam-powered robot"
+                      },
+                      {
+                        "id": "b",
+                        "label": "An early electronic laptop"
+                      },
+                      {
+                        "id": "c",
+                        "label": "A mechanical calculator built with gears"
+                      },
+                      {
+                        "id": "d",
+                        "label": "The first smartphone"
+                      }
+                    ],
+                    "answer": "c"
+                  },
+                  {
+                    "id": "p4",
+                    "concept": "early vs modern computers",
+                    "prompt": "Compared with early computers, modern computers are usually:",
+                    "choices": [
+                      {
+                        "id": "a",
+                        "label": "Bigger and slower"
+                      },
+                      {
+                        "id": "b",
+                        "label": "Only able to do basic math"
+                      },
+                      {
+                        "id": "c",
+                        "label": "Programmed only with punch cards"
+                      },
+                      {
+                        "id": "d",
+                        "label": "Smaller, faster, and able to run many different programs"
+                      }
+                    ],
+                    "answer": "d"
+                  },
+                  {
+                    "id": "p5",
+                    "concept": "what is AI",
+                    "prompt": "Which is the best description of artificial intelligence (AI)?",
+                    "choices": [
+                      {
+                        "id": "a",
+                        "label": "Any machine that runs on electricity"
+                      },
+                      {
+                        "id": "b",
+                        "label": "Computer systems that do tasks like recognizing patterns, understanding language, or making predictions"
+                      },
+                      {
+                        "id": "c",
+                        "label": "A robot that thinks exactly like a person"
+                      },
+                      {
+                        "id": "d",
+                        "label": "Anything that is connected to the internet"
+                      }
+                    ],
+                    "answer": "b"
+                  },
+                  {
+                    "id": "p6",
+                    "concept": "AI or not",
+                    "prompt": "Which of these is most likely using AI?",
+                    "choices": [
+                      {
+                        "id": "a",
+                        "label": "A basic calculator"
+                      },
+                      {
+                        "id": "b",
+                        "label": "A simple light switch"
+                      },
+                      {
+                        "id": "c",
+                        "label": "Movie suggestions on a streaming app"
+                      },
+                      {
+                        "id": "d",
+                        "label": "A basic vending machine"
+                      }
+                    ],
+                    "answer": "c"
+                  },
+                  {
+                    "id": "p7",
+                    "concept": "how AI learns",
+                    "prompt": "Many AI systems learn by:",
+                    "choices": [
+                      {
+                        "id": "a",
+                        "label": "Finding patterns in lots of training examples"
+                      },
+                      {
+                        "id": "b",
+                        "label": "Reading people's minds"
+                      },
+                      {
+                        "id": "c",
+                        "label": "Guessing randomly every time"
+                      },
+                      {
+                        "id": "d",
+                        "label": "Following one fixed rule that never changes"
+                      }
+                    ],
+                    "answer": "a"
+                  },
+                  {
+                    "id": "p8",
+                    "concept": "AI limits",
+                    "prompt": "An AI chatbot gives you an answer for your science homework. What should you do?",
+                    "choices": [
+                      {
+                        "id": "a",
+                        "label": "Trust it, because AI is never wrong"
+                      },
+                      {
+                        "id": "b",
+                        "label": "Copy it exactly without reading it"
+                      },
+                      {
+                        "id": "c",
+                        "label": "Check it with a trusted source, because AI can make mistakes"
+                      },
+                      {
+                        "id": "d",
+                        "label": "Ask it the same question until it says what you want"
+                      }
+                    ],
+                    "answer": "c"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "key": "computer",
+          "title": "What is a computer?",
+          "activities": [
+            {
+              "key": "what-is-a-computer",
+              "versions": [
+                "self_paced"
+              ],
+              "type": "content",
+              "title": "What is a computer?",
+              "concept": "computer parts",
+              "points": 0,
+              "content": {
+                "markdown": [
+                  "## What is a computer?",
+                  "",
+                  "Take a second and think: what makes something a computer?",
+                  "",
+                  "A **computer** is an electronic device that processes data and performs tasks based on instructions.",
+                  "The instructions are called a **program**.",
+                  "",
+                  "Computers are everywhere. We use them at school, at work, and for fun.",
+                  "We use them to learn, create, communicate, and solve problems.",
+                  "",
+                  "### What can a computer do?",
+                  "",
+                  "- Do hard tasks very quickly, like millions of math problems in a second",
+                  "- Store huge amounts of information, like photos, music and schoolwork",
+                  "- Connect to networks like the internet",
+                  "- Help people communicate, with messages, video calls and email",
+                  "",
+                  "A computer does not think for itself. It follows its program, one instruction at a time, very fast."
+                ]
+              }
+            },
+            {
+              "key": "inside-a-computer",
+              "versions": [
+                "self_paced"
+              ],
+              "type": "content",
+              "title": "How a computer processes information",
+              "concept": "computer parts",
+              "points": 0,
+              "content": {
+                "markdown": [
+                  "## How a computer processes information",
+                  "",
+                  "Every computer has four kinds of parts. Information moves between them.",
+                  "",
+                  "- **Input** brings information in. Examples: keyboard, mouse, microphone, touch screen.",
+                  "- **Processing** follows the program's instructions. This is the **CPU**, sometimes called the computer's \"brain\".",
+                  "- **Memory and storage** hold data and programs. **RAM** is short-term memory for what you are using right now. An **SSD** or hard drive keeps your files even when the power is off.",
+                  "- **Output** shows or plays the result. Examples: screen, speaker, printer.",
+                  "",
+                  "The CPU trades information with memory and storage all the time while it works.",
+                  "",
+                  "### Example: typing and saving your work",
+                  "",
+                  "1. You press keys on the keyboard (input).",
+                  "2. The CPU follows the word processor's instructions (processing).",
+                  "3. Your words sit in RAM while you type (memory).",
+                  "4. The letters appear on the screen (output).",
+                  "5. When you click Save, the file is written to the SSD (storage), so it is still there tomorrow.",
+                  "",
+                  "### Everything is 0s and 1s",
+                  "",
+                  "Inside, a computer turns all information into **binary**: long patterns of 0s and 1s.",
+                  "Each 0 or 1 is called a **bit**.",
+                  "Letters, colors, sounds and videos are all stored as bits.",
+                  "",
+                  "**Big idea:** a program tells the computer how to use the data."
+                ]
+              }
+            },
+            {
+              "key": "build-the-machine",
+              "versions": [
+                "self_paced"
+              ],
+              "type": "interactive_html",
+              "htmlFile": "widgets/build-the-machine.html",
+              "instructions": "Put the computer parts in order and trace what happens when you type and save your work. Click \"Mark as done\" when you finish.",
+              "concept": "computer parts",
+              "points": 1
+            },
+            {
+              "key": "build-the-machine-worksheet",
+              "versions": [
+                "classroom"
+              ],
+              "type": "worksheet",
+              "concept": "computer parts",
+              "points": 2,
+              "content": {
+                "title": "Build the Machine",
+                "fields": [
+                  {
+                    "id": "part",
+                    "kind": "multiple_choice",
+                    "prompt": "Which part did your group research?",
+                    "choices": [
+                      {
+                        "id": "input",
+                        "label": "Input (keyboard or mouse)"
+                      },
+                      {
+                        "id": "processing",
+                        "label": "Processing (CPU)"
+                      },
+                      {
+                        "id": "memory",
+                        "label": "Memory (RAM)"
+                      },
+                      {
+                        "id": "storage",
+                        "label": "Storage (SSD or hard drive)"
+                      },
+                      {
+                        "id": "output",
+                        "label": "Output (screen or speaker)"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "job",
+                    "kind": "short_answer",
+                    "prompt": "What is your part's job?"
+                  },
+                  {
+                    "id": "example",
+                    "kind": "short_answer",
+                    "prompt": "Give one example of your part."
+                  },
+                  {
+                    "id": "trace",
+                    "kind": "long_answer",
+                    "prompt": "Trace typing and saving a word. Which parts does the information pass through, and in what order?"
+                  }
+                ]
+              }
+            },
+            {
+              "key": "check-cpu",
+              "type": "check",
+              "concept": "computer parts",
+              "points": 1,
+              "content": {
+                "prompt": "Which part of a computer follows the program's instructions?",
+                "choices": [
+                  {
+                    "id": "a",
+                    "label": "The keyboard"
+                  },
+                  {
+                    "id": "b",
+                    "label": "The CPU"
+                  },
+                  {
+                    "id": "c",
+                    "label": "The screen"
+                  },
+                  {
+                    "id": "d",
+                    "label": "The speaker"
+                  }
+                ],
+                "answer": "b",
+                "explanation": "The CPU (processor) does the processing. The keyboard is input, and the screen and speaker are output."
+              }
+            },
+            {
+              "key": "binary-name",
+              "versions": [
+                "self_paced"
+              ],
+              "type": "interactive_html",
+              "htmlFile": "widgets/binary-name.html",
+              "instructions": "See how letters turn into 0s and 1s. Nothing you type here is saved. Click \"Mark as done\" when you finish.",
+              "concept": "binary",
+              "points": 1
+            },
+            {
+              "key": "check-binary",
+              "type": "check",
+              "concept": "binary",
+              "points": 1,
+              "content": {
+                "prompt": "How does a computer store a photo, a song, or a text message?",
+                "choices": [
+                  {
+                    "id": "a",
+                    "label": "As tiny printed pictures"
+                  },
+                  {
+                    "id": "b",
+                    "label": "Only as letters"
+                  },
+                  {
+                    "id": "c",
+                    "label": "As patterns of 0s and 1s (bits)"
+                  },
+                  {
+                    "id": "d",
+                    "label": "It cannot store them"
+                  }
+                ],
+                "answer": "c",
+                "explanation": "Computers turn all information into binary: patterns of 0s and 1s called bits."
+              }
+            },
+            {
+              "key": "check-storage",
+              "type": "check",
+              "concept": "computer parts",
+              "points": 1,
+              "content": {
+                "prompt": "You save an essay and turn off your laptop. Which part keeps the essay so it is still there tomorrow?",
+                "choices": [
+                  {
+                    "id": "a",
+                    "label": "The SSD or hard drive (storage)"
+                  },
+                  {
+                    "id": "b",
+                    "label": "RAM (memory)"
+                  },
+                  {
+                    "id": "c",
+                    "label": "The mouse"
+                  },
+                  {
+                    "id": "d",
+                    "label": "The screen"
+                  }
+                ],
+                "answer": "a",
+                "explanation": "RAM only holds what you are using right now and is cleared when the power goes off. Storage keeps files."
+              }
+            }
+          ]
+        },
+        {
+          "key": "then-vs-now",
+          "title": "Then vs. now",
+          "activities": [
+            {
+              "key": "early-computers",
+              "versions": [
+                "self_paced"
+              ],
+              "type": "content",
+              "title": "Early computers",
+              "concept": "early vs modern computers",
+              "points": 0,
+              "content": {
+                "markdown": [
+                  "## Early computers",
+                  "",
+                  "What do you think the oldest computer looked like? It did not have a screen or a keyboard.",
+                  "",
+                  "### The Difference Engine",
+                  "",
+                  "In **1822**, an English inventor named **Charles Babbage** proposed a machine called the **Difference Engine**.",
+                  "It was a **mechanical calculator**. Instead of electronic circuits, it used gears and wheels to work out tables of numbers.",
+                  "",
+                  "It could only do one kind of job: calculating. It was not a general-purpose computer like a laptop, which can run many different programs.",
+                  "",
+                  "Babbage never finished building his machines. Much later, a museum built his design for the **Difference Engine No. 2**.",
+                  "That finished machine weighs about five tons!",
+                  "",
+                  "### Think of a coin sorter",
+                  "",
+                  "A coin sorter helps explain the Difference Engine. Both machines:",
+                  "",
+                  "1. Take in an **input** (for a coin sorter, a pile of mixed coins)",
+                  "2. **Process** it mechanically, with moving parts",
+                  "3. Give an **output** in the end (sorted coins, or a table of answers)",
+                  "",
+                  "Input, processing, output: the same pattern you saw in modern computers."
+                ]
+              }
+            },
+            {
+              "key": "then-and-now",
+              "versions": [
+                "self_paced"
+              ],
+              "type": "content",
+              "title": "Then vs. now",
+              "concept": "early vs modern computers",
+              "points": 0,
+              "content": {
+                "markdown": [
+                  "## Then vs. now",
+                  "",
+                  "The Difference Engine used **gears**. A modern processor uses tiny **electronic circuits**.",
+                  "Both automate calculations using physical parts. But a lot has changed.",
+                  "",
+                  "- **Size:** some early computers filled a whole room. Today, a much more powerful computer fits in your pocket.",
+                  "- **Speed:** modern computers are far faster and more powerful.",
+                  "- **Tasks:** early computers did basic calculations. Modern computers can run many different programs: games, video, maps, and more.",
+                  "- **Input:** early computers needed manual input with punch cards or switches. Today we type, tap, click and talk.",
+                  "",
+                  "### Computers hiding in plain sight",
+                  "",
+                  "Phones, tablets and laptops are computers. So are game consoles, smart TVs, car dashboards, microwaves and digital watches.",
+                  "Can you think of another computer you use every day?"
+                ]
+              }
+            },
+            {
+              "key": "then-vs-now",
+              "versions": [
+                "self_paced"
+              ],
+              "type": "interactive_html",
+              "htmlFile": "widgets/then-vs-now.html",
+              "instructions": "Compare an early computer with a device you use today. Click \"Mark as done\" when you finish.",
+              "concept": "early vs modern computers",
+              "points": 1
+            },
+            {
+              "key": "then-vs-now-worksheet",
+              "versions": [
+                "classroom"
+              ],
+              "type": "worksheet",
+              "concept": "early vs modern computers",
+              "points": 2,
+              "content": {
+                "title": "Then vs. Now",
+                "fields": [
+                  {
+                    "id": "group",
+                    "kind": "multiple_choice",
+                    "prompt": "Which group are you in?",
+                    "choices": [
+                      {
+                        "id": "a",
+                        "label": "Group A: an early computer"
+                      },
+                      {
+                        "id": "b",
+                        "label": "Group B: a device I use"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "computer",
+                    "kind": "short_answer",
+                    "prompt": "Which computer or device did you choose?"
+                  },
+                  {
+                    "id": "size",
+                    "kind": "short_answer",
+                    "prompt": "Size: how big is it?"
+                  },
+                  {
+                    "id": "speed",
+                    "kind": "long_answer",
+                    "prompt": "Speed and tasks: how fast is it, and what can it do?"
+                  },
+                  {
+                    "id": "input",
+                    "kind": "short_answer",
+                    "prompt": "Input method: how do people give it information?"
+                  },
+                  {
+                    "id": "difference",
+                    "kind": "long_answer",
+                    "prompt": "After pairing with the other group: one difference you found."
+                  },
+                  {
+                    "id": "similarity",
+                    "kind": "long_answer",
+                    "prompt": "One similarity you found."
+                  }
+                ]
+              }
+            },
+            {
+              "key": "check-difference-engine",
+              "type": "check",
+              "concept": "early vs modern computers",
+              "points": 1,
+              "content": {
+                "prompt": "Which sentence about Charles Babbage's Difference Engine (1822) is true?",
+                "choices": [
+                  {
+                    "id": "a",
+                    "label": "It was a steam-powered laptop"
+                  },
+                  {
+                    "id": "b",
+                    "label": "It could run any program, like a modern computer"
+                  },
+                  {
+                    "id": "c",
+                    "label": "It used electronic circuits"
+                  },
+                  {
+                    "id": "d",
+                    "label": "It was a mechanical calculator that used gears"
+                  }
+                ],
+                "answer": "d",
+                "explanation": "The Difference Engine was a mechanical calculating machine. It used gears, not electronic circuits, and could only do calculations."
+              }
+            },
+            {
+              "key": "check-then-now",
+              "type": "check",
+              "concept": "early vs modern computers",
+              "points": 1,
+              "content": {
+                "prompt": "What is one big difference between early computers and the computers we use today?",
+                "choices": [
+                  {
+                    "id": "a",
+                    "label": "Early computers were smaller"
+                  },
+                  {
+                    "id": "b",
+                    "label": "Modern computers can run many different programs"
+                  },
+                  {
+                    "id": "c",
+                    "label": "Modern computers need punch cards"
+                  },
+                  {
+                    "id": "d",
+                    "label": "Early computers were faster"
+                  }
+                ],
+                "answer": "b",
+                "explanation": "Modern computers are smaller and faster, and one device can run many different programs. Early computers did basic calculations."
+              }
+            }
+          ]
+        },
+        {
+          "key": "what-is-ai",
+          "title": "What is AI?",
+          "activities": [
+            {
+              "key": "what-is-ai",
+              "versions": [
+                "self_paced"
+              ],
+              "type": "content",
+              "title": "What is AI?",
+              "concept": "what is AI",
+              "points": 0,
+              "content": {
+                "markdown": [
+                  "## What is AI?",
+                  "",
+                  "Before you read on, think: how do you think AI works? Can you name one place you have seen it?",
+                  "",
+                  "**Artificial intelligence (AI)** is a big field of computer science.",
+                  "AI systems are computer systems that do tasks like **recognizing patterns**, **understanding language**, or **making predictions**.",
+                  "These are tasks that usually need human thinking.",
+                  "",
+                  "### How does AI learn?",
+                  "",
+                  "Many AI systems today learn from **examples**. This is called **machine learning**.",
+                  "",
+                  "For example, to teach a computer to spot cats in photos, people show it thousands of photos labeled \"cat\" or \"not cat\".",
+                  "The computer finds patterns in those examples. Then it uses the patterns to make a guess about a new photo it has never seen.",
+                  "",
+                  "Not every AI system uses machine learning, but many of the ones you use every day do.",
+                  "",
+                  "### Automatic does not mean AI",
+                  "",
+                  "A machine that does something by itself is not always AI.",
+                  "A basic calculator or light switch follows fixed instructions. It does the same thing every time and does not find patterns or make predictions."
+                ]
+              }
+            },
+            {
+              "key": "video-machine-learning",
+              "type": "video",
+              "title": "What is Machine Learning? (Code.org)",
+              "concept": "how AI learns",
+              "points": 0,
+              "content": {
+                "url": "https://www.youtube.com/watch?v=OeU5m6vRyCk",
+                "caption": "Watch: What is Machine Learning? (Code.org). After watching, think: what do examples help a machine learn?"
+              }
+            },
+            {
+              "key": "check-ml-examples",
+              "type": "check",
+              "concept": "how AI learns",
+              "points": 1,
+              "content": {
+                "prompt": "In machine learning, what do training examples help a computer learn?",
+                "choices": [
+                  {
+                    "id": "a",
+                    "label": "Patterns it can use on new inputs"
+                  },
+                  {
+                    "id": "b",
+                    "label": "How to feel emotions"
+                  },
+                  {
+                    "id": "c",
+                    "label": "How to stop making any mistakes"
+                  },
+                  {
+                    "id": "d",
+                    "label": "How to work without electricity"
+                  }
+                ],
+                "answer": "a",
+                "explanation": "The computer finds patterns in the examples and uses them to make guesses about new inputs. Bad or missing examples can lead to mistakes."
+              }
+            },
+            {
+              "key": "ai-or-not",
+              "versions": [
+                "self_paced"
+              ],
+              "type": "interactive_html",
+              "htmlFile": "widgets/ai-or-not.html",
+              "instructions": "Sort each example into AI, Not AI, or Depends, and think about your reason. Click \"Mark as done\" when you finish.",
+              "concept": "AI or not",
+              "points": 1
+            },
+            {
+              "key": "ai-or-not-worksheet",
+              "versions": [
+                "classroom"
+              ],
+              "type": "worksheet",
+              "concept": "AI or not",
+              "points": 2,
+              "content": {
+                "title": "AI or Not AI?",
+                "fields": [
+                  {
+                    "id": "calculator",
+                    "kind": "multiple_choice",
+                    "prompt": "A basic calculator",
+                    "choices": [
+                      {
+                        "id": "ai",
+                        "label": "AI"
+                      },
+                      {
+                        "id": "not",
+                        "label": "Not AI"
+                      },
+                      {
+                        "id": "depends",
+                        "label": "Depends"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "netflix",
+                    "kind": "multiple_choice",
+                    "prompt": "Netflix recommendations",
+                    "choices": [
+                      {
+                        "id": "ai",
+                        "label": "AI"
+                      },
+                      {
+                        "id": "not",
+                        "label": "Not AI"
+                      },
+                      {
+                        "id": "depends",
+                        "label": "Depends"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "light-switch",
+                    "kind": "multiple_choice",
+                    "prompt": "A simple light switch",
+                    "choices": [
+                      {
+                        "id": "ai",
+                        "label": "AI"
+                      },
+                      {
+                        "id": "not",
+                        "label": "Not AI"
+                      },
+                      {
+                        "id": "depends",
+                        "label": "Depends"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "siri",
+                    "kind": "multiple_choice",
+                    "prompt": "Siri or another voice assistant",
+                    "choices": [
+                      {
+                        "id": "ai",
+                        "label": "AI"
+                      },
+                      {
+                        "id": "not",
+                        "label": "Not AI"
+                      },
+                      {
+                        "id": "depends",
+                        "label": "Depends"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "thermostat",
+                    "kind": "multiple_choice",
+                    "prompt": "A thermostat",
+                    "choices": [
+                      {
+                        "id": "ai",
+                        "label": "AI"
+                      },
+                      {
+                        "id": "not",
+                        "label": "Not AI"
+                      },
+                      {
+                        "id": "depends",
+                        "label": "Depends"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vending",
+                    "kind": "multiple_choice",
+                    "prompt": "A basic vending machine",
+                    "choices": [
+                      {
+                        "id": "ai",
+                        "label": "AI"
+                      },
+                      {
+                        "id": "not",
+                        "label": "Not AI"
+                      },
+                      {
+                        "id": "depends",
+                        "label": "Depends"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "self-driving",
+                    "kind": "multiple_choice",
+                    "prompt": "A self-driving car",
+                    "choices": [
+                      {
+                        "id": "ai",
+                        "label": "AI"
+                      },
+                      {
+                        "id": "not",
+                        "label": "Not AI"
+                      },
+                      {
+                        "id": "depends",
+                        "label": "Depends"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "reason",
+                    "kind": "long_answer",
+                    "prompt": "Pick one example. What evidence helped you decide?"
+                  }
+                ]
+              }
+            },
+            {
+              "key": "check-ai-or-not",
+              "type": "check",
+              "concept": "AI or not",
+              "points": 1,
+              "content": {
+                "prompt": "Is a thermostat AI?",
+                "choices": [
+                  {
+                    "id": "a",
+                    "label": "Always: it turns on by itself, so it is AI"
+                  },
+                  {
+                    "id": "b",
+                    "label": "Never: thermostats cannot use AI"
+                  },
+                  {
+                    "id": "c",
+                    "label": "It depends: a basic one follows a set temperature rule, but a learning thermostat may use AI"
+                  },
+                  {
+                    "id": "d",
+                    "label": "Only if it is a famous brand"
+                  }
+                ],
+                "answer": "c",
+                "explanation": "Doing something automatically is not proof of AI. A basic thermostat follows one fixed rule. A learning thermostat that finds patterns in your schedule may use AI."
+              }
+            },
+            {
+              "key": "what-can-ai-do",
+              "versions": [
+                "self_paced"
+              ],
+              "type": "content",
+              "title": "What can AI do, and where can it go wrong?",
+              "concept": "AI limits",
+              "points": 0,
+              "content": {
+                "markdown": [
+                  "## What can AI do, and where can it go wrong?",
+                  "",
+                  "### What AI is good at",
+                  "",
+                  "- **Finding patterns**, like spotting a cat in a photo",
+                  "- **Making predictions**, like guessing which movie you will like next",
+                  "- **Creating text or images**, like drafting a message from your prompt",
+                  "- **Understanding speech and language**, like a voice assistant answering a question",
+                  "",
+                  "### Try it in your head",
+                  "",
+                  "Pick a task: recommending a movie, identifying a photo, or drafting a message. Ask yourself:",
+                  "",
+                  "1. What information would the AI need?",
+                  "2. What could it produce?",
+                  "3. Where could it make a mistake?",
+                  "",
+                  "A movie app needs to know what you watched before. It suggests new movies. It could be wrong if your little brother used your account!",
+                  "",
+                  "### Where AI can go wrong",
+                  "",
+                  "- It can state **wrong facts** in a confident voice.",
+                  "- It can be **unfair (biased)** if its examples were unfair.",
+                  "- It can **miss context** that a person would notice.",
+                  "- More data does not automatically make an AI better.",
+                  "",
+                  "Before you trust an AI answer, check it with a trusted source, like a textbook, a teacher, or a reliable website."
+                ]
+              }
+            },
+            {
+              "key": "check-ai-limits",
+              "type": "check",
+              "concept": "AI limits",
+              "points": 1,
+              "content": {
+                "prompt": "A chatbot tells you a fact for your history project. What is the best next step?",
+                "choices": [
+                  {
+                    "id": "a",
+                    "label": "Use it right away, because AI does not make mistakes"
+                  },
+                  {
+                    "id": "b",
+                    "label": "Ask the chatbot if it is sure, and trust whatever it says"
+                  },
+                  {
+                    "id": "c",
+                    "label": "Change a few words so it looks like your own"
+                  },
+                  {
+                    "id": "d",
+                    "label": "Check the fact with a trusted source before you use it"
+                  }
+                ],
+                "answer": "d",
+                "explanation": "AI can state wrong facts confidently. Checking a trusted source is how you know the fact is right."
+              }
+            },
+            {
+              "key": "common-ai",
+              "versions": [
+                "self_paced"
+              ],
+              "type": "content",
+              "title": "Common AI technologies",
+              "concept": "common AI technologies",
+              "points": 0,
+              "content": {
+                "markdown": [
+                  "## Common AI technologies",
+                  "",
+                  "AI is more than chatbots. You probably use these every week:",
+                  "",
+                  "- **Smart assistants** like Siri or Alexa understand your voice and answer questions.",
+                  "- **Recommendation systems** suggest videos, songs, or products based on patterns in what you and others liked.",
+                  "- **Chatbots** write answers to your messages using patterns learned from lots of text.",
+                  "- **Facial recognition** finds and matches faces in photos, for example to unlock a phone.",
+                  "- **Navigation apps** predict traffic and suggest the fastest route.",
+                  "",
+                  "### Your turn",
+                  "",
+                  "Pick one of these. Look it up with a trusted source and find:",
+                  "",
+                  "1. How it works, in your own words",
+                  "2. One surprising fact",
+                  "3. Where you found the information",
+                  "",
+                  "Then ask yourself: what AI applications do you use in your everyday life?"
+                ]
+              }
+            },
+            {
+              "key": "scavenger-hunt-worksheet",
+              "versions": [
+                "classroom"
+              ],
+              "type": "worksheet",
+              "concept": "common AI technologies",
+              "points": 2,
+              "content": {
+                "title": "AI Scavenger Hunt",
+                "fields": [
+                  {
+                    "id": "group",
+                    "kind": "multiple_choice",
+                    "prompt": "Which group are you in?",
+                    "choices": [
+                      {
+                        "id": "assistants",
+                        "label": "Smart assistants"
+                      },
+                      {
+                        "id": "recommendations",
+                        "label": "Recommendation systems"
+                      },
+                      {
+                        "id": "chatbots",
+                        "label": "Chatbots"
+                      },
+                      {
+                        "id": "faces",
+                        "label": "Facial recognition"
+                      },
+                      {
+                        "id": "navigation",
+                        "label": "Navigation apps"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "example",
+                    "kind": "short_answer",
+                    "prompt": "Which real example did you research?"
+                  },
+                  {
+                    "id": "how",
+                    "kind": "long_answer",
+                    "prompt": "How does it work? Use your own words."
+                  },
+                  {
+                    "id": "fact",
+                    "kind": "long_answer",
+                    "prompt": "One surprising fact you found."
+                  },
+                  {
+                    "id": "source",
+                    "kind": "short_answer",
+                    "prompt": "Where did you find this information?"
+                  }
+                ]
+              }
+            },
+            {
+              "key": "check-common-ai",
+              "type": "check",
+              "concept": "common AI technologies",
+              "points": 1,
+              "content": {
+                "prompt": "A navigation app tells you to take a different road because of traffic ahead. What is the AI doing?",
+                "choices": [
+                  {
+                    "id": "a",
+                    "label": "Reading the driver's mind"
+                  },
+                  {
+                    "id": "b",
+                    "label": "Using patterns in traffic data to predict the fastest route"
+                  },
+                  {
+                    "id": "c",
+                    "label": "Following one rule that never changes"
+                  },
+                  {
+                    "id": "d",
+                    "label": "Nothing: maps never use AI"
+                  }
+                ],
+                "answer": "b",
+                "explanation": "Navigation apps use data about traffic and patterns from past trips to predict which route will be fastest."
+              }
+            }
+          ]
+        },
+        {
+          "key": "project",
+          "title": "Project: AI App Investigation",
+          "activities": [
+            {
+              "key": "instructions",
+              "type": "content",
+              "title": "AI App Investigation",
+              "concept": "AI app investigation",
+              "points": 0,
+              "content": {
+                "markdown": [
+                  "## Project: AI App Investigation",
+                  "",
+                  "**Goal:** research and test an AI application.",
+                  "",
+                  "### Steps",
+                  "",
+                  "1. Choose one AI application. Use one your teacher or a parent says is OK, and check the app's age rules.",
+                  "2. Write down its purpose and three key features.",
+                  "3. Test three prompts: one fact-checking prompt, one creative prompt, and one capability question. Pick from the lists below.",
+                  "4. Write a short summary of each response.",
+                  "5. Name one strength and one limitation of the app.",
+                  "6. Get ready to explain your app to a friend in one minute.",
+                  "",
+                  "**Stay safe:** never type personal information, like your full name, address, school or photos, into an AI tool.",
+                  "",
+                  "### 1. General knowledge and fact-checking",
+                  "",
+                  "These test whether the AI gives accurate information. Pick one:",
+                  "",
+                  "- What are the three laws of motion?",
+                  "- What is the Pythagorean Theorem used for?",
+                  "- When did World War II end and who were the major powers involved?",
+                  "",
+                  "### 2. Creative writing and language",
+                  "",
+                  "These test how well the AI writes creative or clear text. Pick one:",
+                  "",
+                  "- Can you write a short story about a robot that learns to feel emotions?",
+                  "- Can you help me write a poem about climate change in the style of Dr. Seuss?",
+                  "- Rewrite this paragraph to sound more professional. (Paste in a paragraph you wrote.)",
+                  "",
+                  "### 3. AI capabilities and limits",
+                  "",
+                  "These help you find out what the AI can and cannot do. Pick one:",
+                  "",
+                  "- Can you explain how you were trained?",
+                  "- Do you have access to real-time news?",
+                  "- Can you tell me who won the Super Bowl last weekend?",
+                  "",
+                  "When you are done, fill in the worksheet in this lesson."
+                ]
+              }
+            },
+            {
+              "key": "ai-app-investigation",
+              "versions": [
+                "self_paced"
+              ],
+              "type": "interactive_html",
+              "htmlFile": "widgets/ai-app-investigation.html",
+              "instructions": "Plan your investigation and pick your three prompts. Nothing you type here is saved, so copy your answers into the worksheet next. Click \"Mark as done\" when you finish.",
+              "concept": "AI app investigation",
+              "points": 1
+            },
+            {
+              "key": "worksheet",
+              "type": "worksheet",
+              "concept": "AI app investigation",
+              "points": 10,
+              "content": {
+                "title": "AI App Investigation",
+                "fields": [
+                  {
+                    "id": "app",
+                    "kind": "short_answer",
+                    "prompt": "Which AI application did you choose, and what is its purpose?"
+                  },
+                  {
+                    "id": "features",
+                    "kind": "long_answer",
+                    "prompt": "List three key features of the app."
+                  },
+                  {
+                    "id": "fact-prompt",
+                    "kind": "long_answer",
+                    "prompt": "Fact-checking prompt: which question did you ask, and what did the AI answer (short summary)? Was it correct?"
+                  },
+                  {
+                    "id": "creative-prompt",
+                    "kind": "long_answer",
+                    "prompt": "Creative prompt: which prompt did you use, and what did the AI produce (short summary)?"
+                  },
+                  {
+                    "id": "capability-prompt",
+                    "kind": "long_answer",
+                    "prompt": "Capability question: which question did you ask, and what did the AI say about what it can or cannot do?"
+                  },
+                  {
+                    "id": "strength",
+                    "kind": "short_answer",
+                    "prompt": "One strength of this app."
+                  },
+                  {
+                    "id": "limitation",
+                    "kind": "short_answer",
+                    "prompt": "One limitation of this app."
+                  },
+                  {
+                    "id": "question",
+                    "kind": "short_answer",
+                    "prompt": "One question you still have."
+                  },
+                  {
+                    "id": "one-minute",
+                    "kind": "long_answer",
+                    "prompt": "Explain this app to a friend in one minute: what would you say?"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "key": "wrap-up",
+          "title": "Wrap-up",
+          "isCheckpoint": true,
+          "activities": [
+            {
+              "key": "exit",
+              "type": "exit",
+              "concept": "AI limits",
+              "points": 1,
+              "content": {
+                "prompt": "Name one way AI could help solve a problem in your community, and one thing you would check before trusting what it says."
+              }
+            },
+            {
+              "key": "posttest",
+              "type": "posttest",
+              "title": "Show what you learned",
+              "concept": "posttest",
+              "points": 8,
+              "content": {
+                "items": [
+                  {
+                    "id": "q1",
+                    "concept": "computer parts",
+                    "prompt": "The CPU is sometimes called the computer's \"brain\". What does it do?",
+                    "choices": [
+                      {
+                        "id": "a",
+                        "label": "Shows pictures on the screen"
+                      },
+                      {
+                        "id": "b",
+                        "label": "Keeps files when the power is off"
+                      },
+                      {
+                        "id": "c",
+                        "label": "Follows a program's instructions to process data"
+                      },
+                      {
+                        "id": "d",
+                        "label": "Lets you type letters"
+                      }
+                    ],
+                    "answer": "c"
+                  },
+                  {
+                    "id": "q2",
+                    "concept": "binary",
+                    "prompt": "What is a bit?",
+                    "choices": [
+                      {
+                        "id": "a",
+                        "label": "A single 0 or 1 that a computer uses to store information"
+                      },
+                      {
+                        "id": "b",
+                        "label": "A small piece of the keyboard"
+                      },
+                      {
+                        "id": "c",
+                        "label": "A type of computer screen"
+                      },
+                      {
+                        "id": "d",
+                        "label": "A short video"
+                      }
+                    ],
+                    "answer": "a"
+                  },
+                  {
+                    "id": "q3",
+                    "concept": "early vs modern computers",
+                    "prompt": "How did Charles Babbage's Difference Engine work?",
+                    "choices": [
+                      {
+                        "id": "a",
+                        "label": "With a touch screen and apps"
+                      },
+                      {
+                        "id": "b",
+                        "label": "With gears and wheels that calculated numbers"
+                      },
+                      {
+                        "id": "c",
+                        "label": "With electronic circuits like a laptop"
+                      },
+                      {
+                        "id": "d",
+                        "label": "With a steam engine that ran any program"
+                      }
+                    ],
+                    "answer": "b"
+                  },
+                  {
+                    "id": "q4",
+                    "concept": "early vs modern computers",
+                    "prompt": "How did people give information to many early computers?",
+                    "choices": [
+                      {
+                        "id": "a",
+                        "label": "By talking to a voice assistant"
+                      },
+                      {
+                        "id": "b",
+                        "label": "By tapping a touch screen"
+                      },
+                      {
+                        "id": "c",
+                        "label": "With punch cards or switches"
+                      },
+                      {
+                        "id": "d",
+                        "label": "Through Wi-Fi"
+                      }
+                    ],
+                    "answer": "c"
+                  },
+                  {
+                    "id": "q5",
+                    "concept": "what is AI",
+                    "prompt": "Which task is an example of AI?",
+                    "choices": [
+                      {
+                        "id": "a",
+                        "label": "A lamp turning on when you flip a switch"
+                      },
+                      {
+                        "id": "b",
+                        "label": "A clock showing the time"
+                      },
+                      {
+                        "id": "c",
+                        "label": "A door that opens with a key"
+                      },
+                      {
+                        "id": "d",
+                        "label": "A photo app recognizing which photos have a dog in them"
+                      }
+                    ],
+                    "answer": "d"
+                  },
+                  {
+                    "id": "q6",
+                    "concept": "AI or not",
+                    "prompt": "Which of these is NOT AI, under ordinary assumptions?",
+                    "choices": [
+                      {
+                        "id": "a",
+                        "label": "A basic calculator"
+                      },
+                      {
+                        "id": "b",
+                        "label": "A voice assistant like Siri"
+                      },
+                      {
+                        "id": "c",
+                        "label": "A self-driving car"
+                      },
+                      {
+                        "id": "d",
+                        "label": "Video recommendations"
+                      }
+                    ],
+                    "answer": "a"
+                  },
+                  {
+                    "id": "q7",
+                    "concept": "how AI learns",
+                    "prompt": "You want to teach a computer to tell apples from oranges. What would machine learning use?",
+                    "choices": [
+                      {
+                        "id": "a",
+                        "label": "One rule: everything round is an apple"
+                      },
+                      {
+                        "id": "b",
+                        "label": "Lots of labeled example photos of apples and oranges"
+                      },
+                      {
+                        "id": "c",
+                        "label": "A faster keyboard"
+                      },
+                      {
+                        "id": "d",
+                        "label": "A bigger screen"
+                      }
+                    ],
+                    "answer": "b"
+                  },
+                  {
+                    "id": "q8",
+                    "concept": "AI limits",
+                    "prompt": "Which is a real limitation of AI tools?",
+                    "choices": [
+                      {
+                        "id": "a",
+                        "label": "They can never make text or images"
+                      },
+                      {
+                        "id": "b",
+                        "label": "They always know today's news"
+                      },
+                      {
+                        "id": "c",
+                        "label": "They are perfect if they have enough data"
+                      },
+                      {
+                        "id": "d",
+                        "label": "They can give wrong or unfair answers while sounding sure"
+                      }
+                    ],
+                    "answer": "d"
+                  }
+                ]
+              }
+            },
+            {
+              "key": "next-up",
+              "type": "content",
+              "title": "Next up",
+              "concept": "AI history",
+              "points": 0,
+              "countsTowardUnlock": false,
+              "content": {
+                "markdown": [
+                  "## Great work!",
+                  "",
+                  "This week you learned how computers process information, how computers changed from gears to circuits, and what AI is.",
+                  "",
+                  "**Next up:** AI History and Common AI Technologies."
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "m2-ai-history",
+      "title": "AI History & Common AI Technologies",
+      "concept": "How AI developed and where we use it",
+      "published": false,
+      "lessons": [
+        {
+          "key": "coming-soon",
+          "title": "Coming soon",
+          "activities": [
+            {
+              "key": "coming-soon",
+              "type": "content",
+              "concept": "AI history",
+              "points": 0,
+              "content": {
+                "markdown": "## Coming soon\n\nIn this module you will explore the history of AI, from early ideas to today's tools, and look closely at common AI technologies."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "m3-scratch-python",
+      "title": "Problem-Solving with Scratch & Python",
+      "concept": "Turning ideas into programs",
+      "published": false,
+      "lessons": [
+        {
+          "key": "coming-soon",
+          "title": "Coming soon",
+          "activities": [
+            {
+              "key": "coming-soon",
+              "type": "content",
+              "concept": "programming",
+              "points": 0,
+              "content": {
+                "markdown": "## Coming soon\n\nIn this module you will solve problems step by step and write your first programs in Scratch and Python."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "m4-data-prediction",
+      "title": "Data, Patterns & Prediction",
+      "concept": "How AI uses data to make predictions",
+      "published": false,
+      "lessons": [
+        {
+          "key": "coming-soon",
+          "title": "Coming soon",
+          "activities": [
+            {
+              "key": "coming-soon",
+              "type": "content",
+              "concept": "data and prediction",
+              "points": 0,
+              "content": {
+                "markdown": "## Coming soon\n\nIn this module you will collect data, look for patterns, and see how AI uses patterns to make predictions."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "m5-ethics",
+      "title": "Ethics, Sustainability & Social Good",
+      "concept": "Using AI fairly and responsibly",
+      "published": false,
+      "lessons": [
+        {
+          "key": "coming-soon",
+          "title": "Coming soon",
+          "activities": [
+            {
+              "key": "coming-soon",
+              "type": "content",
+              "concept": "AI ethics",
+              "points": 0,
+              "content": {
+                "markdown": "## Coming soon\n\nIn this module you will look at fairness, privacy, and the environmental cost of AI, and how AI can be used for social good."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "m6-capstone",
+      "title": "Community AI Capstone",
+      "concept": "Designing an AI solution for a community need",
+      "published": false,
+      "lessons": [
+        {
+          "key": "coming-soon",
+          "title": "Coming soon",
+          "activities": [
+            {
+              "key": "coming-soon",
+              "type": "content",
+              "concept": "capstone",
+              "points": 0,
+              "content": {
+                "markdown": "## Coming soon\n\nIn this capstone you will design and present an AI solution for a real need in your community."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

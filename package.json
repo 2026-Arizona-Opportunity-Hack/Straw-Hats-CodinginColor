@@ -12,6 +12,7 @@
     "dev:instructor": "vite src/instructor --strictPort --port 5176",
     "build:instructor": "tsc -b && vite build src/instructor",
     "dev:runner": "node python-runner/server.mjs",
+    "curriculum": "node scripts/build-curriculum.mjs",
     "test": "vitest run"
   },
   "dependencies": {
