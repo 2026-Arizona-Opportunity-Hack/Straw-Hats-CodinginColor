@@ -133,7 +133,7 @@ On November 15, Lighthouse 13.6.0 scored 100/100 for accessibility on the hosted
 
 Class setup assigns curriculum and offers **Share class code** after creation. Student sign-up and **My classroom** enroll by code and add the linked roster row.
 CSV and manual entry are available on the Roster tab. Imported rows require confirmation before saving and show success after the write completes.
-The import dialog explains that self-sign-up creates its own roster row. Previously issued login cards still work through student sign-in.
+After self-sign-up, teachers use **Review name matches** to confirm a single unlinked name against a single linked student account in the same class. Migration 3021 removes only the duplicate import row and preserves the linked account, enrollment and work. Ambiguous names, imported rows with submissions and rows linked to an existing login stay on the roster.
 Failed saves keep the roster draft available for retry with the same student IDs.
 Admins remove students from a class in **People & roles**. Migration 3015 removes the enrollment and retires its login card while keeping the linked roster row and submissions for re-enrollment. Class pickers display **Class, School**.
 Admin enrollment in **People & roles** confirms the saved membership and active linked roster entry before showing success. The local browser check used the existing SQL RPC for a committed enrollment and replayed a successful HTTP response without a write. An immediate reload preserved only the committed enrollment, which also appeared on the teacher roster.
@@ -160,6 +160,8 @@ The partner CSV still requests program-wide data when needed.
 Apply migration 3017 before deploying the frontend change so the scoped reports can load.
 
 ## Log
+
+- 2026-11-15, Codex: added teacher-confirmed name matching for imported rosters and class-code sign-ups.
 
 - 2026-11-15, Codex: added permanent module deletion and reversible archiving, restored global and class editing for instructors, and added CIC Library course creation, editing, and listing.
 
