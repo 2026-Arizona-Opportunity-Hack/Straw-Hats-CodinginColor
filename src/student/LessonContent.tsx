@@ -1,34 +1,25 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState, type FormEvent } from 'react'
 import Markdown, { defaultUrlTransform } from 'react-markdown'
 import type { ActivityStatus, AttemptInput, recordAttempt } from '../api/student/index.ts'
 import { slidesUrl } from '../instructor/model.ts'
-import type { Choice } from '../shared/types/activities.ts'
+import { CicArticle } from '../shared/curriculum/CicArticle.tsx'
+import { CodeLab, type VerifyWebLab } from '../shared/labs/CodeLab.tsx'
+import { previewCatPhotoChecks } from '../shared/labs/catPhoto.ts'
+import type { Choice, DiscussionState } from '../shared/types/activities.ts'
 import type { Activity, Lesson } from '../shared/types/db.ts'
 import { curriculumUrl } from '../shared/ui/curriculumUrl.ts'
 import { InteractiveHtmlFrame } from '../shared/ui/InteractiveHtmlFrame.tsx'
 import { Button, Card } from '../shared/ui/index.tsx'
+import { DiscussionNotes } from './DiscussionNotes'
 import './lessonContent.css'
 
 export type SubmitActivity = (input: AttemptInput) => ReturnType<typeof recordAttempt>
-
-type ActivityProps = {
-  activity: Activity
-  status?: ActivityStatus
-  onAttempt: SubmitActivity
-  onSaved?: () => void
-  allowScripts?: boolean
-}
-
-function useActivityAttempt(activityId: string, onAttempt: SubmitActivity, onSaved?: () => void) {
-  const [started, setStarted] = useState(() => performance.now())
-  return useMutation({
-    mutationFn: ({ response, score }: { response: unknown; score?: number }) => onAttempt({
-      activity_id: activityId, response, client_score: score, time_on_task_ms: Math.round(performance.now() - started),
-    }),
-    onSuccess: () => { setStarted(performance.now()); onSaved?.() },
-  })
-}
+type LoadDiscussion = (activityId: string) => Promise<DiscussionState>
+const exampleNotes = [
+  { id: 'example-1', answers: { f0: 'A school club could track points in a trivia game.' } },
+  { id: 'example-2', answers: { f0: 'I would use one to count goals at soccer practice.' } },
+]
 
 function AnswerField({ id, prompt, choices }: { id: string; prompt: string; choices?: Choice[] }) {
   return choices?.length ? (
@@ -45,73 +36,76 @@ function AnswerField({ id, prompt, choices }: { id: string; prompt: string; choi
   )
 }
 
-function KnowledgeCheck({ activityId, prompt, choices, status, onAttempt, onSaved }: {
-  activityId: string
-  prompt: string
-  choices: Choice[]
-  status?: ActivityStatus
-  onAttempt: SubmitActivity
-  onSaved?: () => void
+export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScripts = false, verifyLab, labStorageKey,
+  loadDiscussion, studentId, demoDiscussion = false }: {
+  activity: Activity; status?: ActivityStatus; onAttempt: SubmitActivity; onSaved?: () => void; allowScripts?: boolean
+  verifyLab?: VerifyWebLab; labStorageKey?: string
+  loadDiscussion?: LoadDiscussion; studentId?: string; demoDiscussion?: boolean
 }) {
-  const [selected, setSelected] = useState<string>()
-  const checking = useRef(false)
-  const attempt = useActivityAttempt(activityId, onAttempt, onSaved)
-
-  function choose(choiceId: string) {
-    if (checking.current || (choiceId === selected && attempt.isSuccess)) return
-    checking.current = true
-    setSelected(choiceId)
-    attempt.mutate({ response: { choice_id: choiceId } }, {
-      onSettled: () => { checking.current = false },
-    })
-  }
-
-  let feedback = status?.submitted && status.best_score === 1
-    ? 'You answered correctly.' : 'Choose an answer to check your work.'
-  if (attempt.isPending) feedback = 'Checking your answer…'
-  if (attempt.isSuccess) {
-    if (attempt.data.is_correct === true) feedback = 'Correct!'
-    else if (attempt.data.is_correct === false) feedback = 'Incorrect. Try another answer.'
-    else feedback = 'Answer saved.'
-  }
-
-  return <div className="space-y-2">
-    <fieldset aria-busy={attempt.isPending}>
-      <legend className="font-medium">{prompt}</legend>
-      <div className="mt-2 grid gap-2">
-        {choices.map(choice => <Button key={choice.id} variant="secondary"
-          className="w-full justify-start text-left aria-pressed:bg-brand-tint"
-          aria-pressed={choice.id === selected}
-          aria-disabled={attempt.isPending || (choice.id === selected && attempt.isSuccess)}
-          onClick={() => choose(choice.id)}>{choice.label}</Button>)}
-      </div>
-    </fieldset>
-    <p role="status" className={attempt.data?.is_correct === false ? 'text-warn' : 'text-brand'}>
-      {attempt.isError ? '' : feedback}
-    </p>
-    {attempt.isError && <p role="alert">Could not save your answer. Choose an answer again to retry.</p>}
-  </div>
-}
-
-function ActivityForm({ activity, status, onAttempt, onSaved, allowScripts = false }: ActivityProps) {
+  const [started, setStarted] = useState(() => performance.now())
   const formId = useId()
-  const attempt = useActivityAttempt(activity.id, onAttempt, onSaved)
+  const [selectedChoice, setSelectedChoice] = useState<string>()
+  const checkingChoice = useRef(false)
+  const check = activity.type === 'check' ? (activity as Activity<'check'>).content : null
+  const choices = check?.choices
+  const queryClient = useQueryClient()
+  const discussionEnabled = activity.type === 'worksheet' && (activity as Activity<'worksheet'>).content.discussion_enabled === true
+  const discussionKey = ['classmate-notes', studentId, activity.id]
+  const discussion = useQuery({
+    queryKey: discussionKey, enabled: discussionEnabled && !!loadDiscussion,
+    queryFn: () => loadDiscussion!(activity.id),
+  })
+  const canShare = discussionEnabled && (demoDiscussion || discussion.data?.enabled)
+  const attempt = useMutation({
+    mutationFn: ({ response, score }: { response: unknown; score?: number }) => onAttempt({
+      activity_id: activity.id, response, client_score: score, time_on_task_ms: Math.round(performance.now() - started),
+    }),
+    onSuccess: () => {
+      setStarted(performance.now())
+      onSaved?.()
+      if (canShare && loadDiscussion) void queryClient.invalidateQueries({ queryKey: discussionKey })
+    },
+  })
   const done = attempt.isSuccess || status?.submitted
   const score = attempt.data ? attempt.data.score : status?.best_score
   const submit = (response: unknown = {}, score?: number) => attempt.mutate({ response, score })
+  function chooseAnswer(choiceId: string) {
+    if (checkingChoice.current || (choiceId === selectedChoice && attempt.isSuccess)) return
+    checkingChoice.current = true
+    setSelectedChoice(choiceId)
+    attempt.mutate({ response: { choice_id: choiceId } }, {
+      onSettled: () => { checkingChoice.current = false },
+    })
+  }
+
   const complete = <Button type="button" disabled={attempt.isPending} onClick={() => submit()}>Mark as done</Button>
   const responseForm = (fields: { id: string; prompt: string; choices?: Choice[] }[], key?: string) => {
     if (!fields.length) return <><p>No questions were added to this activity.</p>{!done && complete}</>
     function send(event: FormEvent<HTMLFormElement>) {
       event.preventDefault()
+      if (attempt.isPending || (discussionEnabled && loadDiscussion && discussion.isPending)) return
       const data = new FormData(event.currentTarget)
       const answers = Object.fromEntries(fields.map(field => [field.id, String(data.get(formId + field.id) ?? '').trim()]))
-      submit(key ? { [key]: answers } : answers)
+      submit(key ? { [key]: answers, ...(canShare && key === 'fields' ? { share_discussion: true } : {}) } : answers)
     }
-    return <form className="space-y-3" onSubmit={send}>
-      {fields.map(field => <AnswerField key={field.id} {...field} id={formId + field.id} />)}
-      <Button type="submit" disabled={attempt.isPending}>Submit answer{fields.length > 1 ? 's' : ''}</Button>
-    </form>
+    return <>
+      <form className="space-y-3" onSubmit={send} onKeyDown={canShare ? event => {
+        if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+          event.preventDefault()
+          event.currentTarget.requestSubmit()
+        }
+      } : undefined}>
+        {fields.map(field => <AnswerField key={field.id} {...field} id={formId + field.id} />)}
+        {canShare && <p className="text-sm">Your class can see these answers without your name. Leave out personal details.</p>}
+        {discussionEnabled && !loadDiscussion && !demoDiscussion &&
+          <p className="text-sm">Eligible students see anonymous classmate answers after submitting.</p>}
+        <Button type="submit" disabled={attempt.isPending || !!(discussionEnabled && loadDiscussion && discussion.isPending)}>
+          {canShare ? 'Submit and see classmate answers' : `Submit answer${fields.length > 1 ? 's' : ''}`}
+        </Button>
+      </form>
+      {canShare && (discussion.data?.shared || (demoDiscussion && attempt.isSuccess)) &&
+        <DiscussionNotes notes={demoDiscussion ? exampleNotes : discussion.data?.notes ?? []} fields={fields} />}
+    </>
   }
 
   function body() {
@@ -125,7 +119,18 @@ function ActivityForm({ activity, status, onAttempt, onSaved, allowScripts = fal
           {!done && (!reports_score || !allowScripts) && complete}
         </>
       }
-      case 'check':
+      case 'check': {
+        const { prompt } = (activity as Activity<'check'>).content
+        if (!choices?.length) return responseForm([{ id: 'text', prompt }])
+        return <fieldset className="space-y-1" aria-busy={attempt.isPending}>
+          <legend className="font-medium">{prompt}</legend>
+          {choices.map(choice => <Button key={choice.id} type="button" variant="secondary"
+            className="w-full justify-start text-left aria-pressed:bg-brand-tint"
+            aria-pressed={selectedChoice === choice.id}
+            aria-disabled={attempt.isPending || (selectedChoice === choice.id && attempt.isSuccess)}
+            onClick={() => chooseAnswer(choice.id)}>{choice.label}</Button>)}
+        </fieldset>
+      }
       case 'exit': {
         const { prompt, choices } = (activity as Activity<'check' | 'exit'>).content
         return responseForm([{ id: choices?.length ? 'choice_id' : 'text', prompt, choices }])
@@ -150,7 +155,11 @@ function ActivityForm({ activity, status, onAttempt, onSaved, allowScripts = fal
       case 'content':
         return !done && complete
       case 'code': {
-        const { starter_code, prompt } = (activity as Activity<'code'>).content
+        const payload = (activity as Activity<'code'>).content
+        if (payload.lab?.verifier === 'cat-photo-v1') {
+          return <CodeLab payload={payload} verifyWeb={verifyLab ?? previewCatPhotoChecks} storageKey={labStorageKey} completed={status?.submitted} />
+        }
+        const { starter_code, prompt } = payload
         return <>{starter_code && <pre className="overflow-auto"><code>{starter_code}</code></pre>}
           {responseForm([{ id: 'code', prompt: prompt || 'Write your code' }])}</>
       }
@@ -159,43 +168,53 @@ function ActivityForm({ activity, status, onAttempt, onSaved, allowScripts = fal
     }
   }
 
-  return <>
-    {body()}
-    {attempt.isPending && <p role="status">Saving…</p>}
-    {attempt.isError && <p role="alert">Could not save your work. Try again.</p>}
-    {done && <p role="status" className="text-green-800">{score == null ? 'Completed' : `Completed · ${Math.round(score * 100)}%`}</p>}
-  </>
-}
-
-export function ActivityBlock(props: ActivityProps) {
-  const { activity, status, onAttempt, onSaved } = props
   const { content } = activity
   const title = 'title' in content && typeof content.title === 'string' ? content.title : null
   const markdown = activity.type !== 'code' && 'markdown' in content && typeof content.markdown === 'string' ? content.markdown : null
-  const check = activity.type === 'check' ? (activity as Activity<'check'>).content : null
+  const themedArticle = activity.type === 'content' && (activity as Activity<'content'>).content.presentation === 'cic-article'
+  let feedback: string | undefined
+  if (choices?.length) {
+    if (attempt.isPending) feedback = 'Checking your answer…'
+    else if (attempt.isSuccess) {
+      const correct = attempt.data.is_correct
+      feedback = correct === null ? 'Answer saved.' : correct ? 'Correct!' : 'Incorrect. Try another answer.'
+    } else if (!attempt.isError && status?.best_score === 1) feedback = 'You answered correctly.'
+  }
 
   return <div className="min-w-0 space-y-3">
-    {title && <h3 className="text-base font-semibold text-brand">{title}</h3>}
-    {markdown && <Markdown skipHtml urlTransform={curriculumUrl}>{markdown}</Markdown>}
-    {check?.choices?.length
-      ? <KnowledgeCheck activityId={activity.id} prompt={check.prompt} choices={check.choices}
-        status={status} onAttempt={onAttempt} onSaved={onSaved} />
-      : <ActivityForm {...props} />}
+    {themedArticle ? <CicArticle title={title || 'Read and explore'} markdown={markdown || ''} /> : <>
+      {title && <h3 className="text-base font-semibold text-brand">{title}</h3>}
+      {markdown && <Markdown skipHtml urlTransform={curriculumUrl}>{markdown}</Markdown>}
+    </>}
+    {body()}
+    {!!choices?.length && <p role="status" className={attempt.data?.is_correct === false ? 'text-warn' : 'text-brand'}>{feedback}</p>}
+    {attempt.isPending && !choices?.length && <p role="status">Saving…</p>}
+    {attempt.isError && <p role="alert">Could not save your work. Try again.</p>}
+    {done && !choices?.length && <p role="status" className="text-green-800">{score == null ? 'Completed' : `Completed · ${Math.round(score * 100)}%`}</p>}
   </div>
 }
 
-export function LessonContent({ lesson, statuses, onAttempt, onSaved, allowScripts }: {
+export function LessonContent({ lesson, statuses, onAttempt, onSaved, allowScripts, checkLab, studentId, loadDiscussion }: {
   lesson: Lesson & { activities: Activity[] }
   statuses?: ReadonlyMap<string, ActivityStatus>
   onAttempt: (activity: Activity, input: AttemptInput) => ReturnType<SubmitActivity>
   onSaved?: () => void
   allowScripts?: boolean
+  checkLab?: (activityId: string, source: string, signal: AbortSignal) => ReturnType<VerifyWebLab>
+  studentId?: string
+  loadDiscussion?: LoadDiscussion
 }) {
   return <section className="space-y-3">
     <h2 className="text-xl">{lesson.title}</h2>
     {lesson.activities.map(activity => <Card key={activity.id}>
       <ActivityBlock activity={activity} status={statuses?.get(activity.id)} onAttempt={input => onAttempt(activity, input)}
-        onSaved={onSaved} allowScripts={allowScripts} />
+        onSaved={onSaved} allowScripts={allowScripts} studentId={studentId} loadDiscussion={loadDiscussion}
+        labStorageKey={studentId ? 'cic-learn.live-lab:' + studentId + ':' + activity.id : undefined}
+        verifyLab={checkLab && (async (source, signal) => {
+          const verified = await checkLab(activity.id, source, signal)
+          if (verified.completed) onSaved?.()
+          return verified
+        })} />
     </Card>)}
   </section>
 }

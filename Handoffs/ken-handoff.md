@@ -1,4 +1,4 @@
-# Ken's handoff: curriculum builder
+# Ken's handoff: curriculum builder and roster entry
 
 ## Drafts and publication
 
@@ -18,15 +18,23 @@ Authored scripts run only in the loopback mock demo, in a frame with an opaque o
 Keep real student data out of the demo while outbound navigation is under review.
 Use the [CIC Learn lesson style guide](../docs/lesson-style-guide.md) as model instructions for future lesson-plan or slide-deck conversion.
 
+## Curriculum converter
+
+Draft from materials calls the Vercel draft endpoint for signed-in instructors and admins.
+Generated articles use the Cat Photo App presentation in preview and the student player.
+Review notes stay in the dialog, and adding a module starts it unpublished.
+PPTX extraction runs in the browser, and only selected image previews go to the selected model.
+GPT-6.1 Terra is the default. Claude Opus 5.5 is available under High quality.
+Both use the same five-minute function runtime and a dedicated capped OpenRouter key.
+See the [README](../README.md#draft-curriculum-from-materials) for preview configuration.
+
 ## Student preview
 
 Lesson and module previews reuse the renderer from the corresponding student player.
 Preview answers run only in the open preview.
+Selecting a multiple-choice knowledge check answer gives feedback in both the student player and teacher preview.
 Hosted previews use the live response types, safe Markdown and slides support.
 The local preview can also run demo HTML activities and coding labs.
-Multiple-choice knowledge checks react to answer selection in both views.
-Live checks save and score through the existing student submission function.
-Pretests, post-tests, exit questions and written responses keep their submit buttons.
 
 ## Read & check
 
@@ -42,17 +50,43 @@ The demo keeps student edits and submissions locally per published revision.
 Practice results stay out of the live reporting pipeline.
 The seeded course **Try the curriculum builder** includes both labs, a quiz, a written response, and an HTML widget.
 
+The Cat Photo App lab previews HTML and CSS in the scriptless frame.
+Migration 1005 and the `cat-photo-check` Edge Function record completion only when all three checks pass.
+Run `supabase/demo/cat_photo_lab.sql` to add the optional lab to the hosted Cat Photo App.
+The provided `cat.jpg` matches the photo in the freeCodeCamp Cat Photo App project.
+
 ## Supabase student curriculum
 
 Migration 1004 restricts module, lesson, and activity reads using the existing enrollment and unlock rules.
 After applying it, enable `VITE_LIVE_STUDENT_CURRICULUM=true` to use the database for the signed-in student's course list, module content, and attempts.
 Source changes ship before hosted activation.
-Published snapshots, My blocks, and executable labs remain browser-local.
+Mock snapshots and My blocks remain browser-local. Runnable Python labs use the local runner.
 Run `supabase/tests/student_curriculum_access.sql` against a migrated development database to check both access and grading.
+
+## Anonymous class notes
+
+Migration 1006 scopes opt-in worksheet notes to a class and reveals up to 15 after the student's own submission.
+Instructors can review and hide notes for classes they manage.
+The Cat Photo App demo activation script opts in Maryvale without sharing prior submissions.
+
+## Roster entry
+
+Class setup and existing classes share the same CSV and manual-entry controls.
+Both require confirmation before passing validated names to the existing save flow.
+The roster mapping endpoint checks the signed-in Supabase profile and calls Jev through OpenRouter when `OPENROUTER_API_KEY` is set. Otherwise it uses Vercel AI Gateway.
+Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
 
 ## Log
 
-- 2026-11-14, Codex: added immediate feedback to multiple-choice knowledge checks.
+- 2026-11-15, Ken: refreshed immediate knowledge check feedback against the current student player.
+
+- 2026-11-15, Ken: added anonymous classmate notes and teacher moderation.
+
+- 2026-11-14, Ken: added the verified Cat Photo App lab and its local demo.
+
+- 2026-11-14, Ken: added optional OpenRouter support to the Jev roster mapping endpoint.
+
+- 2026-11-14, Ken: added CSV column previews and Jev suggestions, manual entry, and Enter-to-advance navigation.
 
 - 2026-11-14, Ken: added the Read & check template for new courses and empty lessons.
 
@@ -69,3 +103,7 @@ Run `supabase/tests/student_curriculum_access.sql` against a migrated developmen
 - 2026-11-14, Ken: added visual editing, reusable blocks, and local module snapshots in PR #11.
 
 - 2026-11-14, Codex: documented the Cat Photo App style and conversion rules for lesson generation.
+
+- 2026-11-14, Codex: added reviewed proposal conversion with approved references and editable article blocks.
+
+- 2026-11-14, Codex: added PowerPoint text, speaker notes, and opt-in image analysis to the converter.

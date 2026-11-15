@@ -1,4 +1,5 @@
 import { isLocalDemo } from '../shared/supabase.ts';
+import { CicArticle } from '../shared/curriculum/CicArticle';
 import { HtmlActivityPreview } from './HtmlActivity';
 import Markdown from 'react-markdown';
 import { curriculumUrl } from '../shared/ui/curriculumUrl';
@@ -6,6 +7,9 @@ import { activityTypes, embedUrl, slidesUrl, type Activity, type Lesson } from '
 
 export function ActivityPreview({ activity }: { activity: Activity }) {
   const embed = activity.type === 'video' ? embedUrl(activity.url) : activity.type === 'slides' ? slidesUrl(activity.url) : null;
+  if (activity.type === 'content' && activity.presentation === 'cic-article') {
+    return <CicArticle title={activity.title || 'Read and explore'} markdown={activity.markdown} />;
+  }
   return <section className={'ic-article-activity' + (activity.type === 'content' ? '' : ' ic-article-exercise')}>
     <h3>{activity.title || activityTypes[activity.type]}</h3>
     {activity.markdown && <Markdown skipHtml urlTransform={curriculumUrl} components={{

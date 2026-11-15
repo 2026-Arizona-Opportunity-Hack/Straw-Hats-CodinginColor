@@ -77,11 +77,19 @@ function toActivity(row: Row): Activity {
     markdown: str(content.markdown) || (type === 'code' ? str(content.prompt) : ''),
     url: str(content.url), questions,
   };
-  if (type === 'code') activity.code = { starter: str(content.starter_code), tests, solution: str(content.solution) };
+  if (type === 'content' && content.presentation === 'cic-article') activity.presentation = 'cic-article';
+  if (type === 'code') {
+    const lab = content.lab as Json | undefined;
+    activity.code = { starter: str(content.starter_code), tests, solution: str(content.solution) };
+    if (lab?.verifier === 'cat-photo-v1') activity.code.lab = {
+      language: 'web', verifier: 'cat-photo-v1', starterCss: str(lab.starterCss), checks: [],
+    };
+  }
   if (type === 'interactive_html') activity.interactiveHtml = {
     html: str(content.html), instructions: str(content.instructions), reports_score: Boolean(content.reports_score),
   };
   if (content.format === 'open-ended') activity.format = 'open-ended';
+  if (type === 'worksheet') activity.discussionEnabled = content.discussion_enabled === true;
   return activity;
 }
 
@@ -92,13 +100,13 @@ export function activityContent(activity: Activity): Json {
   const first = activity.questions[0];
   const base: Json = { title: activity.title, questions: activity.questions };
   switch (activity.type) {
-    case 'content': return { ...base, markdown: activity.markdown };
+    case 'content': return { ...base, markdown: activity.markdown, ...(activity.presentation ? { presentation: activity.presentation } : {}) };
     case 'video':
     case 'slides': return { ...base, url: activity.url, caption: activity.title, markdown: activity.markdown };
     case 'check': return { ...base, prompt: first?.prompt ?? '', choices: first ? choices(first) : [], answer: first ? answerId(first) : undefined, markdown: activity.markdown };
     case 'exit': return { ...base, prompt: first?.prompt ?? '', choices: first ? choices(first) : [], markdown: activity.markdown };
     case 'worksheet': return {
-      ...base, markdown: activity.markdown, format: activity.format,
+      ...base, markdown: activity.markdown, format: activity.format, discussion_enabled: !!activity.discussionEnabled,
       fields: activity.questions.map((q, i) => q.choices.some(c => c.trim())
         ? { id: 'f' + i, kind: 'multiple_choice', prompt: q.prompt, choices: choices(q) }
         : { id: 'f' + i, kind: activity.format === 'open-ended' ? 'long_answer' : 'short_answer', prompt: q.prompt }),
@@ -113,6 +121,7 @@ export function activityContent(activity: Activity): Json {
       ...base, prompt: activity.markdown, markdown: activity.markdown, starter_code: activity.code?.starter ?? '',
       tests: (activity.code?.tests ?? '').split('\n').filter(line => line.trim()).map((assertion, i) => ({ name: 'Test ' + (i + 1), assertion })),
       solution: activity.code?.solution ?? '',
+      ...(activity.code?.lab?.verifier === 'cat-photo-v1' ? { lab: activity.code.lab } : {}),
     };
   }
 }

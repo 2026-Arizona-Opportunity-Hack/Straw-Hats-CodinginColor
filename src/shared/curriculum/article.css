@@ -1,0 +1,24 @@
+.cic-lesson-article { color: #16312a; background: #f8f7ef; border: 1px solid #d5ddd2; container-type: inline-size; }
+.cic-lesson-article > header { padding: 22px 24px; background: #eef1e4; border-bottom: 1px solid #d5ddd2; }
+.cic-lesson-article h3, .cic-lesson-article h4 { font-family: "DM Serif Text", Georgia, serif; font-weight: 400; line-height: 1.1; }
+.cic-lesson-article h3 { margin: 0; font-size: clamp(2rem, 5cqw, 3.4rem); overflow-wrap: anywhere; }
+.cic-lesson-layout { display: flex; align-items: start; gap: 28px; padding: 24px; }
+.cic-lesson-layout nav { position: sticky; top: 16px; flex: 0 0 min(25%, 205px); min-width: 0; font-size: .9rem; }
+.cic-lesson-layout nav ul { list-style: none; margin: 8px 0 0; padding: 0; overflow-wrap: anywhere; }
+.cic-lesson-layout a { color: #245a43; text-decoration: underline; text-underline-offset: .15em; }
+.cic-lesson-layout nav a { display: block; border-left: 2px solid #d5ddd2; padding: 5px 8px; }
+.cic-lesson-layout a:hover { background: #eaf0e6; }
+.cic-lesson-layout :focus-visible { outline: 3px solid #8a5029; outline-offset: 3px; }
+.cic-lesson-prose { min-width: 0; width: 100%; max-width: 68ch; font: 1rem/1.65 "DM Sans", system-ui, sans-serif; overflow-wrap: anywhere; }
+.cic-lesson-article .cic-lesson-prose > * + * { margin-block-start: .85em; }
+.cic-lesson-article .cic-lesson-prose h4 { padding-top: 16px; border-top: 1px solid #d5ddd2; font-size: clamp(1.5rem, 3.7cqw, 2.35rem); scroll-margin-top: 22px; }
+.cic-lesson-prose h5 { font-weight: 700; }
+.cic-lesson-article .cic-lesson-prose pre { overflow: auto; padding: 14px 16px; border-radius: 6px; background: #162c27; color: #ebf3eb; }
+.cic-lesson-prose :not(pre) > code { background: #eaf0e6; padding-inline: .25em; }
+.cic-lesson-prose ul, .cic-lesson-prose ol { padding-inline-start: 1.3em; list-style: revert; }
+.cic-lesson-prose blockquote { padding: 9px 12px; background: #eaf0e6; border-left: 3px solid #2e674f; }
+@container (max-width: 620px) {
+  .cic-lesson-layout { display: block; padding: 15px; }
+  .cic-lesson-layout nav { position: static; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid #d5ddd2; }
+  .cic-lesson-article > header { padding: 18px 15px; }
+}

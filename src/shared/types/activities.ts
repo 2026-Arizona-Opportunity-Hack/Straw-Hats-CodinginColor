@@ -17,6 +17,8 @@ export type ActivityType =
 export interface ContentPayload {
   /** Markdown, rendered sanitized. zyBooks-style text section. */
   markdown: string
+  presentation?: 'cic-article'
+  title?: string
 }
 
 export interface VideoPayload {
@@ -48,7 +50,11 @@ export type WorksheetField =
 export interface WorksheetPayload {
   title: string
   fields: WorksheetField[]
+  discussion_enabled?: boolean
 }
+
+export type DiscussionNote = { id: string; answers: Record<string, string> }
+export type DiscussionState = { enabled: boolean; shared: boolean; notes: DiscussionNote[] }
 
 export interface CodeTest {
   name: string
@@ -64,6 +70,7 @@ export interface LabCheck {
 
 export interface CodingLabSettings {
   language: 'python' | 'web'
+  verifier?: 'cat-photo-v1'
   starterCss?: string
   checks: LabCheck[]
 }
