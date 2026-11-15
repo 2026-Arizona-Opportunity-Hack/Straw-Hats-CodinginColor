@@ -68,7 +68,7 @@ npm install
 npm run dev            # http://localhost:5173
 ```
 
-With the Supabase values in `.env` left empty, the app runs on **mock data** and the login page shows a role picker (student, instructor, admin, reviewer).
+With the Supabase values in `.env` left empty, the app runs on **mock data**. Students get a demo button; staff sign in with `admin`, `teacher` or `reviewer` and password `cic-learn-demo`. With Supabase, staff use their email, or just the part before `@` if it ends in `VITE_STAFF_EMAIL_DOMAIN`.
 Fill them in to use a real Supabase project, then apply the migrations and demo data with the Supabase CLI:
 
 ```bash
@@ -111,7 +111,7 @@ Frontend code calls only the functions in `src/api/`; each one returns mock data
 
 ### Admin pages
 
-CIC staff run the program from `/admin`. In mock mode, pick **Admin** on the login page.
+CIC staff run the program from `/admin`. In mock mode, sign in as staff with username `admin` and password `cic-learn-demo`.
 
 | Page | What CIC staff can do |
 |---|---|
