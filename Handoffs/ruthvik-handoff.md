@@ -144,6 +144,7 @@ Keep it short; link to code instead of copying it.
 Put each sentence on its own line.
 
 ## Log
+- 2026-11-14 9:40 PM, Ruthvik: restyled the 5 AI Academy widget pages with one shared look (indigo header band, cyan accent) and CSS-only motion (answer pop and shake, packet flow, bit toggles, 3D flips, score and progress bars, confetti); all motion stops under reduced motion. Score and progress bars are inline, not sticky, because the frame now grows to full height. Content and logic unchanged; SQL regenerated, not applied.
 
 - 2026-11-14 9:00 PM, Ruthvik: AI Academy preloaded curriculum from CIC's Week 1 deck (`curriculum/`, see its README). One source builds a self-paced and a classroom library course; Module 1 is full with 5 HTML-and-CSS interactive pages (no scripts, so they run on live); modules 2-6 are stubs. `npm run curriculum` writes `supabase/curriculum/ai-academy.sql`. Teacher notes are in `curriculum/ai-academy/teacher-guide.md`, not in lessons, since students can open every activity. Vitest and oxlint now skip `.claude/` agent worktrees.
 - 2026-11-14 8:30 PM, Ruthvik: fixes from a code review (ponytail-review checklist). Course saves write only changed rows; attempts load in pages past Supabase's 1000-row cap; first tests (Vitest, 12); gradebook shows "Not due yet" and leaves not-due and ungraded work out of totals; warning when a saved score no longer matches an edited rubric; pages load per section (main bundle is now framework only); gradebook total column stays visible.
