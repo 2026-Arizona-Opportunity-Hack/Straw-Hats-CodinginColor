@@ -86,11 +86,15 @@ The existing class course and Python assignments stay in place.
 ## Roster entry
 
 Class setup and existing classes share the same CSV and manual-entry controls.
-Both require confirmation before passing validated names to the existing save flow.
+Both require confirmation before saving validated names.
+Class setup and existing-class imports show success after the roster write completes.
+Failed saves keep the roster draft available for retry with the same student IDs.
 The roster mapping endpoint checks the signed-in Supabase profile and calls Jev through OpenRouter when `OPENROUTER_API_KEY` is set. Otherwise it uses Vercel AI Gateway.
 Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
 
 ## Log
+
+- 2026-11-15, Codex: fixed early roster success and verified both flows with a delayed demo save, a failed save retry, and an immediate reload after success.
 
 - 2026-11-15, Ken: linked the verified Cat Photo App lab and reflection to the Maryvale assignment.
 

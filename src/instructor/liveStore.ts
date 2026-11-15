@@ -392,7 +392,12 @@ async function syncCourse(supabase: SupabaseClient, userId: string, course: Cour
   await upsert(supabase, 'activities', changedRows(before.activities, next.activities));
 }
 
-async function syncClass(supabase: SupabaseClient, userId: string, next: ClassGroup, prev: ClassGroup | undefined) {
+export async function saveLiveClass(
+  supabase: SupabaseClient, userId: string, next: ClassGroup, prev?: ClassGroup, attempted?: ClassGroup,
+) {
+  // A failed class setup may have written some rows. Remove ones omitted on retry,
+  // and still upsert every requested row until a save has completed.
+  const removable = prev ?? attempted;
   if (!prev || !same({ ...prev, learners: 0, assignments: 0, moduleIds: 0, submissions: 0 }, { ...next, learners: 0, assignments: 0, moduleIds: 0, submissions: 0 })) {
     const row: Row = { id: next.id, name: next.name, school: next.school, course_id: next.courseId, join_code: next.joinCode };
     if (!prev) row.created_by = userId;
@@ -400,7 +405,7 @@ async function syncClass(supabase: SupabaseClient, userId: string, next: ClassGr
   }
   if (!prev || !same(prev.moduleIds, next.moduleIds)) {
     const keep = new Set(next.moduleIds);
-    const unassigned = (prev?.moduleIds ?? []).filter(id => !keep.has(id));
+    const unassigned = (removable?.moduleIds ?? []).filter(id => !keep.has(id));
     if (unassigned.length) fail('update assigned modules', (await supabase.from('class_modules').delete().eq('class_id', next.id).in('module_id', unassigned)).error);
     const before = new Set(prev?.moduleIds ?? []);
     const added = next.moduleIds.filter(id => !before.has(id)).map(module_id => ({ class_id: next.id, module_id }));
@@ -409,7 +414,7 @@ async function syncClass(supabase: SupabaseClient, userId: string, next: ClassGr
   const prevLearners = new Map((prev?.learners ?? []).map(l => [l.id, l]));
   const learners = next.learners;
   if (!prev || !same(prev.learners.map(l => [l.id, l.name, l.passcode]), learners.map(l => [l.id, l.name, l.passcode]))) {
-    await deleteRemoved(supabase, 'class_students', (prev?.learners ?? []).map(l => l.id), learners.map(l => l.id));
+    await deleteRemoved(supabase, 'class_students', (removable?.learners ?? []).map(l => l.id), learners.map(l => l.id));
     await upsert(supabase, 'class_students', learners
       .filter(l => { const old = prevLearners.get(l.id); return !old || old.name !== l.name || old.passcode !== l.passcode; })
       .map(l => ({ id: l.id, class_id: next.id, display_name: l.name, passcode: l.passcode })));
@@ -444,6 +449,6 @@ export async function saveLiveData(supabase: SupabaseClient, userId: string, pre
   }
   const prevClasses = new Map(prev.classes.map(c => [c.id, c]));
   for (const group of next.classes) {
-    if (!same(prevClasses.get(group.id), group)) await syncClass(supabase, userId, group, prevClasses.get(group.id));
+    if (!same(prevClasses.get(group.id), group)) await saveLiveClass(supabase, userId, group, prevClasses.get(group.id));
   }
 }
