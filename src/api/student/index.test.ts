@@ -33,3 +33,30 @@ test('keeps the existing demo before the live curriculum is enabled', async () =
   expect(await student.listMyCourses()).not.toHaveLength(0)
   expect(rpc).not.toHaveBeenCalled()
 })
+
+test('lets a demo student pick a self-paced course', async () => {
+  vi.stubEnv('VITE_LIVE_STUDENT_CURRICULUM', '')
+  const student = await import('./index.ts')
+  expect((await student.listAvailableCourses()).map(c => c.id)).toEqual(['course-ai-academy'])
+  expect((await student.listMyCourses()).map(c => c.id)).not.toContain('course-ai-academy')
+
+  await student.enrollInCourse('course-ai-academy')
+  expect((await student.listMyCourses()).map(c => c.id)).toContain('course-ai-academy')
+  expect(await student.listAvailableCourses()).toEqual([])
+  expect((await student.listModuleStatus('course-ai-academy'))[0]).toMatchObject({ module_id: 'mod-ai-what', state: 'available' })
+
+  await expect(student.enrollInCourse('course-ai-basics')).rejects.toThrow('COURSE_NOT_AVAILABLE')
+  expect(rpc).not.toHaveBeenCalled()
+})
+
+test('enrolls through the RPC and explains its errors in plain words', async () => {
+  vi.stubEnv('VITE_LIVE_STUDENT_CURRICULUM', 'true')
+  const student = await import('./index.ts')
+  rpc.mockResolvedValueOnce({ data: null, error: { message: 'ALREADY_IN_CLASS' } })
+  const error = await student.enrollInCourse('course-1').catch((e: unknown) => e)
+  expect(rpc).toHaveBeenCalledWith('enroll_in_course', { p_course_id: 'course-1' })
+  expect(student.enrollErrorMessage(error)).toBe('You already take this course with your class. Find it under My courses.')
+  expect(student.enrollErrorMessage(new Error('COURSE_NOT_AVAILABLE'))).toBe('This course is not open for enrollment right now.')
+  expect(student.enrollErrorMessage(new Error('STUDENTS_ONLY'))).toBe('Only student accounts can enroll in courses.')
+  expect(student.enrollErrorMessage(new Error('Failed to fetch'))).toMatch(/try again/)
+})
