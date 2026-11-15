@@ -49,13 +49,24 @@ The demo keeps student edits and submissions locally per published revision.
 Practice results stay out of the live reporting pipeline.
 The seeded course **Try the curriculum builder** includes both labs, a quiz, a written response, and an HTML widget.
 
+The Cat Photo App lab previews HTML and CSS in the scriptless frame.
+Migration 1005 and the `cat-photo-check` Edge Function record completion only when all three checks pass.
+Run `supabase/demo/cat_photo_lab.sql` to add the optional lab to the hosted Cat Photo App.
+The provided `cat.jpg` matches the photo in the freeCodeCamp Cat Photo App project.
+
 ## Supabase student curriculum
 
 Migration 1004 restricts module, lesson, and activity reads using the existing enrollment and unlock rules.
 After applying it, enable `VITE_LIVE_STUDENT_CURRICULUM=true` to use the database for the signed-in student's course list, module content, and attempts.
 Source changes ship before hosted activation.
-Published snapshots, My blocks, and executable labs remain browser-local.
+Mock snapshots and My blocks remain browser-local. Runnable Python labs use the local runner.
 Run `supabase/tests/student_curriculum_access.sql` against a migrated development database to check both access and grading.
+
+## Anonymous class notes
+
+Migration 1006 scopes opt-in worksheet notes to a class and reveals up to 15 after the student's own submission.
+Instructors can review and hide notes for classes they manage.
+The Cat Photo App demo activation script opts in Maryvale without sharing prior submissions.
 
 ## Roster entry
 
@@ -65,6 +76,10 @@ The roster mapping endpoint checks the signed-in Supabase profile and calls Jev 
 Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
 
 ## Log
+
+- 2026-11-15, Ken: added anonymous classmate notes and teacher moderation.
+
+- 2026-11-14, Ken: added the verified Cat Photo App lab and its local demo.
 
 - 2026-11-14, Ken: added optional OpenRouter support to the Jev roster mapping endpoint.
 
