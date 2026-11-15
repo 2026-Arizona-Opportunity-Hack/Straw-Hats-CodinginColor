@@ -153,6 +153,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-14 11:30 PM, Ruthvik: organized Curriculum into My courses and CIC library (Preview; admins also Edit). Library courses are picked directly in Create a class step 3 and imported when the class is created; `LibraryImport.tsx` is gone.
 - 2026-11-14 9:00 PM, Ruthvik: import a library course as the instructor's own copy (Create a class and Curriculum), migration 2004 `copy_library_course` (applied 9:10 PM), library courses never written back by `saveLiveData`, tests.
 - 2026-11-14 8:30 PM, Ruthvik: fixes from a code review (ponytail-review checklist). Course saves write only changed rows; attempts load in pages past Supabase's 1000-row cap; first tests (Vitest, 12); gradebook shows "Not due yet" and leaves not-due and ungraded work out of totals; warning when a saved score no longer matches an edited rubric; pages load per section (main bundle is now framework only); gradebook total column stays visible.
 - 2026-11-14 7:30 PM, Ruthvik: merged `main` (Shivraj's 1001, 1002). Did Shivraj's items 4 (answer keys in the builder) and 5 (scoring rules). Found and fixed the stale-save data loss above. Moved handoffs from `docs/` to `Handoffs/`. Restored the two demo assignments by re-running `supabase/demo/*.sql`; opened PR #18.

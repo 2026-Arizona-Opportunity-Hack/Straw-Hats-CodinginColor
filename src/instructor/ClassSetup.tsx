@@ -1,8 +1,7 @@
 import { useRef, useState } from 'react';
-import { ArrowRight, Check, FileSpreadsheet, Upload } from 'lucide-react';
+import { ArrowRight, BookOpen, Check, FileSpreadsheet, Library, Upload } from 'lucide-react';
 import type { ClassGroup, Course } from './model';
-import { assignableCourses, id, makeLearners } from './model';
-import { LibraryImport } from './LibraryImport';
+import { assignableCourses, id, makeLearners, publishedCourses } from './model';
 import { readRoster, rosterTemplate, sampleRoster, type RosterRow } from './roster';
 import { PageHeader, Panel } from './ui';
 
@@ -81,7 +80,11 @@ export function RosterUpload({ rows, setRows }: { rows: RosterRow[]; setRows: (r
 export function ClassSetup({ courses, classes, onCreate, onImport }: {
   courses: Course[]; classes: ClassGroup[]; onCreate: (group: ClassGroup) => void; onImport: (source: Course) => Promise<Course>;
 }) {
-  const available = assignableCourses(courses);
+  const library = publishedCourses(courses.filter(course => course.library));
+  const own = assignableCourses(courses);
+  // Library courses first: picking one imports it into the instructor's courses when the class is created.
+  const available = [...library, ...own];
+  const [busy, setBusy] = useState(false);
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [school, setSchool] = useState('');
@@ -90,7 +93,6 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
   const [moduleIds, setModuleIds] = useState(available[0]?.modules.map(module => module.id) || []);
   const [error, setError] = useState('');
   const stepHeading = useRef<HTMLHeadingElement>(null);
-  const courseSelect = useRef<HTMLSelectElement>(null);
   const valid = rows.filter(row => !row.issue).map(row => row.name);
   const course = available.find(course => course.id === courseId);
   const selectedModules = course?.modules.filter(module => moduleIds.includes(module.id)) || [];
@@ -102,7 +104,13 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
     requestAnimationFrame(() => stepHeading.current?.focus());
   }
 
-  function submit(event: React.FormEvent) {
+  function pickCourse(next: Course) {
+    setCourseId(next.id);
+    setModuleIds(next.modules.map(module => module.id));
+    setError('');
+  }
+
+  async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (step === 0 && (!name.trim() || !school.trim())) {
       setError('Enter a class name and school.');
@@ -117,9 +125,24 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
       setError('Pick a course and at least one published module.');
       return;
     }
+    let target = course;
+    let targetModules = selectedModules.map(module => module.id);
+    if (course.library) {
+      setBusy(true);
+      try {
+        target = await onImport(course);
+        // The import keeps module order, so map the chosen modules by position.
+        targetModules = course.modules.flatMap((module, index) => moduleIds.includes(module.id) && target.modules[index] ? [target.modules[index].id] : []);
+      } catch (problem) {
+        setError(problem instanceof Error ? problem.message : 'Could not add that course. Try again.');
+        return;
+      } finally {
+        setBusy(false);
+      }
+    }
     let joinCode: string;
     do { joinCode = id().slice(0, 6).toUpperCase(); } while (classes.some(group => group.joinCode === joinCode));
-    onCreate({ id: id(), name: name.trim(), school: school.trim(), courseId, joinCode, moduleIds: selectedModules.map(module => module.id), learners: makeLearners(valid) });
+    onCreate({ id: id(), name: name.trim(), school: school.trim(), courseId: target.id, joinCode, moduleIds: targetModules, learners: makeLearners(valid) });
   }
 
   return <>
@@ -138,26 +161,26 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
         </div>}
         <div hidden={step !== 1}><RosterUpload rows={rows} setRows={next => { setRows(next); setError(''); }} /></div>
         {step === 2 && <div className="ic-stack ic-section-gap">
-          {!available.length ? <p>Publish a module in <a href="#/curriculum">Curriculum</a> or import a library course below before assigning it.</p> : <>
-            <label>Course<select ref={courseSelect} value={courseId} onChange={event => {
-              setCourseId(event.target.value);
-              setModuleIds(available.find(course => course.id === event.target.value)?.modules.map(module => module.id) || []);
-            }}>{available.map(course => <option key={course.id} value={course.id}>{course.title}</option>)}</select></label>
+          {!available.length ? <p>Publish a module in <a href="#/curriculum">Curriculum</a> before assigning it.</p> : <>
+            {[['CIC library', library, 'Ready-made by Coding in Color. It is added to your courses so you can change it later.'], ['My courses', own, '']].map(([label, group, hint]) => (group as Course[]).length > 0 &&
+              <fieldset key={label as string} className="ic-course-pick"><legend>{label as string}</legend>
+                {hint && <p className="ic-note">{hint as string}</p>}
+                {(group as Course[]).map(option => <label key={option.id} className="ic-pick-card">
+                  <input type="radio" name="course" checked={courseId === option.id} onChange={() => pickCourse(option)} />
+                  <span className={"ic-class-mark" + (option.library ? " ic-library-mark" : "")} aria-hidden="true">{option.library ? <Library size={18} /> : <BookOpen size={18} />}</span>
+                  <span><strong>{option.title}</strong>
+                    {option.description && <span className="ic-note ic-clamp-2">{option.description}</span>}</span>
+                </label>)}
+              </fieldset>)}
             <fieldset><legend>Modules</legend><p className="ic-note">Students see assigned modules in this order.</p>
               {course?.modules.map(module => <label className="ic-checkbox" key={module.id}><input type="checkbox" checked={moduleIds.includes(module.id)} onChange={event => setModuleIds(ids => event.target.checked ? [...ids, module.id] : ids.filter(id => id !== module.id))} />{module.title}</label>)}
             </fieldset>
           </>}
-          <LibraryImport courses={courses} onImport={onImport} onImported={copy => {
-            setCourseId(copy.id);
-            setModuleIds(copy.modules.filter(module => module.published).map(module => module.id));
-            setError('');
-            requestAnimationFrame(() => courseSelect.current?.focus());
-          }} />
         </div>}
         {error && <p className="ic-error" role="alert">{error}</p>}
         <div className="ic-form-footer">
           {step > 0 && <button type="button" className="ic-button" onClick={() => move(step - 1)}>Back</button>}
-          <button className="ic-button ic-primary" type="submit">{['Continue to roster', 'Choose curriculum', 'Create class'][step]} <ArrowRight size={16} /></button>
+          <button className="ic-button ic-primary" type="submit" disabled={busy}>{busy ? 'Creating class…' : ['Continue to roster', 'Choose curriculum', 'Create class'][step]} <ArrowRight size={16} /></button>
         </div>
       </form></Panel>
       <Panel title="Class summary"><dl className="ic-summary">
