@@ -1,0 +1,45 @@
+/* Owner: Shivraj. Explore page: course cards, subject chips and the course preview dialog. */
+.ex-chip {
+  min-height: 44px; padding: 0 18px; border-radius: 999px; font-weight: 600; background: #fff;
+  border: 1.5px solid var(--color-divider); color: #14181a; transition: background .2s, color .2s, border-color .2s, transform .15s;
+}
+.ex-chip:hover { border-color: var(--color-brand); transform: translateY(-1px); }
+.ex-chip[aria-pressed='true'] { background: var(--color-brand); border-color: var(--color-brand); color: #fff; }
+
+.ex-card {
+  border: 1.5px solid transparent; box-shadow: 0 10px 30px -22px rgb(20 24 26 / .45);
+  transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s, border-color .25s;
+}
+.ex-card:hover, .ex-card:focus-visible {
+  transform: translateY(-4px); border-color: var(--color-brand-accent);
+  box-shadow: 0 22px 40px -22px rgb(0 122 61 / .45);
+}
+.ex-card:active { transform: translateY(-1px) scale(.99); }
+.ex-logo { background: var(--color-brand-tint); transition: transform .3s cubic-bezier(.2,.8,.2,1); }
+.ex-card:hover .ex-logo { transform: rotate(-6deg) scale(1.08); }
+.ex-badge { border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+
+.ex-card-in { animation: ex-rise .45s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(min(var(--i), 12) * 45ms); }
+@keyframes ex-rise { from { opacity: 0; transform: translateY(14px); } }
+
+.ex-cta {
+  display: inline-flex; min-height: 48px; align-items: center; justify-content: center; border-radius: 12px;
+  padding: 0 22px; font-weight: 700; color: #fff; background: var(--color-brand);
+  box-shadow: 0 10px 22px -12px rgb(0 122 61 / .8); transition: background .2s, transform .15s;
+}
+.ex-cta:hover:not(:disabled) { background: var(--color-brand-dark); transform: translateY(-1px); }
+.ex-cta:disabled { opacity: .6; cursor: not-allowed; }
+
+.ex-dialog::backdrop { background: rgb(11 61 35 / .55); backdrop-filter: blur(3px); animation: ex-fade .25s ease both; }
+.ex-dialog[open] { animation: ex-zoom .32s cubic-bezier(.2,.9,.25,1.1) both; }
+@keyframes ex-fade { from { opacity: 0; } }
+@keyframes ex-zoom { from { opacity: 0; transform: translateY(18px) scale(.96); } }
+.ex-mod { animation: ex-slide .35s ease both; animation-delay: calc(120ms + var(--i) * 50ms); }
+@keyframes ex-slide { from { opacity: 0; transform: translateX(-10px); } }
+.ex-pop { animation: ex-zoom .3s ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ex-card, .ex-chip, .ex-logo, .ex-cta { transition: none; }
+  .ex-card:hover, .ex-card:hover .ex-logo { transform: none; }
+  .ex-card-in, .ex-dialog[open], .ex-dialog::backdrop, .ex-mod, .ex-pop { animation: none; }
+}

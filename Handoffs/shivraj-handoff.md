@@ -30,6 +30,7 @@ A first pretest try at or above the pass mark tests the student out of that modu
 | `1009_unlock_and_duplicate_fixes.sql` | Merged (#58) | Applied to the hosted DB |
 | `1010_intro_python_demo_content.sql` | Merged (#59) | Applied to the hosted DB |
 | `1011_check_feedback.sql` | Merged (#62) | Applied to the hosted DB |
+| `1012_catalog_modules.sql` | Branch `shivraj-polish`, tested (PGlite) | Not applied yet |
 | `2009_course_state_merge.sql` | Merged (#62). In Ruthvik's range on purpose | Applied to the hosted DB |
 
 Tests: 45 checks in a local Postgres (PGlite) with `0001`, `1001`, `1002` and `2001`, passing in both orders.
@@ -84,6 +85,8 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 - `ActivityBlock` (`LessonContent.tsx`) new optional props: `onResult` (each attempt result), `hideTitle` (caller shows the title), `answerOnce` (lock after first submission, except `posttest`). Video activities now embed via `embedUrl`, like the instructor preview.
 - Student sidebar: Home (`/student`), My courses (`/student/courses`), My classroom (`/student/classroom`). Inside a course, `StudentCourseNav.tsx` lists modules as dropdowns of their steps; locked modules show a lock and don't expand.
 - **Finish module** lands on the course page with `state.finishedModule`; `ModuleFinished.tsx` shows a banner there: confetti and the final-check score, then *Start the next module*, *Find your next course* (all done), or, when the pass mark is missed, the score needed, the tries left and *Retake the final check*. `Celebration.tsx` holds the shared confetti. `ModuleStatus` now carries `pass_mark`.
+- **Explore** (`StudentExplore.tsx`, `explore.css`): course cards with description, level and module count, subject chips and search. A card opens a `<dialog>` preview with the module list (`catalog_modules()`, 1012) and *Add course* (self-paced), a class-code form (with a class), *Open course* (already added) or *Coming soon*.
+- Course page back link goes to My courses once the course is added, else to Explore.
 - Shared step names: `src/student/steps.ts`. Shared course progress hook: `src/student/useMyCourseProgress.ts`.
 
 ### Functions the app calls (`supabase.rpc`)
@@ -97,6 +100,7 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 | `my_next_activity(course_id)` | `{module_id, activity_id}` to continue, or null |
 | `my_activity_response(activity_id)` | The student's latest saved response, or null |
 | `my_check_answer(activity_id)` | Right choice id of a check/exit the student already answered, else null |
+| `catalog_modules()` | Module titles of published modules in published original courses (Explore preview) |
 | `submit_attempt(activity_id, response, time_on_task_ms, client_score)` | `{attempt_id, attempt_no, score, is_correct, counts}`. Errors: `MODULE_LOCKED`, `NOT_ENROLLED`, `BAD_RESPONSE` |
 
 `response` shapes are documented above `submit_attempt` in `1001_student_progress.sql`.
@@ -150,6 +154,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-15, Shivraj: rebuilt Explore as course cards with a module preview and Add course (1012); course page back link goes to My courses. Touches Jacky's `StudentExplore.tsx` and `StudentCourse.tsx`.
 - 2026-11-15, Shivraj: added the module-complete banner on the course page (touches Jacky's `StudentCourse.tsx`).
 - 2026-11-15, Shivraj: added check explanations and right-answer reveal (1011) and merged the 1009 and 2006 versions of `_course_state` (2009).
 - 2026-11-14 7:30 PM, Ruthvik: confirmed with `migration list` that 1001 and 1002 are applied to the hosted DB. Items 4 (builder reads `activity_keys`) and 5 (scoring rules in instructor progress) are done on `ruthvik/class-tabs`.
