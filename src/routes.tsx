@@ -3,12 +3,13 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import {
   AdminAnalytics, AdminClasses, AdminHome, AdminSettings, AdminUsers, InstructorRoute, ModulePlayer, PublishedDemo, RolePage, StarterQuiz, StudentClassroom, StudentCourse, StudentCourses, StudentExplore, StudentHome,
 } from './lazyPages.tsx'
-import { LoginPage } from './LoginPage.tsx'
+import { AuthPage } from './AuthPage.tsx'
 import { AccountPage } from './shared/auth/AccountPage.tsx'
 import { AppLayout } from './shared/ui/AppLayout.tsx'
 
 export const router = createBrowserRouter([
-  { path: '/login', element: <LoginPage /> },
+  { path: '/login', element: <AuthPage key="login" /> },
+  { path: '/signup', element: <AuthPage key="signup" signup /> },
   {
     element: <AppLayout />,
     children: [

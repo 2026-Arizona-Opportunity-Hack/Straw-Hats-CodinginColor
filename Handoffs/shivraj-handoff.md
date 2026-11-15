@@ -54,7 +54,8 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 
 ### Student sign-up and sign-in (1003)
 
-- Login page has a Student / Teacher-or-staff switch. Students use login cards or generated usernames (1013); Google sign-in is for educators. Legacy email/password accounts still work.
+- `/login` defaults to student username or legacy email and password, with teacher login cards as an alternate method. Educators and staff use password or Google sign-in.
+- `/signup` creates student username accounts with an optional class code or lets educators sign up with Google for curriculum review.
 - `student_sign_up(email, password, display_name, school, class_code)` is internal only after 3006. It creates a confirmed account and optional enrollment for the trusted username/staff RPCs.
 - The 1013 Auth trigger assigns Google accounts the reviewer role; other new accounts start as students. Admins provision other staff roles.
 - `join_class(code)` joins later. Progress from a self-chosen copy of the same course moves into the class.
@@ -87,7 +88,7 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 - Students have **no email**. Sign-up: first name, last name, password, optional class code. They get a username like `jsmith1` (first initial + last name + lowest free number, accents folded) and see it once before signing in. Sign-in: username + password.
 - Auth still needs an email, so each student uses a hidden, undeliverable `<username>@students.cic-learn.invalid` (`studentAuthEmail` in `src/api/student/auth.ts` must match `_create_student`).
 - `student_create_account(first, last, password, class_code)` (anon) and `admin_create_student(first, last, password, class_id)` (admins; People & roles uses it for students). Public email sign-up (`student_sign_up`) is revoked.
-- **Google sign-in = K-12 educators**: new Google accounts get the `reviewer` role. The button sits under the staff sign-in.
+- **Google access for educators**: the Google button is available on sign-in and sign-up. New Google accounts get the `reviewer` role.
 - Sidebar and People & roles show `@username`.
 - One-time cleanup: `supabase/demo/delete_all_students.sql` deletes every student account, roster row and all student work (staff and curriculum stay).
 
@@ -190,6 +191,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-15, Ken (Codex): split account creation into `/signup`, made username sign-in the default on `/login`, and added educator Google sign-up using the existing reviewer flow.
 - 2026-11-15, Shivraj: starter-quiz skip writes the result into the cache (one click), "Don't show again" on the quiz card (3013, hide_placement_card), separate sign-in/sign-up password fields so browsers only suggest strong passwords on sign-up.
 - 2026-11-15, Shivraj: fixed starter-quiz double prompt (refetch placement after skip/submit, no redirect on stale cache), white Start learning/Join buttons, answer card reload (stays mounted, feedback slides in), Review opening the clicked card; My classroom uses course cards with the join box below.
 - 2026-11-15, Codex: reconciled the reading-position fix with the new final-check navigation lock; the keyed module player retains the lock and submission behavior.
