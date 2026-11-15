@@ -1,4 +1,4 @@
-// Owner: Aryan. Impact & learning analytics: what CIC shows donors and uses itself.
+// Owner: Aryan. Internal impact and learning analytics, with a separate partner export.
 // Story first (headline numbers, reach, growth, instructors, student progress), detail after.
 import { BarChart3, Download, HeartHandshake } from 'lucide-react'
 import { type FormEvent } from 'react'
@@ -7,6 +7,7 @@ import { Button, Card, DataTable, EmptyState, Meter, PageHeader, Select, Td, Th 
 import { GainChart } from './charts.tsx'
 import { LoadState, StatusBadge } from './common.tsx'
 import { useOrg } from './hooks.ts'
+import { partnerImpactCsv, PARTNER_MIN_STUDENTS } from './partnerExport.ts'
 import { GrowthRows, ImpactNumber, JourneyLegend, JourneyPips, OverallProgress, StatusBar, StatusLegend, type Pip } from './impact.tsx'
 import {
   analyze, fmtGain, fmtMinutes, fmtPct, mean, modulesInScope, timeAgo,
@@ -39,7 +40,7 @@ function countStatuses(list: StudentSummary[]): Record<Status, number> {
 }
 
 /** Per-student, per-module rows for the current filters, downloaded as a CSV file. */
-function exportCsv(a: ReturnType<typeof analyze>, modTitle: Map<string, string>) {
+function exportInternalCsv(a: ReturnType<typeof analyze>, modTitle: Map<string, string>) {
   const statusOf = new Map(a.students.map((s) => [`${s.classId}|${s.studentId}`, s]))
   const header = ['student', 'school', 'class', 'module', 'started', 'complete', 'pretest_pct', 'posttest_pct', 'learning_gain_pts', 'required_activities_done', 'required_activities_total', 'time_on_task_min', 'status']
   const round = (v: number | null) => (v == null ? '' : Math.round(v))
@@ -48,8 +49,12 @@ function exportCsv(a: ReturnType<typeof analyze>, modTitle: Map<string, string>)
     const s = statusOf.get(`${r.classId}|${r.studentId}`)
     return [s?.name, c?.school, c?.name, modTitle.get(r.moduleId), r.started, r.done, round(r.pre), round(r.post), round(r.gain), r.activitiesDone, r.activitiesTotal, Math.round(r.timeOnTaskMs / 60000), s?.status].map(cell).join(',')
   })
-  const url = URL.createObjectURL(new Blob([[header.join(','), ...lines].join('\n')], { type: 'text/csv;charset=utf-8' }))
-  const link = Object.assign(document.createElement('a'), { href: url, download: `CIC_ImpactReport_${new Date().toISOString().slice(0, 10)}.csv` })
+  downloadCsv([header.join(','), ...lines].join('\n'), 'CIC_InternalStudentProgress')
+}
+
+function downloadCsv(content: string, filename: string) {
+  const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' }))
+  const link = Object.assign(document.createElement('a'), { href: url, download: `${filename}_${new Date().toISOString().slice(0, 10)}.csv` })
   link.click()
   URL.revokeObjectURL(url)
 }
@@ -77,9 +82,22 @@ export function AnalyticsPage() {
     <>
       <PageHeader
         title="Impact & learning"
-        subtitle="What students are learning in Coding in Color classrooms, ready to share with donors and partners."
-        actions={<Button variant="secondary" onClick={() => exportCsv(a, modTitle)} disabled={!a.studentModules.length}><Download aria-hidden="true" /> Export CSV</Button>}
+        subtitle="Internal classroom analytics for Coding in Color."
+        actions={<>
+          <Button variant="secondary" onClick={() => exportInternalCsv(a, modTitle)} disabled={!a.studentModules.length}>
+            <Download aria-hidden="true" /> Internal student CSV
+          </Button>
+          <Button
+            onClick={() => downloadCsv(partnerImpactCsv(data), 'CIC_PartnerImpactSummary')}
+            aria-describedby="partner-csv-note"
+          >
+            <Download aria-hidden="true" /> Partner summary CSV
+          </Button>
+        </>}
       />
+      <p id="partner-csv-note" className="mb-4 text-sm text-cic-muted">
+        The partner CSV summarizes all active classes. Results involving fewer than {PARTNER_MIN_STUDENTS} students are left blank.
+      </p>
 
       <form onSubmit={applyFilters} aria-label="Filter the report" className="soft-card mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-divider bg-white p-4">
         <div className="flex flex-col gap-1.5">

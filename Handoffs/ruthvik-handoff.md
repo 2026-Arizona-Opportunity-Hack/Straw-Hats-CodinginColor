@@ -105,6 +105,11 @@ The snapshot refreshes when the workspace/report reloads; assignment editing sti
   Callouts: start a blockquote with `**Key idea:**`, `**Did you know?**`, `**Try it:**`, `**Watch out:**`, `**Remember:**` or `**Think about it:**`.
 - Used by the library preview, the builder's student preview and the student player's `LessonContent`.
 
+### Impact CSV downloads
+
+- The admin Impact page exports named student rows for internal use and a separate program-wide partner CSV for all active classes, independent of filters.
+  The partner CSV omits results based on fewer than five distinct learners, including either side of the completion rate, and gives each learner with paired results equal weight in the average gain.
+
 ## Migrations I own
 
 All applied to the hosted project (checked with `npx supabase migration list --linked` on Nov 15).
@@ -192,6 +197,8 @@ Put each sentence on its own line.
 - 2026-11-15 1:20 AM, Ruthvik: opened one PR from `ruthvik/class-library-dashboard` that merges latest `main` with the CIC library, edit-in-class curriculum, class Dashboard drill-downs, DB-driven thresholds (migration 2006, already applied to hosted), the lesson reading view, AI Academy curriculum and embedded HTML activities.
   Merge choices: course edits for a class use Ken's browser drafts and `publish_curriculum`; the student player stays on main's `LessonContent` (now rendering Markdown with `LessonMarkdown`); the student enrollment UI from #27 is dropped for main's Explore page.
   Not included: removing mock mode (conflicts with teammates' new work; redo on top of `main` later) and the demo SQL `supabase/demo/assignment_modules_demo.sql` (not run on hosted).
+- 2026-11-15, Codex: separated the named internal student CSV from the aggregate partner CSV in admin analytics.
+
 - 2026-11-14 9:40 PM, Ruthvik: restyled the 5 AI Academy widget pages with one shared look (indigo header band, cyan accent) and CSS-only motion (answer pop and shake, packet flow, bit toggles, 3D flips, score and progress bars, confetti); all motion stops under reduced motion. Score and progress bars are inline, not sticky, because the frame now grows to full height. Content and logic unchanged; SQL regenerated, not applied.
 
 - 2026-11-14 10:00 PM, Ruthvik: AI Academy Module 1 reading pages rewritten textbook style (hooks, subheads, tables, `> **Key idea:**`-style callouts for the new lesson renderer, no leading title heading). The 5 interactive pages are now in the classroom course too, next to its worksheets. Regenerated `supabase/curriculum/ai-academy.sql` (not applied to the hosted database).
