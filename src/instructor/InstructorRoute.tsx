@@ -8,5 +8,5 @@ export function InstructorRoute() {
   const { profile } = useAuth()
   const { hash } = useLocation()
   const role: StaffRole = profile?.role === 'admin' || profile?.role === 'reviewer' ? profile.role : 'instructor'
-  return <InstructorWorkspace role={role} hash={hash} />
+  return <InstructorWorkspace role={role} hash={hash} authorId={profile?.id} />
 }

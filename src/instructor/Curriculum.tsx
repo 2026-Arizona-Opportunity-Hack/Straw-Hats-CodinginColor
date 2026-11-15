@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { ArrowDown, ArrowRight, ArrowUp, BookOpen, Eye, FilePlus2, GripVertical, ImagePlus, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowRight, ArrowUp, BookOpen, Copy, Eye, FilePlus2, GripVertical, ImagePlus, Plus, Save, Star, Trash2 } from 'lucide-react';
 import { BlockPicker } from './BlockPicker';
 import { ActivityPreview, LessonPreview } from './LessonPreview';
 import {
-  activityTypes, blankQuestion, embedUrl, gradedTypes, id, newActivity, newLesson, newModule, questionTypes, reorder, slidesUrl, unresolvedModuleContent,
+  activityTypes, blankQuestion, copyBlock, embedUrl, gradedTypes, id, newActivity, newLesson, newModule, questionTypes, reorder, slidesUrl, unresolvedModuleContent,
   type Activity, type Course, type Lesson, type Module,
 } from './model';
 import { Dialog, Empty, PageHeader, Panel } from './ui';
@@ -66,13 +66,19 @@ export function CourseReviewer({ course }: { course: Course }) {
   </>;
 }
 
-export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
+export function CourseBuilder({ initial, released, onSave, onRelease, assigned, draftModule, library, onSaveLibrary }: {
   initial: Course;
+  released: Course;
+  library: Activity[];
+  onSaveLibrary: (blocks: Activity[]) => boolean;
+  onRelease: (course: Course, moduleId: string, selected: Module | null) => boolean;
   onSave: (course: Course) => boolean;
   assigned: Set<string>;
   draftModule: (source: { text: string; file: File | null }) => Promise<Module>;
 }) {
   const [course, setCourse] = useState(initial);
+  const [savedDraft, setSavedDraft] = useState(initial);
+  const [manageBlocks, setManageBlocks] = useState(false);
   const [view, setView] = useState<View>({ moduleId: initial.modules[0]?.id, lessonId: initial.modules[0]?.lessons[0]?.id });
   const [preview, setPreview] = useState(false);
   const [tab, setTab] = useState<'edit' | 'preview'>('edit');
@@ -87,9 +93,27 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
   const module = course.modules.find(module => module.id === view.moduleId);
   const lesson = module?.lessons.find(lesson => lesson.id === view.lessonId);
   const activity = lesson?.activities.find(activity => activity.id === view.activityId);
-  const savedBlocks = new Set(initial.modules.find(item => item.id === module?.id)?.lessons
+  const liveModule = released.modules.find(item => item.id === module?.id && item.published);
+  const savedBlocks = new Set(released.modules.find(item => item.id === module?.id)?.lessons
     .find(item => item.id === lesson?.id)?.activities.map(block => block.id));
-  const unsaved = course !== initial;
+  const unsaved = course !== savedDraft;
+  const saveDraft = useCallback(() => {
+    if (!onSave(course)) return;
+    setSavedDraft(course);
+  }, [course, onSave]);
+
+  useEffect(() => {
+    if (!unsaved) return;
+    const timer = window.setTimeout(saveDraft, 700);
+    return () => window.clearTimeout(timer);
+  }, [saveDraft, unsaved]);
+
+  useEffect(() => {
+    if (!unsaved) return;
+    function preventLoss(event: BeforeUnloadEvent) { event.preventDefault(); }
+    window.addEventListener('beforeunload', preventLoss);
+    return () => window.removeEventListener('beforeunload', preventLoss);
+  }, [unsaved]);
 
   function select(next: View) {
     setView(next);
@@ -112,21 +136,27 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
     updateLesson(lesson.id, lesson => ({ ...lesson, activities: lesson.activities.map(activity => activity.id === activityId ? fn(activity) : activity) }));
   }
 
-  function save(next = course, text = 'Course changes saved.') {
-    const invalidModule = next.modules.find(module => module.published && unresolvedModuleContent(module));
-    if (!next.title.trim()) return setError('Give the course a title before saving.');
-    if (invalidModule) return setError(invalidModule.title + ' · ' + unresolvedModuleContent(invalidModule));
-    if (!onSave(next)) return;
-    setCourse(next);
-    setError('');
-    setMessage(text);
-  }
-
   function publish() {
     if (!module) return;
-    if (module.published && assigned.has(module.id)) return setError('Remove this module from its class assignments before unpublishing.');
-    const next = { ...course, modules: course.modules.map(item => item.id === module.id ? { ...item, published: !item.published } : item) };
-    save(next, module.published ? 'Module moved to draft.' : 'Module published and ready to assign.');
+    const issue = unresolvedModuleContent(module);
+    if (!course.title.trim()) return setError('Give the course a title before publishing.');
+    if (issue) return setError(issue);
+    const next = { ...course, modules: course.modules.map(item => item.id === module.id ? { ...item, published: true } : item) };
+    if (!onRelease(next, module.id, module)) return;
+    setCourse(next);
+    setSavedDraft(next);
+    setError('');
+    setMessage('Module published and ready to assign.');
+  }
+
+  function unpublish() {
+    if (!module || assigned.has(module.id)) return setError('Remove this module from its class assignments before unpublishing.');
+    const next = { ...course, modules: course.modules.map(item => item.id === module.id ? { ...item, published: false } : item) };
+    if (!onRelease(next, module.id, null)) return;
+    setCourse(next);
+    setSavedDraft(next);
+    setError('');
+    setMessage('Module moved to draft.');
   }
 
   function addModule(next = newModule()) {
@@ -215,12 +245,13 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
 
   return <>
     <PageHeader title={course.title || 'Untitled course'} description="Course builder" back={{ label: 'Curriculum', to: '#/curriculum' }}>
+      <button type="button" className="ic-button" onClick={() => setManageBlocks(true)}><Star size={16} /> My blocks</button>
       <button type="button" className="ic-button" onClick={() => setImporter('converter')}><FilePlus2 size={16} /> Draft from materials</button>
       <button type="button" className="ic-button" disabled={!module?.lessons.length} onClick={() => setPreview(true)}><Eye size={16} /> Preview module</button>
-      <button type="button" className="ic-button ic-primary" onClick={() => save()}><Save size={16} /> Save changes</button>
+      <button type="button" className="ic-button ic-primary" onClick={saveDraft}><Save size={16} /> Save draft</button>
     </PageHeader>
     <div className="ic-builder-status">
-      <span>{unsaved ? 'Unsaved changes' : 'Changes saved locally'}</span>
+      <span>{unsaved ? 'Unsaved changes' : 'Draft saved locally'}</span>
       <span role="status">{message}</span>
     </div>
     {error && <p className="ic-error" role="alert">{error}</p>}
@@ -246,9 +277,9 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
           <label>Level<select value={course.level} onChange={event => setCourse({ ...course, level: event.target.value })}>
             {['Beginner', 'Intermediate', 'Advanced', 'Expert'].map(value => <option key={value}>{value}</option>)}
           </select></label></div></Panel>}
-        {module && !lesson && <Panel title="Module details" actions={<button type="button" className="ic-button ic-primary" onClick={publish}>{module.published ? 'Unpublish module' : 'Publish module'}</button>}>
+        {module && !lesson && <Panel title="Module details" actions={<button type="button" className="ic-button ic-primary" onClick={publish}>{liveModule ? 'Publish update' : 'Publish module'}</button>}>
           <label>Module title<input value={module.title} maxLength={100} onChange={event => updateModule(module.id, item => ({ ...item, title: event.target.value }))} /></label>
-          <div className="ic-row ic-section-gap"><span className={'ic-status ' + (module.published ? 'is-published' : '')}>{module.published ? 'Published' : 'Draft'}</span><button type="button" className="ic-button" onClick={addLesson}><Plus size={16} /> Add lesson</button></div>
+          <div className="ic-row ic-section-gap"><span className={'ic-status ' + (module.published ? 'is-published' : '')}>{liveModule ? 'Published' : 'Draft'}</span>{liveModule && <button type="button" className="ic-button" onClick={unpublish}>Unpublish module</button>}<button type="button" className="ic-button" onClick={addLesson}><Plus size={16} /> Add lesson</button></div>
           {module.lessons.length ? <ul className="ic-list ic-section-gap">{module.lessons.map(child => <li key={child.id}><button type="button" className="ic-link-button" onClick={() => select({ moduleId: module.id, lessonId: child.id })}>{child.title}</button><span className="ic-note">{child.activities.length} activities</span></li>)}</ul> : <Empty>Add a lesson to start this module.</Empty>}
         </Panel>}
         {module && lesson && <section className="ic-panel ic-lesson-page" aria-label="Lesson editor">
@@ -273,7 +304,7 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
                     onKeyDown={event => { if (event.key === '/') { event.preventDefault(); openPicker(index, event.currentTarget); } }}>
                     <Plus size={16} aria-hidden="true" />{!block && <>Add block <kbd>/</kbd></>}
                   </button>
-                  {picker === index && <BlockPicker onClose={closePicker} onPick={next => insertBlock(next, index)} />}
+                  {picker === index && <BlockPicker library={library} onClose={closePicker} onPick={next => insertBlock(next, index)} />}
                 </div>
                 {block && <div className={`ic-lesson-block${editing ? ' is-editing' : ''}`}
                   onDragOver={event => { if (dragging?.kind === 'block' && dragging.parent === lesson.id) event.preventDefault(); }}
@@ -294,6 +325,10 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
                       <span>{block.format === 'open-ended' ? 'Open-ended question' : block.type === 'check' ? 'Quiz' : activityTypes[block.type]}</span>
                       <div className="ic-tree-controls">
                         {editing && <>
+                          <button type="button" className="ic-icon" aria-label="Duplicate block" onClick={() => insertBlock(copyBlock(block), index + 1)}><Copy size={15} /></button>
+                          <button type="button" className="ic-icon" aria-label="Save to My blocks" onClick={() => {
+                            if (onSaveLibrary([...library, copyBlock(block)])) setMessage('Block saved to My blocks.');
+                          }}><Star size={15} /></button>
                           <button type="button" className="ic-icon" aria-label="Move block up" disabled={index === 0} onClick={() => move('block', lesson.id, index, index - 1)}><ArrowUp size={15} /></button>
                           <button type="button" className="ic-icon" aria-label="Move block down" disabled={index === lesson.activities.length - 1} onClick={() => move('block', lesson.id, index, index + 1)}><ArrowDown size={15} /></button>
                           {(!savedBlocks.has(block.id) || (!module.published && !assigned.has(module.id))) && <button type="button" className="ic-icon" aria-label="Remove block"
@@ -316,6 +351,12 @@ export function CourseBuilder({ initial, onSave, assigned, draftModule }: {
         </section>}
       </div>
     </div>
+    {manageBlocks && <Dialog title="My blocks" onClose={() => setManageBlocks(false)}>
+      {library.length ? <ul className="ic-list">{library.map(block => <li key={block.id}>
+        <span>{block.title || activityTypes[block.type]}</span>
+        <button type="button" className="ic-link-button" onClick={() => onSaveLibrary(library.filter(item => item.id !== block.id))}>Remove from library</button>
+      </li>)}</ul> : <Empty>Save a configured block to reuse it in any lesson.</Empty>}
+    </Dialog>}
     {preview && module && <Dialog wide title="Student preview" onClose={() => setPreview(false)}>
       {module.lessons.map(item => <LessonPreview lesson={item} key={item.id} interactive />)}
     </Dialog>}

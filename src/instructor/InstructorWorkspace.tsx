@@ -3,7 +3,7 @@ import { BarChart3, BookOpen, Eye, GraduationCap, Settings } from 'lucide-react'
 import { ClassSetup } from './ClassSetup';
 import { ClassDashboard, ClassList } from './Classes';
 import { CourseBuilder, CourseReviewer, CurriculumList, demoDraftModule } from './Curriculum';
-import type { ClassGroup, Course, Module, StaffRole } from './model';
+import { publishModule, type Activity, type ClassGroup, type Course, type Module, type StaffRole } from './model';
 import { AccessSettings, ProgramOverview } from './Operations';
 import { browserInstructorStore, type InstructorStore } from './store';
 import { PageHeader } from './ui';
@@ -33,12 +33,13 @@ function initialProfile() {
  * main app's sidebar layout; the signed-in role picks the profile and the router supplies the hash.
  */
 export function InstructorWorkspace({
-  store = browserInstructorStore, draftModule = demoDraftModule, role, hash,
+  store = browserInstructorStore, draftModule = demoDraftModule, role, hash, authorId,
 }: {
   store?: InstructorStore;
   draftModule?: (source: { text: string; file: File | null }) => Promise<Module>;
   role?: StaffRole;
   hash?: string;
+  authorId?: string;
 }) {
   const embedded = role !== undefined;
   const [data, setData] = useState(() => store.load());
@@ -48,6 +49,9 @@ export function InstructorWorkspace({
   const [pickedProfileId, setProfileId] = useState(initialProfile);
   const profileId = role ?? pickedProfileId;
   const profile = data.staff.find(person => person.id === profileId) || data.staff[0];
+  const author = authorId ?? profile.id;
+  const draftKey = (courseId: string) => author + ':' + courseId;
+  const library = data.savedBlocks?.[author] ?? [];
   const homeSection = profile.role === 'reviewer' ? 'review' : 'classes';
   const route = (hash !== undefined ? cleanRoute(hash) : standaloneRoute) || homeSection;
   const [section, item] = route.split('/');
@@ -87,11 +91,12 @@ export function InstructorWorkspace({
   }
 
   function saveClass(group: ClassGroup, created = false) {
-    const classes = created ? [...data.classes, group] : data.classes.map(item => item.id === group.id ? group : item);
+    const current = store.load();
+    const classes = created ? [...current.classes, group] : current.classes.map(item => item.id === group.id ? group : item);
     const staff = created && profile.role === 'instructor'
-      ? data.staff.map(person => person.id === profile.id ? { ...person, classIds: [...person.classIds, group.id] } : person)
-      : data.staff;
-    if (!save({ ...data, classes, staff })) return false;
+      ? current.staff.map(person => person.id === profile.id ? { ...person, classIds: [...person.classIds, group.id] } : person)
+      : current.staff;
+    if (!save({ ...current, classes, staff })) return false;
     if (created) {
       setNewClass(group.id);
       window.location.hash = '/classes/' + group.id;
@@ -99,11 +104,34 @@ export function InstructorWorkspace({
     return true;
   }
 
-  function saveCourse(course: Course, created = false) {
-    const courses = created ? [...data.courses, course] : data.courses.map(item => item.id === course.id ? course : item);
-    if (!save({ ...data, courses })) return false;
-    if (created) window.location.hash = '/curriculum/' + course.id;
-    return true;
+  function saveDraft(course: Course) {
+    const current = store.load();
+    return save({ ...current, courseDrafts: { ...current.courseDrafts, [draftKey(course.id)]: course } });
+  }
+
+  function createCourse(course: Course) {
+    const current = store.load();
+    if (save({
+      ...current,
+      courses: [...current.courses, { ...course, modules: [] }],
+      courseDrafts: { ...current.courseDrafts, [draftKey(course.id)]: course },
+    })) window.location.hash = '/curriculum/' + course.id;
+  }
+
+  function release(draft: Course, moduleId: string, selected: Module | null) {
+    const current = store.load();
+    const catalog = current.courses.find(course => course.id === draft.id);
+    if (!catalog || (!selected && current.classes.some(group => group.moduleIds.includes(moduleId)))) return false;
+    return save({
+      ...current,
+      courses: current.courses.map(course => course.id === draft.id ? publishModule(catalog, draft, selected, moduleId) : course),
+      courseDrafts: { ...current.courseDrafts, [draftKey(draft.id)]: draft },
+    });
+  }
+
+  function saveLibrary(blocks: Activity[]) {
+    const current = store.load();
+    return save({ ...current, savedBlocks: { ...current.savedBlocks, [author]: blocks } });
   }
 
   const group = section === 'classes' ? visibleClasses.find(group => group.id === item) : undefined;
@@ -117,15 +145,17 @@ export function InstructorWorkspace({
       if (!item) return <ClassList groups={visibleClasses} courses={data.courses} />;
     }
     if (section === 'curriculum') {
-      if (course) return <CourseBuilder key={course.id} initial={course} onSave={saveCourse} assigned={assigned} draftModule={draftModule} />;
-      if (!item) return <CurriculumList courses={data.courses} onCreate={course => saveCourse(course, true)} />;
+      if (course) return <CourseBuilder key={author + ':' + course.id} initial={data.courseDrafts?.[draftKey(course.id)] ?? course}
+        released={course} onSave={saveDraft} onRelease={release} assigned={assigned} draftModule={draftModule}
+        library={library} onSaveLibrary={saveLibrary} />;
+      if (!item) return <CurriculumList courses={data.courses.map(item => data.courseDrafts?.[draftKey(item.id)] ?? item)} onCreate={createCourse} />;
     }
     if (section === 'review') {
       if (course?.modules.some(module => module.published)) return <CourseReviewer key={course.id} course={course} />;
       if (!item) return <CurriculumList key="reviewer" courses={data.courses} reviewer />;
     }
     if (section === 'overview') return <ProgramOverview groups={data.classes} courses={data.courses} />;
-    if (section === 'access') return <AccessSettings staff={data.staff} groups={data.classes} onSave={staff => save({ ...data, staff })} />;
+    if (section === 'access') return <AccessSettings staff={data.staff} groups={data.classes} onSave={staff => save({ ...store.load(), staff })} />;
     return <PageHeader title="Page not found" back={{ label: 'Back to workspace', to: home }} />;
   })();
 

@@ -23,7 +23,7 @@ export type Activity = {
   format?: 'open-ended';
 };
 export type Lesson = { id: string; title: string; activities: Activity[] };
-export type Module = { id: string; title: string; published: boolean; lessons: Lesson[] };
+export type Module = { id: string; title: string; published: boolean; revision?: number; lessons: Lesson[] };
 export type Course = { id: string; title: string; description: string; level: string; modules: Module[] };
 export type Attempt = {
   activityId: string;
@@ -54,7 +54,32 @@ export type ClassGroup = {
 };
 export type StaffRole = 'instructor' | 'admin' | 'reviewer';
 export type StaffProfile = { id: string; name: string; role: StaffRole; classIds: string[] };
-export type InstructorData = { courses: Course[]; classes: ClassGroup[]; staff: StaffProfile[] };
+export type InstructorData = {
+  courses: Course[];
+  classes: ClassGroup[];
+  staff: StaffProfile[];
+  courseDrafts?: Record<string, Course>;
+  savedBlocks?: Record<string, Activity[]>;
+};
+
+export function copyBlock(block: Activity): Activity {
+  return { ...structuredClone(block), id: id() };
+}
+
+// Replace only the selected release. Draft changes in other modules stay private.
+export function publishModule(catalog: Course, draft: Course, selected: Module | null, moduleId: string): Course {
+  const releases = new Map(catalog.modules.map(module => [module.id, module]));
+  const previous = releases.get(moduleId);
+  if (selected) {
+    const revision = (previous?.revision ?? (previous?.published ? 1 : 0)) + 1;
+    releases.set(moduleId, { ...structuredClone(selected), published: true, revision });
+  } else if (previous) {
+    releases.set(moduleId, { ...previous, published: false, revision: previous.revision ?? 1 });
+  }
+  const ids = new Set([...draft.modules.map(module => module.id), ...releases.keys()]);
+  const modules = [...ids].flatMap(id => releases.get(id) ?? []);
+  return { ...draft, modules };
+}
 
 export const id = () => globalThis.crypto.randomUUID();
 export const blankQuestion = (): Question => ({ prompt: '', choices: [], answer: null, concept: '' });

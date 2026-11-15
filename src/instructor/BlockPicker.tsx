@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import {
   AlignLeft, BookOpen, CircleHelp, ClipboardList, Code2, FileText, ListChecks, MessageSquare, Monitor, Video,
 } from 'lucide-react';
-import { gradedTypes, newActivity, type Activity, type ActivityType } from './model';
+import { copyBlock, gradedTypes, newActivity, type Activity, type ActivityType } from './model';
 
 const blocks = [
   { name: 'Text', detail: 'Explain a concept with headings, links, or images', type: 'content', icon: AlignLeft, keywords: 'article paragraph markdown' },
@@ -18,14 +18,20 @@ const blocks = [
   { name: 'Exit question', detail: 'End the lesson with a reflection', type: 'exit', icon: CircleHelp, keywords: 'reflection' },
 ] satisfies { name: string; detail: string; type: ActivityType; icon: typeof AlignLeft; keywords: string }[];
 
-export function BlockPicker({ onPick, onClose }: {
-  onPick: (activity: Activity) => void; onClose: (restoreFocus: boolean) => void;
+export function BlockPicker({ onPick, onClose, library }: {
+  library: Activity[]; onPick: (activity: Activity) => void; onClose: (restoreFocus: boolean) => void;
 }) {
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const popup = useRef<HTMLDivElement>(null);
-  const matches = blocks.filter(block => `${block.name} ${block.detail} ${block.keywords}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const options = [
+    ...blocks.map(block => ({ ...block, key: block.name, saved: undefined as Activity | undefined })),
+    ...library.map(saved => ({
+      name: saved.title, detail: 'From My blocks', type: saved.type, icon: BookOpen, keywords: 'saved reusable', key: saved.id, saved,
+    })),
+  ];
+  const matches = options.filter(block => `${block.name} ${block.detail} ${block.keywords}`.toLowerCase().includes(query.trim().toLowerCase()));
 
   useEffect(() => {
     input.current?.focus();
@@ -36,7 +42,8 @@ export function BlockPicker({ onPick, onClose }: {
     return () => document.removeEventListener('pointerdown', dismiss);
   }, [onClose]);
 
-  function pick(block: typeof blocks[number]) {
+  function pick(block: typeof options[number]) {
+    if (block.saved) return onPick(copyBlock(block.saved));
     const activity = { ...newActivity(block.type), title: block.name };
     if (block.name === 'Open-ended question') activity.format = 'open-ended';
     if (gradedTypes.has(block.type)) activity.questions[0].choices = ['', '', ''];
@@ -66,7 +73,7 @@ export function BlockPicker({ onPick, onClose }: {
   }}>
     <input ref={input} type="search" aria-label="Find a block" placeholder="Find a block…" value={query} onChange={event => { setQuery(event.target.value); setIndex(0); }} />
     <div className="ic-block-options">
-      {matches.map((block, i) => <button type="button" key={block.name} className={i === index ? 'is-highlighted' : ''} onClick={() => pick(block)}>
+      {matches.map((block, i) => <button type="button" key={block.key} className={i === index ? 'is-highlighted' : ''} onClick={() => pick(block)}>
         <block.icon size={18} aria-hidden="true" /><span><strong>{block.name}</strong><small>{block.detail}</small></span>
       </button>)}
       {!matches.length && <p className="ic-note" role="status">No blocks match.</p>}
