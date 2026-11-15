@@ -115,7 +115,7 @@ export function ClassesPage() {
                     <Td className="text-right tabular-nums">{fmtGain(st?.avgGain ?? null)}</Td>
                     <Td className="text-right tabular-nums">
                       {help > 0 ? (
-                        <Link to={`/admin/analytics?class=${c.id}#attention`} className="font-semibold text-danger underline-offset-2 hover:underline">
+                        <Link to={`/admin/analytics?class=${c.id}#students`} className="font-semibold text-danger underline-offset-2 hover:underline">
                           {help}<span className="sr-only"> students need help in {c.name}</span>
                         </Link>
                       ) : '0'}

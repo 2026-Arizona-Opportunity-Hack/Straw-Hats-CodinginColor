@@ -141,7 +141,7 @@ export function StatTile({ label, value, hint, trend, change }: {
 }
 
 /** Tiny trend line. Values are announced to screen readers. */
-export function Sparkline({ values, label }: { values: number[]; label: string }) {
+function Sparkline({ values, label }: { values: number[]; label: string }) {
   const max = Math.max(1, ...values)
   const pts = values.map((v, i) => `${(i / Math.max(1, values.length - 1)) * 76 + 2},${30 - (v / max) * 26}`)
   return (

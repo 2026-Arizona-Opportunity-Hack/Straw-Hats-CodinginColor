@@ -16,7 +16,7 @@
 import type { ActivityType } from '../shared/types/activities.ts'
 import type { StudentProgress } from '../shared/types/db.ts'
 
-export const STUCK_DAYS = 7
+const STUCK_DAYS = 7
 export const PASS_PCT = 70
 
 export type Status = StudentProgress['status']

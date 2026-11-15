@@ -56,7 +56,7 @@ export function ImpactNumber({ value, label, hint, format = (v) => Math.round(v)
   )
 }
 
-export interface Segment {
+interface Segment {
   label: string
   count: number
   color: string
@@ -65,7 +65,7 @@ export interface Segment {
 }
 
 /** 100% stacked bar with counts inside wide-enough segments. Always pair with a legend. */
-export function SegmentBar({ segments, label, tall }: { segments: Segment[]; label: string; tall?: boolean }) {
+function SegmentBar({ segments, label, tall }: { segments: Segment[]; label: string; tall?: boolean }) {
   const shown = segments.filter((s) => s.count > 0)
   const total = shown.reduce((n, s) => n + s.count, 0)
   if (!total) return <p className="text-sm text-cic-muted">Nothing to show yet</p>
