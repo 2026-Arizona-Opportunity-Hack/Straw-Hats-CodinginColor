@@ -60,6 +60,7 @@ The #27 student "Browse courses" UI was dropped in favor of the Explore page alr
 
 Migration 3010 limits external reviewers to published original library courses and their published modules.
 Their workspace fetches only curriculum, without assessment answer keys or learner data.
+Both Explore catalog queries keep the durable class-local scope from migration 2011 and are reserved for students, instructors, and admins.
 
 ### Class Dashboard
 
