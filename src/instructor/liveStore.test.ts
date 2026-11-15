@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { describe, expect, it } from 'vitest';
 import { newAssignment } from './assignments/model';
-import { loadLiveData, saveLiveData } from './liveStore';
+import { importLibraryCourse, loadLiveData, saveLiveData } from './liveStore';
 import type { ClassGroup, Course, InstructorData } from './model';
 
 type Call = { table: string; op: string; payload?: unknown; filters: [string, ...unknown[]][] };
@@ -18,10 +18,15 @@ function fakeSupabase(respond: (call: Call) => { data: unknown; error: null } = 
       for (const op of ['select', 'delete', 'upsert', 'update']) {
         builder[op] = (payload?: unknown) => { if (op !== 'select' || call.op === 'select') { call.op = op; call.payload = payload; } return builder; };
       }
-      for (const filter of ['eq', 'in', 'not', 'order', 'range']) {
+      for (const filter of ['eq', 'in', 'not', 'order', 'range', 'single']) {
         builder[filter] = (...args: unknown[]) => { call.filters.push([filter, ...args]); return builder; };
       }
       return builder;
+    },
+    rpc(fn: string, args: unknown) {
+      const call: Call = { table: fn, op: 'rpc', payload: args, filters: [] };
+      calls.push(call);
+      return Promise.resolve(respond(call));
     },
   };
   return { client: client as unknown as SupabaseClient, calls };
@@ -61,6 +66,42 @@ describe('saveLiveData', () => {
     const written = calls.filter(c => c.op === 'upsert');
     expect(written.map(c => c.table)).toEqual(['activities']);
     expect((written[0].payload as { id: string }[]).map(row => row.id)).toEqual(['a2']);
+  });
+});
+
+describe('library courses', () => {
+  const library = (title: string): Course => ({
+    id: 'lib-1', title: 'AI Academy', description: '', level: 'Beginner', library: true,
+    modules: [{ id: 'lm1', title: 'Prompts', published: true, lessons: [{ id: 'll1', title, activities: [] }] }],
+  });
+
+  it('never writes a library course back, even after it was edited', async () => {
+    const { client, calls } = fakeSupabase();
+    await saveLiveData(client, 'admin', data({ courses: [library('Intro')] }), data({ courses: [library('Intro, edited')] }));
+    expect(calls).toEqual([]);
+  });
+
+  it('loads library courses as read-only and remembers where a copy came from', async () => {
+    const { client } = fakeSupabase(call => ({
+      data: call.table === 'courses'
+        ? [{ id: 'lib-1', title: 'AI Academy', is_library: true, modules: [] }, { id: 'mine', title: 'AI Academy', is_library: false, copied_from: 'lib-1', modules: [] }]
+        : [],
+      error: null,
+    }));
+    const loaded = await loadLiveData(client, 'instructor', 'T');
+    expect(loaded.courses.map(c => [c.id, c.library, c.copiedFrom])).toEqual([['lib-1', true, undefined], ['mine', undefined, 'lib-1']]);
+  });
+
+  it('imports through copy_library_course and loads the new copy', async () => {
+    const { client, calls } = fakeSupabase(call => ({
+      data: call.op === 'rpc' ? 'copy-1' : { id: 'copy-1', title: 'AI Academy', copied_from: 'lib-1', modules: [] },
+      error: null,
+    }));
+    const copy = await importLibraryCourse(client, 'lib-1');
+    expect(calls[0]).toMatchObject({ table: 'copy_library_course', op: 'rpc', payload: { p_course_id: 'lib-1' } });
+    expect(calls[1].filters).toContainEqual(['eq', 'id', 'copy-1']);
+    expect(copy).toMatchObject({ id: 'copy-1', copiedFrom: 'lib-1' });
+    expect(copy.library).toBeUndefined();
   });
 });
 

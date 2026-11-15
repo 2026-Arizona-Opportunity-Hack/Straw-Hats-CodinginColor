@@ -77,12 +77,20 @@ Course saves now also write only changed modules, lessons and activities, so a s
    Either give every student a login (item 1) or add `class_student_id` to attempts.
 4. **Permissions pass.**
    RLS is on for every table, but policies are minimal (see [`ruthvik-handoff-supabase.md`](ruthvik-handoff-supabase.md)).
-   Instructors cannot edit admin-owned library courses; decide whether they copy the course first.
+   Library courses: instructors now import their own copy (see "Import from library" below); the copy needs migration 2004 applied before it works on live data.
 5. **Grades for curriculum activities** (module checks, pre/post tests) live in a separate "Curriculum progress" view; they are not in the assignment gradebook.
 6. **Code runner (Pyodide)** is a placeholder in assignment code blocks and the module player.
 7. **Admin pages on live data** (`src/admin/api.ts` still returns mocks).
 8. **PR hygiene:** `ruthvik/class-tabs` is far over the 400-line guideline.
    Consider splitting before merging to `main`.
+
+### Import from library (branch `ruthvik/import-library-course`)
+
+An instructor imports a preloaded library course (`courses.is_library`, for example "AI Academy (Classroom)") as their own editable copy.
+The "Import from library" list is in Create a class (step 3) and at the bottom of Curriculum (`src/instructor/LibraryImport.tsx`).
+Live: it calls `copy_library_course` (migration 2004, **not applied yet**), which deep-copies modules, lessons, activities and answer keys with new ids.
+Mock mode: `copyCourse` in `model.ts` copies the course in the browser; `demoData.ts` has a short `LibraryDemo` course.
+Library courses are never opened in the builder or saved: `saveLiveData` skips them, and Create a class lists only non-library courses (`assignableCourses`).
 
 ## How the code is organized
 
@@ -145,6 +153,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-14 9:00 PM, Ruthvik: import a library course as the instructor's own copy (Create a class and Curriculum), migration 2004 `copy_library_course` (not applied), library courses never written back by `saveLiveData`, tests.
 - 2026-11-14 8:30 PM, Ruthvik: fixes from a code review (ponytail-review checklist). Course saves write only changed rows; attempts load in pages past Supabase's 1000-row cap; first tests (Vitest, 12); gradebook shows "Not due yet" and leaves not-due and ungraded work out of totals; warning when a saved score no longer matches an edited rubric; pages load per section (main bundle is now framework only); gradebook total column stays visible.
 - 2026-11-14 7:30 PM, Ruthvik: merged `main` (Shivraj's 1001, 1002). Did Shivraj's items 4 (answer keys in the builder) and 5 (scoring rules). Found and fixed the stale-save data loss above. Moved handoffs from `docs/` to `Handoffs/`. Restored the two demo assignments by re-running `supabase/demo/*.sql`; opened PR #18.
 - 2026-11-14 6:45 PM, Ruthvik: rubrics and file uploads. Migration 2003 (rubric scores, private `submission-files` bucket, `file` assignment type) and `supabase/demo/rubric_demo.sql` plus three sample PDFs applied to the hosted project. Checked that another class's instructor and anonymous users cannot read the files.

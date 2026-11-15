@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { supabase } from '../shared/supabase.ts'
 import { InstructorWorkspace } from './InstructorWorkspace.tsx'
-import { loadLiveData, saveLiveData } from './liveStore.ts'
+import { importLibraryCourse, loadLiveData, saveLiveData } from './liveStore.ts'
 import type { InstructorData, StaffRole } from './model.ts'
 import type { InstructorStore } from './store.ts'
 
@@ -42,6 +42,7 @@ function LiveWorkspace({ role, hash, userId, name }: { role: StaffRole; hash: st
         throw problem
       })
     },
+    importCourse: source => importLibraryCourse(client, source.id),
   } : null, [data, client, userId, queryClient, queryKey, queue])
 
   if (isPending) return <p className="p-6" role="status">Loading your classes…</p>
