@@ -60,6 +60,8 @@ The Cat Photo App lab previews HTML and CSS in the scriptless frame.
 Migration 1005 and the `cat-photo-check` Edge Function record completion only when all three checks pass.
 Run `supabase/demo/cat_photo_lab.sql` to add the optional lab to the hosted Cat Photo App.
 The provided `cat.jpg` matches the photo in the freeCodeCamp Cat Photo App project.
+HTML/CSS practice labs reuse the scriptless preview and run declarative checks in the browser.
+Students can mark these practice blocks done. The checks do not record a grade.
 
 ## Supabase student curriculum
 
@@ -94,6 +96,8 @@ The roster mapping endpoint checks the signed-in Supabase profile and calls Jev 
 Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
 
 ## Log
+
+- 2026-11-15, Codex: added reusable HTML/CSS practice checks and kept them in saved coding lab blocks.
 
 - 2026-11-15, Codex: streamed curriculum generation stages to instructor draft review.
 - 2026-11-15, Codex: fixed early roster success and verified both flows with a delayed demo save, a failed save retry, and an immediate reload after success.

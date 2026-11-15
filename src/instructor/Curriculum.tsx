@@ -561,7 +561,7 @@ function ActivityEditor({ activity, onChange, localAuthoring }: { activity: Acti
           onChange={event => set({ code: { ...activity.code!, starter: event.target.value } })} /></label>
         <p className="ic-note">Cat Photo App checks the page heading, a short introduction, and the photo description.</p>
       </div>
-      : localAuthoring
+      : localAuthoring || activity.code?.lab?.verifier === 'web-practice-v1'
       ? <CodingLabEditor activity={activity} onChange={code => set({ code })} />
       : <fieldset className="ic-stack"><legend>Coding exercise</legend>
         {(['starter', 'tests', 'solution'] as const).map((key, index) => <label key={key}>{['Starter code', 'Test cases', 'Instructor solution'][index]}

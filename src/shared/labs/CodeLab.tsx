@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type { CodePayload, CodingLabSettings } from '../types/activities.ts'
 import { InteractiveHtmlFrame } from '../ui/InteractiveHtmlFrame.tsx'
 import { checkPython, checkWeb, type CheckResult } from './checks.ts'
+import { checkWebPractice, linkedStylesheet } from './webPractice.ts'
 import { catPhotoPreview } from './catPhoto.ts'
 import { runPython, type PythonResult } from './pythonRunner.ts'
 import './lab.css'
@@ -28,6 +29,7 @@ export function CodeLab({ payload, storageKey, enabled = true, allowSubmit = !!s
 }) {
   const lab: CodingLabSettings = payload.lab ?? { language: 'python', checks: [] }
   const web = lab.language === 'web'
+  const webPractice = lab.verifier === 'web-practice-v1'
   const starter = { source: payload.starter_code, css: lab.starterCss ?? '' }
   const [work, setWork] = useState(() => loadWork(storageKey, starter))
   const [file, setFile] = useState<'source' | 'css'>('source')
@@ -83,7 +85,10 @@ export function CodeLab({ payload, storageKey, enabled = true, allowSubmit = !!s
       let results: CheckResult[] = []
       let successful = true
       if (web) {
-        setRendered(verifyWeb ? { ...files, source: catPhotoPreview(files.source) } : files)
+        setRendered({
+          source: verifyWeb ? catPhotoPreview(files.source) : files.source,
+          css: webPractice && !linkedStylesheet(files.source) ? '' : files.css,
+        })
         if (verifyWeb && action === 'check') {
           const result = await verifyWeb(files.source, running.signal)
           if (running.signal.aborted) return
@@ -92,7 +97,10 @@ export function CodeLab({ payload, storageKey, enabled = true, allowSubmit = !!s
           else setStatus('Review the checks and try again.')
           return
         }
-        if (action !== 'run') results = checkWeb(lab, files.source)
+        if (action !== 'run') results = webPractice
+          ? await checkWebPractice(files.source, files.css, lab.checks, running.signal)
+          : checkWeb(lab, files.source)
+        if (running.signal.aborted) return
       } else {
         const result = await runPython(files.source, running.signal, () => setBusy('Running Python…'))
         setOutput(result)
@@ -137,7 +145,7 @@ export function CodeLab({ payload, storageKey, enabled = true, allowSubmit = !!s
     </div>
     <div className="cic-lab-actions">
       <button type="button" disabled={!enabled || !!busy} onClick={() => void execute('run')}>Run</button>
-      <button type="button" className={verifyWeb ? 'cic-lab-primary' : undefined} disabled={!enabled || !!busy} onClick={() => void execute('check')}>{verifyWeb ? 'Check your work' : 'Check'}</button>
+      <button type="button" className={verifyWeb ? 'cic-lab-primary' : undefined} disabled={!enabled || !!busy} onClick={() => void execute('check')}>{verifyWeb || webPractice ? 'Check your work' : 'Check'}</button>
       {allowSubmit && !verifyWeb && <button type="button" className="cic-lab-primary" disabled={!enabled || !!busy} onClick={() => void execute('submit')}>Submit</button>}
       {busy && <button type="button" onClick={() => controller.current?.abort()}>Stop</button>}
       <button type="button" disabled={!!busy} onClick={() => reset.current?.showModal()}>Reset to starter</button>

@@ -66,11 +66,14 @@ export interface LabCheck {
   name: string
   expected: string
   selector?: string
+  kind?: 'stylesheet' | 'text' | 'color' | 'padding'
+  compare?: string
+  hint?: string
 }
 
 export interface CodingLabSettings {
   language: 'python' | 'web'
-  verifier?: 'cat-photo-v1'
+  verifier?: 'cat-photo-v1' | 'web-practice-v1'
   starterCss?: string
   checks: LabCheck[]
 }

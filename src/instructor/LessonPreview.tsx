@@ -25,7 +25,7 @@ function ActivityBody({ activity, interactive }: { activity: Activity; interacti
       <HtmlActivityPreview activity={activity.interactiveHtml} title={title} scripts={isLocalDemo} device />}
     {embed && <div className="cic-video"><iframe src={embed} title={title} allowFullScreen loading="lazy" referrerPolicy="strict-origin-when-cross-origin" /></div>}
     {activity.type === 'code' && (interactive
-      ? <CodeLab payload={{ ...labPayload(activity), prompt: '' }} enabled={isLocalDemo} />
+      ? <CodeLab payload={{ ...labPayload(activity), prompt: '' }} enabled={isLocalDemo || activity.code?.lab?.verifier === 'web-practice-v1'} />
       : activity.code?.starter && <pre className="cic-code"><code>{activity.code.starter}</code></pre>)}
     {questions.length > 0 && <div>{questions.map((question, index) => {
       const promptId = `${previewId}-prompt-${index}`;
