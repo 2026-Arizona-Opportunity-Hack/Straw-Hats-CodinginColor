@@ -127,6 +127,14 @@ Known gaps for the permissions pass:
 - Students cannot read assignments yet (no student policy).
 - Instructors cannot edit library courses owned by the admin; they import their own copy instead (migration 2004 below).
 
+## Migration 2010: course role boundaries (not applied to hosted)
+
+Ownership alone no longer authorizes curriculum or answer-key writes.
+Students and reviewers cannot create courses or edit legacy courses they own; demoting an instructor removes write access immediately.
+Instructor owners retain access to their own trees, and admins retain access across owners.
+`supabase/tests/course_role_boundaries.sql` checks actual RLS, parent moves, role changes and published reads on a disposable migrated database.
+Run with `psql -v ON_ERROR_STOP=1 -f supabase/tests/course_role_boundaries.sql`; fixtures roll back.
+
 ## Migration 2004: copy a library course (applied)
 
 `supabase/migrations/2004_copy_library_course.sql` adds `copy_library_course(p_course_id uuid) returns uuid`.
@@ -156,14 +164,6 @@ Applied to the hosted project on 2026-11-15 with `npx supabase db push --linked 
 It was first numbered 2005, but Ken's `2005_publish_curriculum` already held that version on hosted, so the CLI would have skipped it; check `npx supabase migration list --linked` before numbering a migration.
 After applying: `program_settings` has its row and `class_module_settings` returned 29 rows.
 
-## Migration 2010: course role boundaries (not applied to hosted)
-
-Ownership alone no longer authorizes curriculum or answer-key writes.
-Students and reviewers cannot create courses or edit legacy courses they own; demoting an instructor removes write access immediately.
-Instructor owners retain access to their own trees, and admins retain access across owners.
-`supabase/tests/course_role_boundaries.sql` checks actual RLS, parent moves, role changes and published reads on a disposable migrated database.
-Run with `psql -v ON_ERROR_STOP=1 -f supabase/tests/course_role_boundaries.sql`; fixtures roll back.
-
 ## Gotchas we already hit
 
 - Supabase keeps `pgcrypto` in the `extensions` schema: call `extensions.crypt(...)` and `extensions.gen_salt(...)`, not the bare names.
@@ -179,11 +179,11 @@ Delete demo auth users and rows (or create a fresh project), apply migrations wi
 
 ## Log
 
-- 2026-11-15, Codex: added migration 2010 and local RLS regression coverage for course, nested content and answer-key role boundaries; not applied to hosted.
-
 - 2026-11-15 8:55 AM, Ruthvik: migration 2006 is applied on hosted (renumbered from 2005); every migration through 2008 is applied. `supabase/demo/assignment_modules_demo.sql` is still not run on hosted.
 
 - 2026-11-15 1:15 AM, Ruthvik: added migration 2006 (program settings, `class_module_settings`), its SQL test and `supabase/demo/assignment_modules_demo.sql`. Neither is applied to the hosted project yet.
 
 - 2026-11-15 12:45 AM, Ruthvik: set `is_library = true` on the hosted "Web Development Foundations" course (owner Dana Whitfield, no classes) so it shows in the CIC library. Data-only change, not in a migration or seed.
 - 2026-11-14 9:00 PM, Ruthvik: added and applied migration 2004 `copy_library_course`. Also loaded `supabase/curriculum/ai-academy.sql` (AI Academy library courses).
+
+- 2026-11-15, Codex: added migration 2010 and local RLS regression coverage for course, nested content and answer-key role boundaries; not applied to hosted.
