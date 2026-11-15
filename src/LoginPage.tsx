@@ -26,6 +26,9 @@ export function LoginPage() {
 
   return (
     <div className="mx-auto max-w-md px-4 py-16">
+      <span className="mb-5 inline-grid size-18 place-items-center rounded-2xl border border-black/5 bg-white p-2 shadow-sm">
+        <img src="/cic-logo.png" alt="Coding in Color" width={56} height={56} className="size-14 object-contain" />
+      </span>
       <PageHeader title="CIC Learn" subtitle="Coding in Color's learning platform" />
       {isMockMode ? (
         <Card title="Mock mode: pick a role">
