@@ -1,7 +1,13 @@
 {
   "fluid": true,
   "functions": {
-    "api/curriculum/draft.ts": { "maxDuration": 300, "includeFiles": "docs/lesson-style-guide.md" }
+    "api/curriculum/draft.ts": { "maxDuration": 300, "includeFiles": "docs/lesson-style-guide.md" },
+    "api/curriculum/assessment.ts": { "maxDuration": 180 }
   },
-  "rewrites": [{ "source": "/((?!api(?:/|$)).*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/((?!api(?:/|$)).*)",
+      "destination": "/index.html"
+    }
+  ]
 }

@@ -398,6 +398,10 @@ deno_version = 2
 # The function validates the access token with Supabase Auth before reading or grading.
 verify_jwt = false
 
+[functions.roster-login]
+# The login card is checked and throttled by service-only database functions.
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

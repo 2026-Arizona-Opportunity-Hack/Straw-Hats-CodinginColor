@@ -109,7 +109,7 @@ export function PeoplePage() {
                 const cls = classesFor(p.id, p.role).filter(Boolean)
                 return (
                   <tr key={p.id}>
-                    <Td className="font-semibold">{p.display_name}</Td>
+                    <Td className="font-semibold">{p.display_name}{p.username && <span className="block font-mono text-xs font-normal text-cic-muted">@{p.username}</span>}</Td>
                     <Td>{p.school ?? <span className="text-cic-muted">CIC</span>}</Td>
                     <Td className="max-w-72">
                       <div className="flex flex-col items-start gap-1.5">
@@ -165,8 +165,8 @@ function AddPersonDialog({ classes }: { classes: { id: string; name: string }[] 
   const [copied, setCopied] = useState(false)
   const add = useMutation({
     mutationFn: addPerson,
-    onSuccess: (_, p) => {
-      setDone(p)
+    onSuccess: (username, p) => {
+      setDone({ ...p, username: username ?? undefined })
       return qc.invalidateQueries({ queryKey: ORG_KEY })
     },
   })
@@ -182,11 +182,11 @@ function AddPersonDialog({ classes }: { classes: { id: string; name: string }[] 
     e.preventDefault()
     const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>
     if (role === 'admin' && !window.confirm(`Make ${f.display_name.trim()} a CIC Admin?\n\nAdmins can see every student record and change anyone's access.`)) return
-    add.mutate({ display_name: f.display_name.trim(), email: f.email.trim(), password, role, school: f.school.trim(), class_id: f.class_id ?? '' })
+    add.mutate({ display_name: f.display_name.trim(), email: (f.email ?? '').trim(), password, role, school: f.school.trim(), class_id: f.class_id ?? '' })
   }
 
   async function copy(p: NewPerson) {
-    await navigator.clipboard.writeText(`CIC Learn sign-in\n${window.location.origin}/login\nEmail: ${p.email}\nTemporary password: ${p.password}`)
+    await navigator.clipboard.writeText(`CIC Learn sign-in\n${window.location.origin}/login\n${p.username ? `Username: ${p.username}` : `Email: ${p.email}`}\nTemporary password: ${p.password}`)
     setCopied(true)
   }
 
@@ -203,20 +203,20 @@ function AddPersonDialog({ classes }: { classes: { id: string; name: string }[] 
                 <p className="text-lg font-bold">{done.display_name}</p>
                 <p className="mb-4 text-sm font-semibold text-brand">{ROLE_LABEL[done.role]}</p>
                 <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-                  <dt className="text-cic-muted">Email</dt>
-                  <dd className="break-all font-mono">{done.email}</dd>
+                  <dt className="text-cic-muted">{done.username ? 'Username' : 'Email'}</dt>
+                  <dd className="break-all font-mono">{done.username ?? done.email}</dd>
                   <dt className="text-cic-muted">Password</dt>
                   <dd className="font-mono text-base font-bold tracking-wider">{done.password}</dd>
                 </dl>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className={`grid gap-2 ${done.username ? 'grid-cols-1' : 'grid-cols-2'}`}>
               <Button variant="secondary" onClick={() => void copy(done)}>
                 {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />} {copied ? 'Copied' : 'Copy'}
               </Button>
-              <a href={signInEmail(done)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand px-4 text-sm font-semibold text-white hover:bg-brand-dark">
+              {!done.username && <a href={signInEmail(done)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand px-4 text-sm font-semibold text-white hover:bg-brand-dark">
                 <Mail aria-hidden="true" className="size-4" /> Email it
-              </a>
+              </a>}
             </div>
             <button type="button" onClick={reset} className="self-center text-sm font-semibold text-brand hover:underline">Add another person</button>
           </div>
@@ -240,9 +240,13 @@ function AddPersonDialog({ classes }: { classes: { id: string; name: string }[] 
             <Field id="add-name" label="Full name">
               <Input id="add-name" name="display_name" required maxLength={100} autoComplete="off" />
             </Field>
-            <Field id="add-email" label="Email">
-              <Input id="add-email" name="email" type="email" required maxLength={254} autoComplete="off" />
-            </Field>
+            {role === 'student' ? (
+              <p className="-mt-2 text-sm text-cic-muted">Students don't need an email. They get a username from their name, like jsmith1.</p>
+            ) : (
+              <Field id="add-email" label="Email">
+                <Input id="add-email" name="email" type="email" required maxLength={254} autoComplete="off" />
+              </Field>
+            )}
             <Field id="add-password" label="Temporary password">
               <div className="relative">
                 <Input id="add-password" required minLength={8} maxLength={72} autoComplete="off" spellCheck={false} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pr-11 font-mono tracking-wider" />

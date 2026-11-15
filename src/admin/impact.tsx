@@ -1,7 +1,7 @@
 // Owner: Aryan. Visual building blocks for the Impact page (donor- and staff-facing).
 // Colors: status palette validated with the dataviz checker; every segment also has a count/label.
 import { useEffect, useState } from 'react'
-import type { Status } from './metrics.ts'
+import { fmtGain, type Status } from './metrics.ts'
 
 const STATUS_COLOR: Record<Status, string> = {
   done: '#007a3d',
@@ -151,7 +151,7 @@ export function StatusLegend({ counts }: { counts?: Record<Status, number> }) {
  * Before → after per module: a blue dot at the pretest average, a green dot at the post-test average,
  * joined by a bar. Reads instantly ("they moved this far") and every value is printed as text.
  */
-export function GrowthRows({ rows }: { rows: { label: string; pre: number | null; post: number | null }[] }) {
+export function GrowthRows({ rows }: { rows: { label: string; pre: number | null; post: number | null; pairs: number }[] }) {
   const usable = rows.filter((r) => r.pre != null && r.post != null)
   if (!usable.length) return <p className="text-sm text-cic-muted">Shows up once students take a pretest and a post-test.</p>
   return (
@@ -164,15 +164,15 @@ export function GrowthRows({ rows }: { rows: { label: string; pre: number | null
           const hi = Math.max(pre, post)
           return (
             <li key={r.label} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-3 sm:grid-cols-[12rem_1fr_auto]">
-              <span className="truncate text-sm font-semibold">{r.label}</span>
-              <div className="relative h-8" role="img" aria-label={`${r.label}: pretest ${pre}%, post-test ${post}%`}>
+              <span className="text-sm font-semibold">{r.label}<span className="block text-xs font-normal text-cic-muted">{r.pairs} matched {r.pairs === 1 ? 'pair' : 'pairs'}</span></span>
+              <div className="relative h-8" role="img" aria-label={`${r.label}: pretest ${pre}%, post-test ${post}%, ${r.pairs} matched pairs`}>
                 <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-divider" />
                 <div className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full bg-gradient-to-r from-[#2a78d6] to-brand" style={{ left: `${lo}%`, width: `${hi - lo}%` }} />
                 <Dot pct={pre} color="#2a78d6" textColor="#1d5fa8" text={`${pre}%`} above={false} />
                 <Dot pct={post} color="#007a3d" textColor="#007a3d" text={`${post}%`} above />
               </div>
               <span className="rounded-full bg-brand-tint px-2.5 py-1 text-sm font-bold tabular-nums text-brand">
-                {post - pre >= 0 ? '+' : '−'}{Math.abs(post - pre)} pts
+                {fmtGain(r.post! - r.pre!)}
               </span>
             </li>
           )

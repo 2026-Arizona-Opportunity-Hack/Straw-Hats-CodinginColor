@@ -61,8 +61,8 @@ Judges score **Scope, Documentation, Polish and Security**, plus a separate **Ac
 ## Run it locally
 
 ```bash
-git clone https://github.com/2026-Arizona-Opportunity-Hack/Straw Hats-CodinginColor.git
-cd Straw Hats-CodinginColor
+git clone https://github.com/2026-Arizona-Opportunity-Hack/Straw-Hats-CodinginColor.git
+cd Straw-Hats-CodinginColor
 cp .env.example .env   # fill in your own values — never commit .env
 npm install
 npm run dev            # http://localhost:5173
@@ -79,6 +79,16 @@ npx supabase db push --include-seed   # runs supabase/migrations/ in order, then
 
 With Supabase configured, the instructor workspace reads and writes live data (classes, rosters, assigned modules, assignments, course content); Row Level Security limits each instructor to their own classes.
 
+### Student login cards
+
+Apply migration `3007_roster_student_login.sql` and deploy the `roster-login` Supabase Edge Function before using imported learners' login cards.
+Students enter their class code and individual six-digit passcode; their existing roster row is linked to an Auth identity and enrollment on first login.
+New identities use an opaque internal address, with no personal email or email delivery.
+Existing linked students keep their accounts and progress. Username account creation and sign-in remain available, with email access for older accounts.
+The function uses Supabase's built-in server credentials; never add its service key to frontend environment variables.
+Login attempts are limited in the database to 10 per card and 120 per class per 15 minutes, including failures; a throttled class must wait for its window to expire.
+Verify with `supabase/tests/roster_login.sql` against a local migrated database and `npm test -- tests/roster-login.test.ts`.
+
 For the live student curriculum, apply migration `1004_student_curriculum_access.sql` before setting `VITE_LIVE_STUDENT_CURRICULUM=true` and rebuilding. Students can then open published, unlocked modules in their enrolled courses and save attempts to Supabase. Live HTML is scriptless. The full Coding Lab runner is available in the local demo.
 
 Apply migration `2005_publish_curriculum.sql` before deploying the private-draft builder. **Save draft** keeps edits in the signed-in author's current browser. **Publish module** applies the selected module and course details to the shared course. Other unfinished modules stay in the draft.
@@ -88,6 +98,40 @@ Apply `1007_passive_reading_blocks.sql` before deploying the reading-block updat
 Before opening a PR: `npm run build && npm run lint`.
 
 Multiple-choice knowledge checks show feedback when students select an answer. The teacher preview grades the same interaction as practice.
+
+### Aggregate read API
+
+`GET /api/progress` lets the organization's dashboard read cohort progress and assessment gains.
+Apply `supabase/migrations/3005_aggregate_read_api.sql` after the earlier migrations and set `SUPABASE_SERVICE_ROLE_KEY` in the Vercel server environment alongside `VITE_SUPABASE_URL`.
+Keep the service key server-only. Give consumers a read key created in **Admin → Settings & API**, shown once at creation.
+The route runs on Vercel (or `vercel dev`), not the plain Vite development server.
+
+```bash
+curl --fail-with-body "$CIC_BASE_URL/api/progress" -H "Authorization: Bearer $CIC_READ_KEY"
+```
+
+Keys grant organization-wide aggregate read access only. They are checked against their stored SHA-256 hash on every request and rechecked during aggregation.
+Revoking a key in Settings rejects subsequent requests. Responses use `Cache-Control: no-store`.
+No student identifiers, names, responses, or individual scores are returned. Keep keys in the consumer's server environment, never a public dashboard bundle or URL.
+
+The JSON envelope is `{ "version": 1, "generated_at": "<ISO timestamp>", "cohorts": [...] }`.
+Each cohort has `course_id`, `course_title`, `class_id`, `class_name`, and these numeric fields.
+
+| Field | Meaning |
+|---|---|
+| `enrolled_students` | Distinct students with a login enrolled in this course context. Unlinked roster entries are excluded. |
+| `module_opportunities`, `completed_modules`, `tested_out_modules` | Student/module counts from canonical `_course_state`, including release, unlock, required-work and test-out rules. |
+| `completion_pct` | Completed modules / module opportunities × 100. |
+| `assessment_pairs` | Student/module pairs with both a first pretest score and a counted post-test score. |
+| `paired_pretest_pct`, `paired_posttest_pct` | Means across those same pairs, on a 0–100 scale. |
+| `learning_gain_points` | Mean of each pair's post-test minus pretest, in percentage points. |
+
+Class post-tests count the best allowed try; self-paced post-tests count the best try overall.
+`class_id` and `class_name` are null for self-enrollment. Duplicate enrollments use the student's canonical class (earliest class enrollment for that course), matching the student player.
+Archived enrollment history remains included. Cohorts without enrollments are omitted; an empty installation returns `cohorts: []`.
+Percentages/gains are null when their denominator is zero. This is an authorized internal aggregate report, without small-cohort anonymization.
+Only GET is accepted, with no query parameters. Errors are `400` for query parameters, `401` for missing/invalid/revoked keys, `405` for other methods, and `503` for unavailable configuration/database.
+Tests: `npm test -- tests/progress-api.test.ts` and `psql "$LOCAL_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/aggregate_read_api.sql` against a migrated disposable local database.
 
 ### Instructor workspace
 
@@ -102,10 +146,12 @@ Instructors can create, edit, duplicate, publish, delete, export to a `.json` fi
 The Grades tab is a gradebook with needs-grading, missing, late and not-due states, rubrics, file uploads and CSV export.
 With Supabase configured, all of this is live data (`src/instructor/liveStore.ts`).
 
-**CIC library.** The sidebar's **CIC library** lists CIC's ready-made courses to preview.
-In **Create a class**, pick one; the class gets its own copy (migration `2004_copy_library_course.sql`), so the library never changes.
-Edit a class's course from its **Curriculum** tab (**Edit curriculum**); drafts and publishing work the same as in the course builder.
-Admins can also edit library courses.
+**Curriculum.** Instructors and admins can browse global courses and the classes they can access. Courses open in view mode.
+Staff can comment on individual published blocks. Comments on a class course stay in that class's staff thread.
+Admins can edit global courses, and class staff can edit their class's copy.
+**CIC Library** lists the workshop and school slide decks admins have curated. In a global course, select **Include in CIC Library** on a Slides block and publish its module to add the deck.
+In **Create a class**, picking a global course template makes an independent copy with its own content IDs.
+Apply curriculum migrations `2011` and `2012` before deploying this workspace. The [curriculum isolation audit](Handoffs/curriculum-isolation-audit-2026-11-15.md) covers the current data and legacy classes still using shared courses directly.
 
 **Class Dashboard.** Shows learning gain with the pretest and post-test averages behind it, average assignment score, work to grade and missing work.
 **Needs attention** lists each student who needs help and opens to the exact reasons (stuck, inactive, below mastery, missing or low work, post-test drop).
@@ -170,7 +216,7 @@ In draft preview, choose **Generate image** to describe a scene for Seedream 5.0
 
 To create annotations without a pointer, expand **Add points with the keyboard** and enter percentages from the image's left and top. Add two opposite corners for a box, or at least three points followed by **Finish mask**. For example, points at `(10%, 20%)` and `(80%, 75%)` create a box even when the image has no suggested annotations.
 
-On localhost, **Draft from materials** includes **Local QA** buttons for the lesson preview, image review, and the exhausted image limit. **Test image review** opens a sample photo and runs the same automatic annotations in the browser. The model downloads on first use. The QA buttons make no paid AI requests.
+On localhost, **Draft from materials** includes **Local QA** buttons for the lesson preview, image review, and the exhausted image limit. **Test image review** opens the sample photo or a PNG or JPEG chosen under **Test image (optional)**. It runs the same browser annotations, including a crop retry when a wide or tall image yields no suggestions. The overlay stays on the full image. The model downloads on first use. The QA buttons make no paid AI requests.
 
 ### Interactive HTML activities
 

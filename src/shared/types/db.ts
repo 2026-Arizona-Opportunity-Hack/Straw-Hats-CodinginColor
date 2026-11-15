@@ -15,6 +15,8 @@ export interface Profile {
   role: Role
   display_name: string
   school: string | null
+  /** Students only (1013): their sign-in name, e.g. jsmith1. */
+  username?: string | null
 }
 
 export interface Course {
@@ -58,6 +60,16 @@ export interface Activity<T extends ActivityType = ActivityType> {
   /** Whether finishing this activity is required to unlock the next module. */
   counts_toward_unlock: boolean
   content: ActivityContent<T>
+}
+
+export interface CurriculumBlockComment {
+  id: string
+  activity_id: string
+  class_id: string | null
+  author_id: string
+  author_name: string
+  body: string
+  created_at: string
 }
 
 export interface ClassRoom {

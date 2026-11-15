@@ -30,6 +30,9 @@ A first pretest try at or above the pass mark tests the student out of that modu
 | `1009_unlock_and_duplicate_fixes.sql` | Merged (#58) | Applied to the hosted DB |
 | `1010_intro_python_demo_content.sql` | Merged (#59) | Applied to the hosted DB |
 | `1011_check_feedback.sql` | Merged (#62) | Applied to the hosted DB |
+| `1012_catalog_modules.sql` | Branch `shivraj-polish` | Applied to the hosted DB |
+| `1013_student_usernames.sql` | Branch `shivraj-polish`, tested (15 checks) | Not applied yet |
+| `1014_module_assessments.sql` | Branch `shivraj-polish`, tested (14 checks) | Not applied yet |
 | `2009_course_state_merge.sql` | Merged (#62). In Ruthvik's range on purpose | Applied to the hosted DB |
 
 Tests: 45 checks in a local Postgres (PGlite) with `0001`, `1001`, `1002` and `2001`, passing in both orders.
@@ -78,12 +81,35 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 - `my_check_answer(activity)` returns the right choice id only for `check`/`exit` cards the caller has already answered. Warm-up and final check keys stay hidden.
 - **Ruthvik:** 1009 and 2006 both replaced `_course_state`; live had 1009's version (no program defaults), a fresh DB would keep 2006's (no 1009 fixes). `2009_course_state_merge.sql` holds both and runs after both. Change `_course_state` only in a newer migration that starts from that copy.
 
+### Student usernames (1013)
+
+- Students have **no email**. Sign-up: first name, last name, password, optional class code. They get a username like `jsmith1` (first initial + last name + lowest free number, accents folded) and see it once before signing in. Sign-in: username + password.
+- Auth still needs an email, so each student uses a hidden, undeliverable `<username>@students.cic-learn.invalid` (`studentAuthEmail` in `src/api/student/auth.ts` must match `_create_student`).
+- `student_create_account(first, last, password, class_code)` (anon) and `admin_create_student(first, last, password, class_id)` (admins; People & roles uses it for students). Public email sign-up (`student_sign_up`) is revoked.
+- **Google sign-in = K-12 educators**: new Google accounts get the `reviewer` role. The button sits under the staff sign-in.
+- Sidebar and People & roles show `@username`.
+- One-time cleanup: `supabase/demo/delete_all_students.sql` deletes every student account, roster row and all student work (staff and curriculum stay).
+
+### Generated warm-ups and final checks (1014)
+
+- Every module gets a warm-up and final check as **parallel forms**: same concepts, same count, different questions where possible, so gain compares like with like.
+- `POST /api/curriculum/assessment { moduleId }` (instructor/admin): the AI reads the module and writes both forms; `generate_module_assessment(module, ai)` validates and stores them (answers into `activity_keys`). Invalid or missing AI output falls back to the module's own keyed checks. Publishing a module calls it in the background (`requestModuleAssessment` in `liveStore.ts`).
+- Hand-written tests are never replaced (only empty ones or ones with `content.generated`). 1014 backfills all published modules.
+- They are normal pretest/posttest activities, so the instructor gain columns, admin analytics and per-concept scores work unchanged.
+- **Final check lock**: while an unsubmitted final check is open, every way out is blocked (`useBlocker`) and a popup shakes on each try.
+
 ### Module player and student sidebar
 
 - `/student/module/:id` shows **one card at a time** (`ModulePlayer.tsx`). `?step=N` (1-based) opens a card. Next unlocks once a card is done; non-required cards offer "Skip for now". A segment bar shows progress without showing questions. Correct answers trigger a short confetti burst (`stepper.css`, none under reduced motion).
+- A new module visit starts at its first card, including reading, instead of skipping to the first required question.
+  Returning visits resume the last viewed activity saved in this browser for that student and module; a fingerprint of the published lesson content invalidates the bookmark after edits or reordering.
+  Explicit step links take precedence and remain limited by unfinished required work.
+  Bookmarks are navigation only: reading still creates no submission, score or server completion record.
 - `ActivityBlock` (`LessonContent.tsx`) new optional props: `onResult` (each attempt result), `hideTitle` (caller shows the title), `answerOnce` (lock after first submission, except `posttest`). Video activities now embed via `embedUrl`, like the instructor preview.
 - Student sidebar: Home (`/student`), My courses (`/student/courses`), My classroom (`/student/classroom`). Inside a course, `StudentCourseNav.tsx` lists modules as dropdowns of their steps; locked modules show a lock and don't expand.
 - **Finish module** lands on the course page with `state.finishedModule`; `ModuleFinished.tsx` shows a banner there: confetti and the final-check score, then *Start the next module*, *Find your next course* (all done), or, when the pass mark is missed, the score needed, the tries left and *Retake the final check*. `Celebration.tsx` holds the shared confetti. `ModuleStatus` now carries `pass_mark`.
+- **Explore** (`StudentExplore.tsx`, `explore.css`): course cards with description, level and module count, subject chips and search. A card opens a `<dialog>` preview with the module list (`catalog_modules()`, 1012) and *Add course* (self-paced), a class-code form (with a class), *Open course* (already added) or *Coming soon*.
+- Course page back link goes to My courses once the course is added, else to Explore.
 - Shared step names: `src/student/steps.ts`. Shared course progress hook: `src/student/useMyCourseProgress.ts`.
 
 ### Functions the app calls (`supabase.rpc`)
@@ -97,6 +123,9 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 | `my_next_activity(course_id)` | `{module_id, activity_id}` to continue, or null |
 | `my_activity_response(activity_id)` | The student's latest saved response, or null |
 | `my_check_answer(activity_id)` | Right choice id of a check/exit the student already answered, else null |
+| `catalog_modules()` | Module titles of published modules in published original courses (Explore preview) |
+| `student_create_account(first, last, password, class_code)` | `{user_id, username, class}`; callable signed out |
+| `generate_module_assessment(module_id, ai)` | `{source: 'ai'|'checks'|null, written, pretest, posttest}` (instructor/admin) |
 | `submit_attempt(activity_id, response, time_on_task_ms, client_score)` | `{attempt_id, attempt_no, score, is_correct, counts}`. Errors: `MODULE_LOCKED`, `NOT_ENROLLED`, `BAD_RESPONSE` |
 
 `response` shapes are documented above `submit_attempt` in `1001_student_progress.sql`.
@@ -115,7 +144,11 @@ The reply never contains the right answer.
 
 1. **Swap `src/api/student/index.ts` from mocks to the RPCs above** (Shivraj, next).
 2. ~~Placement quiz~~: done in 1008. Next: CIC reviews the 12 questions.
-3. **Roster passcodes** (`class_students`) are not linked to sign-up yet; revisit once sign-up is live.
+3. **Roster passcodes** now use the `roster-login` Edge Function and migration `3007_roster_student_login.sql`.
+   Provisioning uses the Auth admin API and a marked synthetic identity, then links the existing roster before enrollment; no direct Auth table writes.
+   Both RPCs are service-only, the binder rechecks the card under a row lock, and direct client identity relinking is blocked.
+   Login cards sit alongside username signup/sign-in from 1013; educator Google stays on the staff side.
+   Apply the migration and deploy the function before enabling login cards on hosted; local SQL and handler tests cover access, retries, throttling and existing accounts.
 4. **Ruthvik:** the course builder now loads activities without answers.
    Select `activity_keys (key)` with each activity and put answers back: `content.answer = key.answer`, `items[i].answer = key.answers[items[i].id]`, `questions[i].answer = key.question_answers[i]`, `solution = key.solution`.
    Saving needs no change.
@@ -150,7 +183,14 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-15, Codex: reconciled the reading-position fix with the new final-check navigation lock; the keyed module player retains the lock and submission behavior.
+- 2026-11-15, Codex: preserved initial reading order and added per-student/module browser bookmarks; verified first entry, return visits and clamped step links in the local demo, with navigation/storage regression tests.
+- 2026-11-15, Shivraj: student usernames + educator Google sign-in (1013), final-check lock, generated parallel warm-ups/final checks with an AI endpoint and checks fallback (1014). Touches Aryan's People & roles and Ken's `liveStore.ts` publish.
+- 2026-11-15, Shivraj: rebuilt Explore as course cards with a module preview and Add course (1012); course page back link goes to My courses. Touches Jacky's `StudentExplore.tsx` and `StudentCourse.tsx`.
 - 2026-11-15, Shivraj: added the module-complete banner on the course page (touches Jacky's `StudentCourse.tsx`).
 - 2026-11-15, Shivraj: added check explanations and right-answer reveal (1011) and merged the 1009 and 2006 versions of `_course_state` (2009).
 - 2026-11-14 7:30 PM, Ruthvik: confirmed with `migration list` that 1001 and 1002 are applied to the hosted DB. Items 4 (builder reads `activity_keys`) and 5 (scoring rules in instructor progress) are done on `ruthvik/class-tabs`.
+- 2026-11-15, Codex: connected imported login cards to student Auth sessions and their original roster rows; hosted activation remains pending.
 - 2026-11-14, Shivraj: created. Migrations 1001 (grading, unlock rules, self-chosen courses) and 1002 (answer mover trigger, assigned modules only), both tested locally, not yet applied.
+
+- 2026-11-15, Codex: reconciled login cards with PR #75; preserved generated username accounts, legacy email access and staff Google sign-in.

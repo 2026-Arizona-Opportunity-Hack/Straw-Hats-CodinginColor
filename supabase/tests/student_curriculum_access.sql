@@ -83,9 +83,9 @@ end $$;
 
 select set_config('request.jwt.claim.sub', '71000000-0000-0000-0000-000000000004', true);
 do $$ begin
-  if not exists (select 1 from activities where id = '75000000-0000-0000-0000-000000000001')
+  if exists (select 1 from activities where id = '75000000-0000-0000-0000-000000000001')
      or exists (select 1 from activities where id = '75000000-0000-0000-0000-000000000003') then
-    raise exception 'Reviewer visibility does not match publication';
+    raise exception 'Reviewer can see private class curriculum';
   end if;
 end $$;
 

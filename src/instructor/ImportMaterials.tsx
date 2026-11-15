@@ -43,6 +43,7 @@ export function ImportMaterials({ mode, local, close, onMarkdown, onDraft }: {
   const [selected, setSelected] = useState<string[]>([])
   const ready = deck ? !!selected.length || deck.slides.some(slide => slide.text.trim() || slide.notes.trim()) : !!text.trim()
   const pending = useRef<AbortController | null>(null)
+  const qaImage = useRef<HTMLInputElement>(null)
   useEffect(() => () => pending.current?.abort(), [])
   const converter = mode === 'converter'
   if (draft) return <DraftPreview draft={draft.module} imageTicket={draft.imageTicket} fixture={draft.fixture} local={local} close={close} back={() => setDraft(null)} onDraft={onDraft}
@@ -83,11 +84,26 @@ export function ImportMaterials({ mode, local, close, onMarkdown, onDraft }: {
         : <p className="ic-note">Use curriculum materials approved for processing. Leave out student names and records.</p>)}
       {converter && import.meta.env.DEV && local && <fieldset disabled={busy || reading}>
         <legend>Local QA</legend>
+        <label>Test image (optional)<input ref={qaImage} type="file" accept="image/png,image/jpeg" /></label>
         <div className="ic-row">
           {(['preview', 'image', 'limit'] as const).map(scenario => <button key={scenario} type="button" className="ic-button"
             onClick={async () => {
-              const { localQaDraft } = await import('./draftQa')
-              if (!pending.current) setDraft(localQaDraft(scenario))
+              if (pending.current) return
+              const request = new AbortController()
+              const file = qaImage.current?.files?.[0]
+              pending.current = request
+              setError('')
+              setReading(true)
+              try {
+                const { localQaDraft } = await import('./draftQa')
+                const result = await localQaDraft(scenario, file)
+                if (!request.signal.aborted) setDraft(result)
+              } catch (problem) {
+                if (!request.signal.aborted) setError(problem instanceof Error ? problem.message : 'Could not load the test image.')
+              } finally {
+                pending.current = null
+                if (!request.signal.aborted) setReading(false)
+              }
             }}>{scenario === 'preview' ? 'Test lesson preview' : scenario === 'image' ? 'Test image review' : 'Test image limit'}</button>)}
         </div>
       </fieldset>}
