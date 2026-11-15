@@ -84,10 +84,11 @@ export function InstructorWorkspace({
     requestAnimationFrame(() => document.getElementById('ic-save-error')?.focus());
   }
 
-  function save(next: typeof data) {
+  /** `previous` is what the store already holds; it defaults to what is on screen. */
+  function save(next: typeof data, previous: typeof data = data) {
     let pending: void | Promise<void>;
     try {
-      pending = store.save(next, data);
+      pending = store.save(next, previous);
     } catch {
       showError('Could not save these changes in this browser. Free up browser storage or remove large images and try again.');
       return false;
@@ -99,13 +100,20 @@ export function InstructorWorkspace({
     return true;
   }
 
-  function saveClass(group: ClassGroup, created = false) {
-    const current = draftsLocal ? store.load() : data;
+  /**
+   * `imported`: a course the class just got from the library. It is already saved, but this
+   * render's `data` predates it, so add it here or the class would point at a missing course.
+   */
+  function saveClass(group: ClassGroup, created = false, imported?: Course) {
+    const loaded = draftsLocal ? store.load() : data;
+    const current = imported && !loaded.courses.some(course => course.id === imported.id)
+      ? { ...loaded, courses: [...loaded.courses, imported] } : loaded;
     const classes = created ? [...current.classes, group] : current.classes.map(item => item.id === group.id ? group : item);
     const staff = created && profile.role === 'instructor'
       ? current.staff.map(person => person.id === profile.id ? { ...person, classIds: [...person.classIds, group.id] } : person)
       : current.staff;
-    if (!save({ ...current, classes, staff })) return false;
+    // Compare against `current` so the already-saved imported course is not written again.
+    if (!save({ ...current, classes, staff }, current)) return false;
     if (created) {
       setNewClass(group.id);
       window.location.assign('#/classes/' + group.id);
@@ -170,7 +178,7 @@ export function InstructorWorkspace({
   async function makeClassEditable(group: ClassGroup, source: Course) {
     const copy = await importCourse(source);
     const moduleIds = source.modules.flatMap((module, index) => group.moduleIds.includes(module.id) && copy.modules[index] ? [copy.modules[index].id] : []);
-    if (!saveClass({ ...group, courseId: copy.id, moduleIds })) throw new Error('Could not update the class.');
+    if (!saveClass({ ...group, courseId: copy.id, moduleIds }, false, copy)) throw new Error('Could not update the class.');
     window.location.assign(`#/classes/${group.id}/curriculum/edit`);
   }
 
@@ -184,7 +192,7 @@ export function InstructorWorkspace({
   const content = (() => {
     if (!navigation.some(({ path }) => path === section)) return <PageHeader title="Page unavailable for this role" back={{ label: 'Back to workspace', to: home }} />;
     if (section === 'classes') {
-      if (item === 'new') return <ClassSetup courses={data.courses} classes={data.classes} onCreate={group => saveClass(group, true)} onImport={importCourse} />;
+      if (item === 'new') return <ClassSetup courses={data.courses} classes={data.classes} onCreate={(group, imported) => saveClass(group, true, imported)} onImport={importCourse} />;
       if (group) return <ClassDashboard key={group.id} group={group} course={course} onSave={saveClass} justCreated={newClass === group.id} tab={isClassTab(subpage) ? subpage : 'dashboard'} detail={detail} otherClasses={visibleClasses}
         editor={subpage === 'curriculum' && detail === 'edit' && course && !course.library ? builderFor(course, { className: group.name, backTo: `#/classes/${group.id}/curriculum` }) : undefined}
         onMakeEditable={course?.library ? () => makeClassEditable(group, course) : undefined} />;
