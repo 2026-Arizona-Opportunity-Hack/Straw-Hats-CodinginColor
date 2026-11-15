@@ -1,4 +1,5 @@
 import type { InteractiveHtmlPayload } from '../shared/types/activities.ts';
+import type { Assignment } from './assignments/model';
 
 export const activityTypes = {
   content: 'Article',
@@ -55,6 +56,8 @@ export type ClassGroup = {
   moduleIds: string[];
   joinCode: string;
   learners: Learner[];
+  /** Class-level assignments (quizzes, links, pages, written, code). */
+  assignments?: Assignment[];
 };
 export type StaffRole = 'instructor' | 'admin' | 'reviewer';
 export type StaffProfile = { id: string; name: string; role: StaffRole; classIds: string[] };

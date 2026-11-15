@@ -20,15 +20,15 @@ const blocks = [
   { name: 'Exit question', detail: 'End the lesson with a reflection', type: 'exit', icon: CircleHelp, keywords: 'reflection' },
 ] satisfies { name: string; detail: string; type: ActivityType; icon: typeof AlignLeft; keywords: string }[];
 
-export function BlockPicker({ onPick, onClose, library }: {
-  library: Activity[]; onPick: (activity: Activity) => void; onClose: (restoreFocus: boolean) => void;
+export function BlockPicker({ onPick, onClose, library, allowHtml }: {
+  library: Activity[]; allowHtml: boolean; onPick: (activity: Activity) => void; onClose: (restoreFocus: boolean) => void;
 }) {
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const popup = useRef<HTMLDivElement>(null);
   const options = [
-    ...blocks.map(block => ({ ...block, key: block.name, saved: undefined as Activity | undefined })),
+    ...blocks.filter(block => allowHtml || block.type !== 'interactive_html').map(block => ({ ...block, key: block.name, saved: undefined as Activity | undefined })),
     ...library.map(saved => ({
       name: saved.title, detail: 'From My blocks', type: saved.type, icon: BookOpen, keywords: 'saved reusable', key: saved.id, saved,
     })),
