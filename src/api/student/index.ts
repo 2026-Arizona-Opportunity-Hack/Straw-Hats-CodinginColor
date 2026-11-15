@@ -39,6 +39,12 @@ export interface AttemptInput {
 export type CatalogCourse = Pick<Course, 'id' | 'title' | 'description' | 'level' | 'delivery_mode'>
 /** A course the student is in: through a class (`class_name` set) or chosen on their own. */
 export type StudentCourse = CatalogCourse & { source: 'class' | 'self'; class_name: string | null }
+export type ModuleAssignment = { id: string; title: string; class_name: string; module_id: string; course_id: string; needs_enrollment: boolean }
+
+export async function listModuleAssignments(): Promise<ModuleAssignment[]> {
+  return curriculumBackend ? result(curriculumBackend.rpc('my_module_assignments')) : []
+}
+
 export type ActivityStatus = { activity_id: string; submitted: boolean; best_score: number | null }
 type AttemptResult = { is_correct: boolean | null; score: number | null }
 
@@ -59,10 +65,12 @@ export async function listMyCourses(): Promise<StudentCourse[]> {
   return mockDelay(MOCK_COURSES.filter((c) => c.published).map((c) => ({ ...c, source: 'self' as const, class_name: null })))
 }
 
-/** Every published course, for Explore. Module lists stay hidden until the student enrolls. */
+/** Every published original course, for Explore. Teachers' class copies are left out
+ * (students in that class still see their copy in My courses). Module lists stay hidden until the student enrolls. */
 export async function listCatalog(): Promise<CatalogCourse[]> {
   if (curriculumBackend) {
-    return result(curriculumBackend.from('courses').select('id, title, description, level, delivery_mode').eq('published', true).order('title'))
+    return result(curriculumBackend.from('courses').select('id, title, description, level, delivery_mode')
+      .eq('published', true).is('copied_from', null).order('title'))
   }
   return mockDelay(MOCK_COURSES.filter((c) => c.published))
 }
@@ -111,6 +119,12 @@ export async function getModule(moduleId: string): Promise<ModuleWithContent | n
 export async function listActivityStatus(moduleId: string): Promise<ActivityStatus[]> {
   if (curriculumBackend) return result(curriculumBackend.rpc('my_module_activities', { p_module_id: moduleId }))
   return []
+}
+
+/** The student's latest saved answer for one activity (null if never answered), to show it again. */
+export async function getActivityResponse(activityId: string): Promise<Record<string, unknown> | null> {
+  if (curriculumBackend) return result(curriculumBackend.rpc('my_activity_response', { p_activity_id: activityId }))
+  return null
 }
 
 export async function recordAttempt(input: AttemptInput): Promise<AttemptResult> {

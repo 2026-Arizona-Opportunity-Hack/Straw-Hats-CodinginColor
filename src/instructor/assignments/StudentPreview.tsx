@@ -62,6 +62,7 @@ function PreviewBlock({ block, number, title, checked, response, onRespond, done
         {block.caption && <figcaption className="ic-note">{block.caption}</figcaption>}
       </figure>;
     }
+    case 'completion': return <p className="ic-note">{block.title} · {pointsLabel(block.points)} for completion in the linked lesson</p>;
     case 'html': return block.html.trim() ? <div className="ic-stack">
       <InteractiveHtmlFrame html={block.html} title={title} onComplete={score => onDone(score ?? null)} />
       {done !== undefined ? <p className="ic-success" role="status">Done{done !== null ? ` · score ${Math.round(done * 100)}%` : ''}</p>

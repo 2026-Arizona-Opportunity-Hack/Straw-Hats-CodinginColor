@@ -39,6 +39,7 @@ export function needsInstructor(block: Block) {
 /** Automatic points for one block, or null when the instructor must score it. */
 export function autoPoints(block: Block, response: ResponseValue | undefined): number | null {
   if (block.type === 'question') return questionCorrect(block.question, isFileList(response) ? undefined : response) ? block.question.points : 0;
+  if (block.type === 'completion') return response === '1' ? block.points : 0;
   if (block.type === 'html' && block.reportsScore) {
     const value = typeof response === 'string' ? Number(response) : NaN;
     return Number.isFinite(value) ? Math.round(Math.min(Math.max(value, 0), 1) * block.points * 100) / 100 : 0;

@@ -36,6 +36,15 @@ describe('gradeSubmission', () => {
     expect(grade.countedPossible).toBe(2);
   });
 
+  it('counts the lab and reflection as independent completion points', () => {
+    const linked = assignment({ blocks: [
+      { id: 'lab', type: 'completion', title: 'Coding lab', points: 1 },
+      { id: 'reflection', type: 'completion', title: 'Reflection', points: 1 },
+    ] });
+    expect(gradeSubmission(linked, submission({ responses: { lab: '1' } }), NOW)).toMatchObject({ earned: 1, possible: 2 });
+    expect(gradeSubmission(linked, submission({ responses: { lab: '1', reflection: '1' } }), NOW)).toMatchObject({ earned: 2, possible: 2 });
+  });
+
   it('lets an instructor score override the automatic one', () => {
     const grade = gradeSubmission(assignment(), submission({ responses: { q: [0] }, manualScores: { q: 1, w: 7 } }), NOW);
     expect(grade).toMatchObject({ status: 'graded', earned: 8, ungraded: 0 });

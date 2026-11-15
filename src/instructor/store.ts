@@ -22,6 +22,8 @@ export interface InstructorStore {
    * promise and report failures through it. `previous` lets a store write only what changed.
    */
   save(data: InstructorData, previous: InstructorData): void | Promise<void>;
+  /** Save a roster change without discarding the caller's draft on failure. */
+  saveClass?(group: ClassGroup, previous?: ClassGroup, attempted?: ClassGroup): Promise<void>;
   publishCourse?(course: Course, previous: Course | undefined, moduleId: string, expectedRevision: number | undefined): Promise<number>;
   /**
    * Copies a library course into a course the signed-in person owns and returns the copy.

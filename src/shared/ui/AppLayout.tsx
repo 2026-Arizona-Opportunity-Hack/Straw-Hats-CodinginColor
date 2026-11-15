@@ -5,6 +5,7 @@ import {
   BarChart3,
   BookOpen,
   GraduationCap,
+  Home,
   KeyRound,
   LayoutDashboard,
   LogOut,
@@ -15,6 +16,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react'
+import { StudentCourseNav } from '../../student/StudentCourseNav.tsx'
 import { useAuth } from '../auth/AuthContext.tsx'
 import { homePathFor } from '../auth/paths.ts'
 import { isMockMode } from '../supabase.ts'
@@ -31,7 +33,11 @@ interface NavItem {
 }
 
 const NAV: Record<Role, NavItem[]> = {
-  student: [{ to: '/student', label: 'My courses', icon: GraduationCap }],
+  student: [
+    { to: '/student', label: 'Home', icon: Home },
+    { to: '/student/courses', label: 'My courses', icon: GraduationCap },
+    { to: '/student/classroom', label: 'My classroom', icon: School },
+  ],
   instructor: [
     { to: '/instructor', section: 'classes', defaultSection: true, label: 'Classes', icon: LayoutDashboard },
     { to: '/instructor', section: 'curriculum', label: 'CIC library', icon: BookOpen },
@@ -178,6 +184,7 @@ export function AppLayout() {
       <aside className="brand-panel sticky top-0 hidden h-screen flex-col gap-8 p-4 lg:flex [&_:focus-visible]:outline-white">
         <Brand to={home} onClick={() => setOpen(false)} />
         {nav}
+        {profile?.role === 'student' && <StudentCourseNav />}
         {footer('side')}
       </aside>
 
@@ -199,6 +206,7 @@ export function AppLayout() {
       {open && (
         <div id="mobile-nav" className="brand-panel sticky top-16 z-20 flex flex-col gap-4 p-4 shadow-lg lg:hidden [&_:focus-visible]:outline-white">
           {nav}
+          {profile?.role === 'student' && <StudentCourseNav onNavigate={() => setOpen(false)} />}
           {footer('menu')}
         </div>
       )}

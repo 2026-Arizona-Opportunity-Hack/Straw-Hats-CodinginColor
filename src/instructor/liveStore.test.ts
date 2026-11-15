@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { describe, expect, it } from 'vitest';
 import { newAssignment } from './assignments/model';
-import { importLibraryCourse, loadLiveData, saveLiveData } from './liveStore';
+import { importLibraryCourse, loadLiveData, saveLiveClass, saveLiveData } from './liveStore';
 import type { ClassGroup, Course, InstructorData } from './model';
 
 type Call = { table: string; op: string; payload?: unknown; filters: [string, ...unknown[]][] };
@@ -43,6 +43,31 @@ const klass = (assignments: ClassGroup['assignments']): ClassGroup => ({
   id: 'class-1', name: 'P3', school: 'S', courseId: 'course-1', joinCode: 'J', moduleIds: [], learners: [], assignments, submissions: [],
 });
 const data = (patch: Partial<InstructorData>): InstructorData => ({ courses: [], classes: [], staff: [], ...patch });
+
+describe('saveLiveClass', () => {
+  it('removes draft rows dropped after a failed setup and retries all selected rows', async () => {
+    const student = (id: string) => ({
+      id, name: id, passcode: '123456', baseline: null, attempts: [], hints: [], lastActive: null,
+    });
+    const kept = student('Kept');
+    const omitted = student('Omitted');
+    const attempted = { ...klass([]), learners: [kept, omitted], moduleIds: ['keep', 'omit'] };
+    const next = { ...attempted, learners: [kept], moduleIds: ['keep'] };
+    const { client, calls } = fakeSupabase();
+
+    await saveLiveClass(client, 'user', next, undefined, attempted);
+
+    expect(calls.filter(call => call.op === 'delete').map(({ table, filters }) => ({ table, filters }))).toEqual([
+      { table: 'class_modules', filters: [['eq', 'class_id', next.id], ['in', 'module_id', ['omit']]] },
+      { table: 'class_students', filters: [['in', 'id', [omitted.id]]] },
+    ]);
+    expect(calls.filter(call => call.op === 'upsert').map(({ table, payload }) => ({ table, payload }))).toMatchObject([
+      { table: 'classes', payload: { id: next.id } },
+      { table: 'class_modules', payload: [{ class_id: next.id, module_id: 'keep' }] },
+      { table: 'class_students', payload: [{ class_id: next.id, id: kept.id }] },
+    ]);
+  });
+});
 
 describe('saveLiveData', () => {
   it('never deletes an assignment this browser did not load (stale browser)', async () => {
