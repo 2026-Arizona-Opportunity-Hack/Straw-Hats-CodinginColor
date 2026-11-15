@@ -14,6 +14,13 @@ export interface ModuleStatus {
   module_id: string
   title: string
   state: 'locked' | 'available' | 'completed'
+  /** Passed the pretest, so the module counts as completed (late joiners). */
+  tested_out?: boolean
+  pretest_score?: number | null
+  posttest_best?: number | null
+  /** Final-check tries used, and how many count (class courses only). */
+  posttest_tries?: number
+  max_tries?: number | null
 }
 
 export interface AttemptInput {
@@ -26,7 +33,9 @@ export interface AttemptInput {
   time_on_task_ms: number
 }
 
-export type StudentCourse = Pick<Course, 'id' | 'title' | 'description' | 'level' | 'delivery_mode'>
+export type CatalogCourse = Pick<Course, 'id' | 'title' | 'description' | 'level' | 'delivery_mode'>
+/** A course the student is in: through a class (`class_name` set) or chosen on their own. */
+export type StudentCourse = CatalogCourse & { source: 'class' | 'self'; class_name: string | null }
 export type ActivityStatus = { activity_id: string; submitted: boolean; best_score: number | null }
 type AttemptResult = { is_correct: boolean | null; score: number | null }
 
@@ -39,12 +48,33 @@ async function result<T>(request: PromiseLike<{ data: unknown; error: { message:
 export async function listMyCourses(): Promise<StudentCourse[]> {
   if (curriculumBackend) {
     const rows = await result<(Omit<StudentCourse, 'id'> & { course_id: string })[]>(curriculumBackend.rpc('my_courses'))
-    const courses = rows.map(({ course_id, title, description, level, delivery_mode }) => ({
-      id: course_id, title, description, level, delivery_mode,
+    const courses = rows.map(({ course_id, title, description, level, delivery_mode, source, class_name }) => ({
+      id: course_id, title, description, level, delivery_mode, source, class_name,
     }))
     return [...new Map(courses.map(course => [course.id, course])).values()]
   }
+  return mockDelay(MOCK_COURSES.filter((c) => c.published).map((c) => ({ ...c, source: 'self' as const, class_name: null })))
+}
+
+/** Every published course, for Explore. Module lists stay hidden until the student enrolls. */
+export async function listCatalog(): Promise<CatalogCourse[]> {
+  if (curriculumBackend) {
+    return result(curriculumBackend.from('courses').select('id, title, description, level, delivery_mode').eq('published', true).order('title'))
+  }
   return mockDelay(MOCK_COURSES.filter((c) => c.published))
+}
+
+const ENROLL_ERRORS: Record<string, string> = {
+  ALREADY_IN_CLASS: 'You already take this course with your class.',
+  COURSE_NOT_AVAILABLE: 'This course runs with a class. Ask your teacher for the class code.',
+  STUDENTS_ONLY: 'Only student accounts can add courses.',
+}
+
+/** Adds a self-paced course to the student's own courses. */
+export async function enrollInCourse(courseId: string): Promise<void> {
+  if (!curriculumBackend) return mockDelay(undefined)
+  const { error } = await curriculumBackend.rpc('enroll_in_course', { p_course_id: courseId })
+  if (error) throw new Error(Object.entries(ENROLL_ERRORS).find(([code]) => error.message.includes(code))?.[1] ?? error.message)
 }
 
 export async function listModuleStatus(courseId: string): Promise<ModuleStatus[]> {
@@ -52,7 +82,9 @@ export async function listModuleStatus(courseId: string): Promise<ModuleStatus[]
     const rows = await result<(Omit<ModuleStatus, 'title'> & { module_title: string })[]>(
       curriculumBackend.rpc('my_course_progress', { p_course_id: courseId }),
     )
-    return rows.map(({ module_id, module_title, state }) => ({ module_id, title: module_title, state }))
+    return rows.map(({ module_id, module_title, state, tested_out, pretest_score, posttest_best, posttest_tries, max_tries }) => ({
+      module_id, title: module_title, state, tested_out, pretest_score, posttest_best, posttest_tries, max_tries,
+    }))
   }
   const modules = MOCK_MODULES.filter((m) => m.course_id === courseId).sort((a, b) => a.position - b.position)
   return mockDelay(
