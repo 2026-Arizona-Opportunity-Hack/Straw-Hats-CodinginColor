@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { ArrowDown, ArrowRight, ArrowUp, BookOpen, Copy, Eye, FilePlus2, GripVertical, ImagePlus, Plus, Save, Star, Trash2 } from 'lucide-react';
 import { isLocalDemo } from '../shared/supabase.ts';
+import { DemoLesson } from '../student/DemoLesson';
+import { LessonContent } from '../student/LessonContent';
 import { CodingLabEditor } from './CodingLabEditor';
 import { HtmlActivityEditor, HtmlActivityPreview } from './HtmlActivity';
 import { emptyHtml } from './htmlStarter';
 import { BlockPicker } from './BlockPicker';
 import { ActivityPreview, LessonPreview } from './LessonPreview';
+import { practiceAttempt, previewLesson } from './studentPreview';
 import {
   activityTypes, blankQuestion, copyBlock, embedUrl, gradedTypes, id, newActivity, newLesson, newModule, questionTypes, reorder, slidesUrl, unresolvedModuleContent,
   type Activity, type Course, type Lesson, type Module,
@@ -15,6 +18,14 @@ import { Dialog, Empty, PageHeader, Panel } from './ui';
 type View = { moduleId?: string; lessonId?: string; activityId?: string };
 type OutlineKind = 'module' | 'lesson' | 'block';
 type DragItem = { kind: OutlineKind; index: number; parent: string };
+
+function StudentPreview({ lessons, moduleId, local }: { lessons: Lesson[]; moduleId: string; local: boolean }) {
+  return <div className="ic-stack">
+    <p className="ic-note">Student preview of this draft. Answers here are practice only.</p>
+    {lessons.map((lesson, index) => local ? <DemoLesson lesson={lesson} key={lesson.id} />
+      : <LessonContent key={lesson.id} lesson={previewLesson(lesson, moduleId, index)} onAttempt={practiceAttempt} />)}
+  </div>;
+}
 
 export function CurriculumList({ courses, reviewer = false, onCreate }: { courses: Course[]; reviewer?: boolean; onCreate?: (course: Course) => void }) {
   const [adding, setAdding] = useState(false);
@@ -321,7 +332,7 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
               <button type="button" aria-pressed={tab === 'preview'} onClick={() => { setPicker(null); setTab('preview'); }}>Preview lesson</button>
             </div>
           </div>
-          {tab === 'preview' ? <LessonPreview lesson={lesson} interactive /> : <>
+          {tab === 'preview' ? <StudentPreview lessons={[lesson]} moduleId={module.id} local={localAuthoring} /> : <>
             <input className="ic-lesson-title" aria-label="Lesson title" value={lesson.title} placeholder="Untitled lesson" maxLength={100}
               onChange={event => updateLesson(lesson.id, item => ({ ...item, title: event.target.value }))} />
             {Array.from({ length: lesson.activities.length + 1 }, (_, index) => {
@@ -389,7 +400,7 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
       </li>)}</ul> : <Empty>Save a configured block to reuse it in any lesson.</Empty>}
     </Dialog>}
     {preview && module && <Dialog wide title="Student preview" onClose={() => setPreview(false)}>
-      {module.lessons.map(item => <LessonPreview lesson={item} key={item.id} interactive />)}
+      <StudentPreview lessons={module.lessons} moduleId={module.id} local={localAuthoring} />
     </Dialog>}
     {importer && <ImportMaterials mode={importer} draftModule={draftModule} close={() => setImporter(null)} onMarkdown={text => {
       if (lesson) insertBlock({ ...newActivity(), markdown: text }, lesson.activities.length);
@@ -513,7 +524,10 @@ function ActivityEditor({ activity, onChange, localAuthoring }: { activity: Acti
           </div>
         </fieldset>;
       })}
-      {activity.format !== 'open-ended' && <button type="button" className="ic-button ic-fit" onClick={() => onChange(activity => ({
+      {(activity.type === 'check' || activity.type === 'exit') && <p className="ic-note">
+        {activity.questions.length > 1 ? 'Students see the first question. Move each additional question into its own block.' : 'Students answer one question per block. Add another block for another question.'}
+      </p>}
+      {activity.format !== 'open-ended' && activity.type !== 'check' && activity.type !== 'exit' && <button type="button" className="ic-button ic-fit" onClick={() => onChange(activity => ({
         ...activity, questions: [...activity.questions, { ...blankQuestion(), choices: gradedTypes.has(activity.type) ? ['', '', ''] : [] }],
       }))}><Plus size={16} /> Add {activity.type === 'worksheet' ? 'field' : 'question'}</button>}
     </>}
