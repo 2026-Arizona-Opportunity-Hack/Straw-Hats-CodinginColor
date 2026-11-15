@@ -31,6 +31,11 @@ export interface VideoPayload {
   transcript?: string
 }
 
+export interface SlidesPayload extends VideoPayload {
+  /** Staff-curated listing in the CIC Library. */
+  cic_library_deck?: boolean
+}
+
 export interface Choice {
   id: string
   label: string
@@ -126,7 +131,7 @@ export interface AssessmentPayload {
 export interface ActivityPayloads {
   content: ContentPayload
   video: VideoPayload
-  slides: VideoPayload
+  slides: SlidesPayload
   check: CheckPayload
   worksheet: WorksheetPayload
   code: CodePayload

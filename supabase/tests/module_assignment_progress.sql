@@ -12,6 +12,8 @@ on conflict (id) do update set role = excluded.role;
 insert into courses (id, title, delivery_mode, published) values
   ('82000000-0000-0000-0000-000000000001', 'Test Python', 'instructor_led', true),
   ('82000000-0000-0000-0000-000000000002', 'Test Web', 'self_paced', true);
+-- This fixture intentionally offers the same global course to classes and independent learners.
+update courses set is_library = true where id = '82000000-0000-0000-0000-000000000002';
 insert into modules (id, course_id, position, title, concept, published) values
   ('83000000-0000-0000-0000-000000000001', '82000000-0000-0000-0000-000000000001', 1, 'Python', 'Loops', true),
   ('83000000-0000-0000-0000-000000000002', '82000000-0000-0000-0000-000000000002', 1, 'HTML', 'Tags', true);

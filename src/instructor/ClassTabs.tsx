@@ -1,8 +1,9 @@
 // Tabbed pages inside a class: Dashboard, Modules, Grades, Assignments, Curriculum, Syllabus.
 // Each tab is its own URL (#/classes/<id>/<tab>) so back, reload and links work.
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowRight, Pencil, Printer, Search, Trash2, Upload, UserPlus } from 'lucide-react';
-import { makeLearners, type ClassGroup, type Course } from './model';
+import { ArrowRight, Eye, Pencil, Printer, Search, Trash2, Upload, UserPlus } from 'lucide-react';
+import { makeLearners, type Activity, type ClassGroup, type Course } from './model';
+import { CourseReviewer } from './Curriculum';
 import { assignedModules, classProgress, percent, points, statuses } from './progress';
 import { classTabs, type ClassTabId } from './classTabIds';
 import { Gradebook } from './assignments/Gradebook';
@@ -159,8 +160,10 @@ function CurriculumProgress({ group, course, onSelect }: { group: ClassGroup; co
   </div>;
 }
 
-export function CurriculumTab({ group, course, onEditAssignment, onMakeEditable }: {
+export function CurriculumTab({ group, course, onEditAssignment, onMakeEditable, viewing, blockActions }: {
   group: ClassGroup; course?: Course; onEditAssignment: () => void; onMakeEditable?: () => Promise<void>;
+  viewing?: boolean;
+  blockActions?: (activity: Activity) => ReactNode;
 }) {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
@@ -177,13 +180,19 @@ export function CurriculumTab({ group, course, onEditAssignment, onMakeEditable 
   const editAction = onMakeEditable
     ? <button type="button" className="ic-button ic-primary" disabled={busy} onClick={() => void makeEditable()}><Pencil size={16} aria-hidden="true" /> {busy ? 'Preparing…' : 'Edit for this class'}</button>
     : <a className="ic-button ic-primary" href={`#/classes/${group.id}/curriculum/edit`}><Pencil size={16} aria-hidden="true" /> Edit curriculum</a>;
+  if (viewing) return <>
+    {problem && <p className="ic-error" role="alert">{problem}</p>}
+    <CourseReviewer key={course.id} course={course} level={2} actions={editAction} blockActions={blockActions}
+      back={{ label: 'Class curriculum', to: `#/classes/${group.id}/curriculum` }} />
+  </>;
   return <div className="ic-tab-page">
     <Tile title="Modules in this class" note="Completion, scores and who is stuck, per assigned module."
       actions={<div className="ic-row">
+        <a className="ic-button" href={`#/classes/${group.id}/curriculum/view`}><Eye size={16} aria-hidden="true" /> View curriculum</a>
         <button type="button" className="ic-button" onClick={onEditAssignment}>Choose modules</button>
         {editAction}
       </div>}>
-      {onMakeEditable && <p className="ic-note">This class uses the shared CIC library version. Choose Edit for this class to get a version you can change; other classes are not affected.</p>}
+      {onMakeEditable && <p className="ic-note">This class uses the global version. Choose Edit for this class to create an editable copy.</p>}
       {problem && <p className="ic-error" role="alert">{problem}</p>}
       {modules.length ? <div className="ic-module-cards">{modules.map((module, index) => {
         const stats = moduleStats(group, course, module.id);
