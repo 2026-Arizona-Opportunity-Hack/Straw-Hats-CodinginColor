@@ -1,4 +1,5 @@
 import { validLessonFigure } from '../shared/curriculum/figure';
+import { loadStaffProgress, type StaffModuleProgress } from '../shared/staffProgress';
 import { parseWebPracticeChecks } from '../shared/labs/webPracticeChecks';
 // Supabase-backed data for the instructor workspace. Loads courses, classes, rosters,
 // assignments and progress, and writes back only what changed. Row Level Security decides
@@ -202,7 +203,7 @@ function countedScore(rows: Row[], info: ActivityInfo | undefined, maxTries: num
   return scores.length ? Math.max(...scores) : null;
 }
 
-function learnersFor(classId: string, roster: Row[], attempts: Row[], activities: Map<string, ActivityInfo>, rules: ClassRules): Learner[] {
+function learnersFor(classId: string, roster: Row[], attempts: Row[], activities: Map<string, ActivityInfo>, rules: ClassRules, progress: StaffModuleProgress[]): Learner[] {
   return roster.slice().sort((a, b) => str(a.created_at).localeCompare(str(b.created_at))).map(student => {
     const mine = attempts.filter(a => a.class_id === classId && student.profile_id && a.student_id === student.profile_id);
     const byActivity = new Map<string, Row[]>();
@@ -219,7 +220,8 @@ function learnersFor(classId: string, roster: Row[], attempts: Row[], activities
       };
     });
     const last = mine.map(a => str(a.submitted_at)).filter(Boolean).sort().at(-1) ?? null;
-    return { id: String(student.id), name: str(student.display_name), passcode: str(student.passcode), baseline: null, attempts: list, hints: [], lastActive: last };
+    return { id: String(student.id), name: str(student.display_name), passcode: str(student.passcode), baseline: null, attempts: list, hints: [], lastActive: last,
+      moduleProgress: progress.filter(row => row.class_id === classId && row.student_id === student.profile_id) };
   });
 }
 
@@ -291,13 +293,14 @@ function rulesFor(classId: string, rows: Row[], settings: ProgramSettings): Clas
 }
 
 export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, displayName: string): Promise<InstructorData> {
-  const [courses, classes, attempts, moduleSettings, programSettings] = await Promise.all([
+  const [courses, classes, attempts, moduleSettings, programSettings, progress] = await Promise.all([
     // Includes published library courses (RLS "read published courses") so instructors can import them.
     supabase.from('courses').select(courseColumns).order('created_at'),
-    supabase.from('classes').select('id, name, school, course_id, join_code, created_at, class_modules (module_id), class_students (id, display_name, passcode, profile_id, created_at), assignments (*), assignment_submissions (*)').order('created_at'),
+    supabase.from('classes').select('id, name, school, course_id, join_code, created_at, class_modules (module_id, released_at), class_students (id, display_name, passcode, profile_id, created_at), assignments (*), assignment_submissions (*)').order('created_at'),
     selectAll(supabase, 'activity_attempts', 'id, student_id, activity_id, class_id, score, submitted_at, time_on_task_ms, attempt_no, response'),
     selectAll(supabase, 'class_module_settings', 'class_id, module_id, pass_mark, max_posttest_tries', ['class_id', 'module_id']),
     supabase.from('program_settings').select('inactive_days, low_score_pct'),
+    role === 'reviewer' ? Promise.resolve([]) : loadStaffProgress(supabase),
   ]);
   fail('load courses', courses.error);
   fail('load classes', classes.error);
@@ -309,10 +312,12 @@ export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, di
     m.lessons.flatMap(l => l.activities.map(a => [a.id, { type: a.type, moduleId: m.id }] as const)))));
   const classList: ClassGroup[] = (classes.data as Row[]).map(c => {
     const rules = rulesFor(String(c.id), moduleSettings, settings);
+    const released = (arr(c.class_modules) as Row[]).filter(m => Date.parse(str(m.released_at)) <= Date.now()).map(m => String(m.module_id));
     return {
       id: String(c.id), name: str(c.name), school: str(c.school), courseId: String(c.course_id), joinCode: str(c.join_code),
       moduleIds: (arr(c.class_modules) as Row[]).map(m => String(m.module_id)),
-      learners: learnersFor(String(c.id), arr(c.class_students) as Row[], attempts, activityInfo, rules),
+      progressModuleIds: released.length ? released : courseList.find(course => course.id === c.course_id)?.modules.filter(m => m.published).map(m => m.id) ?? [],
+      learners: learnersFor(String(c.id), arr(c.class_students) as Row[], attempts, activityInfo, rules, progress),
       assignments: (arr(c.assignments) as Row[]).sort((a, b) => str(a.created_at).localeCompare(str(b.created_at))).map(toAssignment),
       submissions: (arr(c.assignment_submissions) as Row[]).map(toSubmission),
       rules,

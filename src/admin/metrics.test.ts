@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { analyze, fmtGain, ruleFor, selfPacedProgress, type OrgData } from './metrics.ts'
+import type { StaffModuleProgress } from '../shared/staffProgress.ts'
 
 const NOW = Date.now()
 const ago = (days: number) => new Date(NOW - days * 86_400_000).toISOString()
@@ -78,6 +79,34 @@ describe('self-paced learners', () => {
     expect(selfPacedProgress(d).avgGain).toBeCloseTo(50)
     expect(analyze(d).selfPaced?.students).toBe(1)
     expect(analyze(d, { school: 'S' }).selfPaced).toBeNull()
+  })
+})
+
+describe('canonical live progress', () => {
+  const state = (patch: Partial<StaffModuleProgress> = {}): StaffModuleProgress => ({
+    student_id: 'ana', class_id: 'k', course_id: 'c', module_id: 'm', state: 'completed', tested_out: true,
+    required_count: 2, done_count: 1, pretest_score: 0.9, posttest_best: null, ...patch,
+  })
+
+  it('counts test-out and exhausted tries as complete, using canonical scores', () => {
+    const result = analyze(org({ progress: [state(), state({ student_id: 'ben', tested_out: false, done_count: 2, pretest_score: 0.2, posttest_best: 0.4 })] }))
+    expect(result.overall.completionPct).toBe(100)
+    expect(result.students.map(row => row.status)).toEqual(['done', 'done'])
+    expect(result.studentModules[1]).toMatchObject({ done: true, pre: 20, post: 40, gain: 20 })
+  })
+
+  it('uses authoritative scope/locks even when raw activity submissions suggest completion', () => {
+    const result = analyze(org({ progress: [state({ state: 'locked', tested_out: false, done_count: 2 })],
+      attempts: [attempt('ana', 'pre', 1, 1), attempt('ana', 'post', 1, 1)] }))
+    expect(result.studentModules).toHaveLength(1)
+    expect(result.studentModules[0].done).toBe(false)
+    expect(analyze(org({ progress: [] })).studentModules).toEqual([])
+  })
+
+  it('handles self-paced zero-required completion without inferring it from attempts', () => {
+    const data = org({ courseEnrollments: [{ student_id: 'ana', course_id: 'c' }],
+      progress: [state({ class_id: null, tested_out: false, required_count: 0, done_count: 0, pretest_score: null })] })
+    expect(selfPacedProgress(data)).toMatchObject({ modulesDone: 1, completionPct: 100 })
   })
 })
 

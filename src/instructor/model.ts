@@ -2,6 +2,7 @@ import { validLessonFigure, type LessonFigure } from '../shared/curriculum/figur
 import type { CodingLabSettings, InteractiveHtmlPayload } from '../shared/types/activities.ts';
 import type { Submission } from './assignments/grading';
 import type { Assignment } from './assignments/model';
+import type { StaffModuleProgress } from '../shared/staffProgress';
 
 export const activityTypes = {
   content: 'Article',
@@ -56,6 +57,8 @@ export type Attempt = {
   conceptScores?: Record<string, number>;
 };
 export type Learner = {
+  /** Canonical live state. Undefined only for browser-created/mock learners. */
+  moduleProgress?: StaffModuleProgress[];
   id: string;
   name: string;
   passcode: string;
@@ -85,6 +88,8 @@ export type ClassGroup = {
   school: string;
   courseId: string;
   moduleIds: string[];
+  /** Released module scope for reports; assignment editing still uses moduleIds. */
+  progressModuleIds?: string[];
   joinCode: string;
   learners: Learner[];
   /** Class-level assignments (quizzes, links, pages, written, code). */
