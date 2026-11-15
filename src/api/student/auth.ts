@@ -1,14 +1,5 @@
-// Student sign-up and sign-in. Owner: Shivraj.
-// Database side: supabase/migrations/1003_student_sign_up.sql.
+// Student sign-in and class joining. New accounts come from teacher-issued roster cards.
 import { supabase } from '../../shared/supabase.ts'
-
-export interface SignUpInput {
-  email: string
-  password: string
-  displayName: string
-  school?: string
-  classCode?: string
-}
 
 export interface JoinedClass {
   class_id: string
@@ -40,22 +31,6 @@ export function friendlyError(message: string | undefined | null): string {
 function client() {
   if (!supabase) throw new Error('Sign-in is not available: Supabase is not configured.')
   return supabase
-}
-
-/** Creates a student account (optionally joining a class), then signs in. */
-export async function signUpStudent(input: SignUpInput): Promise<{ joinedClass: JoinedClass | null }> {
-  const c = client()
-  const { data, error } = await c.rpc('student_sign_up', {
-    p_email: input.email,
-    p_password: input.password,
-    p_display_name: input.displayName,
-    p_school: input.school || null,
-    p_class_code: input.classCode || null,
-  })
-  if (error) throw new Error(friendlyError(error.message))
-  const signIn = await c.auth.signInWithPassword({ email: input.email.trim().toLowerCase(), password: input.password })
-  if (signIn.error) throw new Error('Your account was created, but signing in failed. Please sign in.')
-  return { joinedClass: (data as { class: JoinedClass | null } | null)?.class ?? null }
 }
 
 export async function signInStudent(email: string, password: string): Promise<void> {
