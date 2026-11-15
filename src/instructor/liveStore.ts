@@ -413,14 +413,34 @@ export async function publishLiveCourse(supabase: SupabaseClient, course: Course
     p_removed_activities: before.activities.filter(row => !next.activities.some(item => item.id === row.id)).map(row => row.id),
   });
   fail('publish the module', error);
-  void requestModuleAssessment(supabase, moduleId);
-  return Number(data);
+  const revision = Number(data);
+  const selected = course.modules.find(module => module.id === moduleId && module.published);
+  if (!selected) return { revision };
+
+  const assessment = await requestModuleAssessment(supabase, moduleId);
+  const assessmentWarning = assessment?.ready ? undefined
+    : assessment?.reason === 'existing_attempts'
+      ? 'The warm-up and final check are incomplete. Existing attempts were preserved. Review the assessment blocks before assigning this module.'
+      : assessment
+        ? 'The warm-up and final check are incomplete. Add a scored assessment pair or a knowledge check with an answer, then publish again.'
+        : 'Could not verify the warm-up and final check. Publish again to retry before assigning this module.';
+  if (!assessment?.ready && !assessment?.written) return { revision, assessmentWarning };
+
+  // Pull generated blocks into the draft so the next publication does not remove them.
+  try {
+    const loaded = await supabase.from('courses').select(courseColumns).eq('id', course.id).single();
+    if (!loaded.error && loaded.data?.publication_revision === revision) {
+      const released = toCourse(loaded.data as Row).modules.find(module => module.id === moduleId);
+      if (released) return { revision, assessmentWarning, released: { ...released, revision: selected.revision } };
+    }
+  } catch {
+    // Publication has already committed. Keep its revision even if the refresh failed.
+  }
+  return { revision, assessmentWarning: assessmentWarning ?? 'The assessment pair is ready. Reload the course to see its current assessment blocks before editing again.' };
 }
 
-/** After publishing, (re)build the module's warm-up and final check from its curriculum
- * (api/curriculum/assessment.ts, migration 1014). Runs in the background: publishing never
- * waits for it, and the database falls back to the module's own checks if the AI fails. */
-export async function requestModuleAssessment(supabase: SupabaseClient, moduleId: string) {
+/** Verify the stored assessment pair and fill missing forms from the curriculum when possible. */
+async function requestModuleAssessment(supabase: SupabaseClient, moduleId: string) {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
@@ -429,7 +449,7 @@ export async function requestModuleAssessment(supabase: SupabaseClient, moduleId
       headers: { Authorization: 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ moduleId }),
     });
-    return response.ok ? await response.json() as { source: 'ai' | 'checks' | null; pretest?: number; posttest?: number } : null;
+    return response.ok ? await response.json() as { ready?: boolean; written?: boolean; reason?: string } : null;
   } catch {
     return null;
   }

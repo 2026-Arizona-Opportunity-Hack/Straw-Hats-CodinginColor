@@ -184,29 +184,33 @@ export function InstructorWorkspace({
     })) window.location.hash = '/curriculum/' + course.id + '/edit';
   }
 
-  async function release(draft: Course, moduleId: string, selected: Module | null): Promise<Course | false> {
+  async function release(draft: Course, moduleId: string, selected: Module | null) {
     if (!draftsLocal) {
       const catalog = data.courses.find(course => course.id === draft.id);
       if (!store.publishCourse) throw new Error('Publishing is unavailable.');
       const snapshot = publishModule(catalog ?? { ...draft, modules: [] }, draft, selected, moduleId);
-      const publicationRevision = await store.publishCourse(snapshot, catalog, moduleId, draft.publicationRevision);
-      const published = { ...snapshot, publicationRevision };
+      const { revision: publicationRevision, assessmentWarning, released } = await store.publishCourse(snapshot, catalog, moduleId, draft.publicationRevision);
+      const refreshModule = (course: Course) => ({
+        ...course, publicationRevision,
+        modules: released ? course.modules.map(module => module.id === moduleId ? released : module) : course.modules,
+      });
+      const published = refreshModule(snapshot);
       setData(current => ({
         ...current,
         courses: catalog ? current.courses.map(course => course.id === draft.id ? published : course) : [...current.courses, published],
       }));
-      const next = { ...draft, publicationRevision };
+      const next = refreshModule(draft);
       saveDraft(next);
-      return next;
+      return { draft: next, assessmentWarning };
     }
     const current = store.load();
     const catalog = current.courses.find(course => course.id === draft.id);
-    if (!catalog || (!selected && current.classes.some(group => group.moduleIds.includes(moduleId)))) return false;
+    if (!catalog || (!selected && current.classes.some(group => group.moduleIds.includes(moduleId)))) return false as const;
     return save({
       ...current,
       courses: current.courses.map(course => course.id === draft.id ? publishModule(catalog, draft, selected, moduleId) : course),
       courseDrafts: { ...current.courseDrafts, [draftKey(draft.id)]: draft },
-    }) ? draft : false;
+    }) ? { draft } : false as const;
   }
 
   /** Makes the instructor's own editable copy of a library course; the library is never changed. */

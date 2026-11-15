@@ -103,6 +103,8 @@ For the live student curriculum, apply migration `1004_student_curriculum_access
 
 Apply migration `2005_publish_curriculum.sql` before deploying the private-draft builder. **Save draft** keeps edits in the signed-in author's current browser. **Publish module** applies the selected module and course details to the shared course. Other unfinished modules stay in the draft.
 
+Apply `3016_assessment_reliability.sql` before deploying the assessment updates. The publish flow checks for a scored warm-up and final check. It reports incomplete forms or generation failures beside the successful publication, so instructors can fix the pair before assigning the module. The fresh demo seed includes scored assessment pairs for all four Intro to Python modules.
+
 Apply `1007_passive_reading_blocks.sql` before deploying the reading-block update. Reading blocks are available as lesson content and have no completion button or required submission.
 
 Before opening a PR: `npm run build && npm run lint`.

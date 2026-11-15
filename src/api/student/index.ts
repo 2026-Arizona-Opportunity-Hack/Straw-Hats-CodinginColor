@@ -48,7 +48,7 @@ export async function listModuleAssignments(): Promise<ModuleAssignment[]> {
 }
 
 export type ActivityStatus = { activity_id: string; submitted: boolean; best_score: number | null }
-type AttemptResult = { is_correct: boolean | null; score: number | null }
+type AttemptResult = { is_correct: boolean | null; score: number | null; counts?: boolean }
 
 async function result<T>(request: PromiseLike<{ data: unknown; error: { message: string } | null }>): Promise<T> {
   const { data, error } = await request

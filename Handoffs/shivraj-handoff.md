@@ -95,8 +95,8 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 ### Generated warm-ups and final checks (1014)
 
 - Every module gets a warm-up and final check as **parallel forms**: same concepts, same count, different questions where possible, so gain compares like with like.
-- `POST /api/curriculum/assessment { moduleId }` (instructor/admin): the AI reads the module and writes both forms; `generate_module_assessment(module, ai)` validates and stores them (answers into `activity_keys`). Invalid or missing AI output falls back to the module's own keyed checks. Publishing a module calls it in the background (`requestModuleAssessment` in `liveStore.ts`).
-- Hand-written tests are never replaced (only empty ones or ones with `content.generated`). 1014 backfills all published modules.
+- `POST /api/curriculum/assessment { moduleId }` (course editors): the module publication flow waits for the assessment check and surfaces any warning without losing the committed publication revision. Invalid or missing AI output falls back to the module's own keyed checks.
+- Migration 3016 leaves complete pairs in place and declines automatic regeneration for incomplete pairs with saved attempts. Fresh Intro to Python demo seed installs the scored forms after migrations.
 - They are normal pretest/posttest activities, so the instructor gain columns, admin analytics and per-concept scores work unchanged.
 - **Final check lock**: while an unsubmitted final check is open, every way out is blocked (`useBlocker`) and a popup shakes on each try.
 
@@ -143,7 +143,7 @@ The separate server-verified Cat Photo completion path still has no measured dur
 
 - Pretest: only try #1 counts.
 - Post-test in a class: best of the first `max_posttest_tries` tries counts. In a self-chosen course: best try.
-- Later tries are saved as practice (`counts = false` in the reply) and never change unlocking or learning gain.
+- Later tries are saved as practice (`counts = false` in the reply) and never change unlocking or learning gain. Migration 3016 returns the counted score to the student card, which labels the latest practice result separately.
 - Learning gain = counted post-test score minus pretest try #1.
   Pre/post tests also save a per-concept score in `activity_attempts.response.concept_scores`.
 - Code and interactive HTML are graded in the browser (`client_score`, 0..1); everything else is graded in the database.
@@ -191,6 +191,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-15, Codex: populated scored Python demo pairs after schema setup and added publication readiness warnings, attempt preservation, and counted scores on student assessment cards.
 - 2026-11-15, Ken (Codex): split account creation into `/signup`, made username sign-in the default on `/login`, and added educator Google sign-up using the existing reviewer flow.
 - 2026-11-15, Shivraj: starter-quiz skip writes the result into the cache (one click), "Don't show again" on the quiz card (3013, hide_placement_card), separate sign-in/sign-up password fields so browsers only suggest strong passwords on sign-up.
 - 2026-11-15, Shivraj: fixed starter-quiz double prompt (refetch placement after skip/submit, no redirect on stale cache), white Start learning/Join buttons, answer card reload (stays mounted, feedback slides in), Review opening the clicked card; My classroom uses course cards with the join box below.

@@ -21,11 +21,16 @@ export async function POST(request: Request) {
   const signal = AbortSignal.any([request.signal, AbortSignal.timeout(170_000)])
   // Runs as the signed-in instructor: RLS and generate_module_assessment check they may edit it.
   const client = createClient(url, anonKey, {
-    global: { headers: { Authorization: 'Bearer ' + token } },
+    global: { headers: { Authorization: 'Bearer ' + token }, fetch: (input, init) => fetch(input, { ...init, signal }) },
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   })
   const { data: { user } } = await client.auth.getUser(token)
   if (!user) return reply(401, { error: 'Your session expired. Sign in and try again.' })
+
+  const { data: ready, error: readinessError } = await client.rpc('module_assessment_ready', { p_module_id: moduleId })
+  if (readinessError) return reply(500, { error: 'Could not verify the assessments. Try again.' })
+  if (ready == null) return reply(403, { error: 'You do not have permission to generate tests for this course.' })
+  if (ready === true) return reply(200, { ready: true, written: false, source: null })
 
   const { data: mod } = await client.from('modules')
     .select('title, lessons(title, position, activities(type, concept, position, content))')
