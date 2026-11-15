@@ -2,7 +2,12 @@ import { useState } from 'react';
 import { ArrowRight, BookOpen, Clipboard, GraduationCap, Plus, Printer, Search, Users } from 'lucide-react';
 import { RosterUpload } from './ClassSetup';
 import { makeLearners, type ClassGroup, type Course, type Learner } from './model';
-import { assignedModules, attemptFor, classProgress, percent, points, statuses } from './progress';
+import { attemptFor, classProgress, percent, points } from './progress';
+import {
+  ClassTabBar, CurriculumTab, DashboardTab, GradesTab, RosterTab,
+} from './ClassTabs';
+import type { ClassTabId } from './classTabIds';
+import { AssignmentsTab } from './assignments/AssignmentsTab';
 import type { RosterRow } from './roster';
 import { copyText, Dialog, Empty, PageHeader, Panel } from './ui';
 
@@ -29,81 +34,37 @@ export function ClassList({ groups, courses }: { groups: ClassGroup[]; courses: 
   </>;
 }
 
-export function ClassDashboard({ group, course, onSave, justCreated }: {
-  group: ClassGroup; course?: Course; onSave: (group: ClassGroup) => boolean; justCreated: boolean;
+export function ClassDashboard({ group, course, onSave, justCreated, tab, detail, otherClasses }: {
+  group: ClassGroup; course?: Course; onSave: (group: ClassGroup) => boolean; justCreated: boolean; tab: ClassTabId;
+  /** Item inside the tab, e.g. an assignment id. */
+  detail?: string;
+  otherClasses: ClassGroup[];
 }) {
-  const [moduleId, setModuleId] = useState('');
-  const [filter, setFilter] = useState('All students');
-  const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
   const [dialog, setDialog] = useState<'cards' | 'roster' | 'assignment' | null>(null);
   const [rows, setRows] = useState<RosterRow[]>([]);
   const [draftModules, setDraftModules] = useState(group.moduleIds);
   const [feedback, setFeedback] = useState('');
-  const modules = assignedModules(group, course);
-  const { roster, activities, mastery, avgGain } = classProgress(group, course, moduleId);
-  const filtered = roster.filter(row => (filter === 'All students' || row.status === filter) && row.learner.name.toLowerCase().includes(search.trim().toLowerCase()));
+  const { roster, activities } = classProgress(group, course);
   const details = roster.find(row => row.learner.id === selected);
-  const count = (status: string) => roster.filter(row => row.status === status).length;
   const ready = rows.filter(row => !row.issue).map(row => row.name);
   const exampleLink = 'https://example.com/join/' + group.joinCode;
-  const paired = roster.filter(row => row.gain !== null).length;
+  const editAssignment = () => { setDraftModules(group.moduleIds); setDialog('assignment'); };
+  const openImport = () => { setRows([]); setDialog('roster'); };
+  const openCards = () => { setFeedback(''); setDialog('cards'); };
 
   return <>
     <PageHeader title={group.name} description={group.school + (course ? ' · ' + course.title : '')} back={{ label: 'Classes', to: '#/classes' }}>
-      <button className="ic-button" onClick={() => { setRows([]); setDialog('roster'); }}><Users size={17} /> Import roster</button>
-      <button className="ic-button ic-primary" onClick={() => { setFeedback(''); setDialog('cards'); }}><Printer size={17} /> Student login cards</button>
+      <button className="ic-button" onClick={openImport}><Users size={17} /> Import roster</button>
+      <button className="ic-button ic-primary" onClick={openCards}><Printer size={17} /> Student login cards</button>
     </PageHeader>
     {justCreated && <p className="ic-success" role="status">Class created with {group.learners.length} students. Open student login cards to see the example link and passcodes.</p>}
-    <Panel title="Class progress" actions={<label className="ic-inline-field">Module<select value={moduleId} onChange={event => setModuleId(event.target.value)}>
-      <option value="">All assigned modules</option>{modules.map(module => <option key={module.id} value={module.id}>{module.title}</option>)}
-    </select></label>}>
-      <div className="ic-stats">
-        <div><span>Students</span><strong>{roster.length}</strong></div>
-        <div><span>Complete</span><strong>{count('Complete')}</strong></div>
-        <div><span>Need attention</span><strong>{count('Stuck')}</strong></div>
-        <div><span>Avg. learning gain</span><strong>{points(avgGain)}</strong><small>{paired ? `${paired} with paired scores` : 'Awaiting paired scores'}</small></div>
-      </div>
-    </Panel>
-    <Panel title="Roster" actions={<label className="ic-search"><Search size={16} /><input aria-label="Search students" type="search" placeholder="Search students" value={search} onChange={event => setSearch(event.target.value)} /></label>}>
-      <div className="ic-tab-row" role="group" aria-label="Filter roster by status">
-        {['All students', ...statuses].map(status => <button key={status} type="button" aria-pressed={filter === status} onClick={() => setFilter(status)}>{status}<span>{status === 'All students' ? roster.length : count(status)}</span></button>)}
-      </div>
-      {filtered.length ? <div className="ic-table-wrap" tabIndex={0} role="region" aria-label="Student progress table">
-        <table className="ic-progress-table">
-          <thead><tr>{['Student', 'Status', 'Activities', 'Time', 'Pre → post', 'Gain'].map(text => <th scope="col" key={text}>{text}</th>)}</tr></thead>
-          <tbody>{filtered.map(row => <tr key={row.learner.id}>
-            <td><button type="button" className="ic-link-button" onClick={() => setSelected(row.learner.id)}>{row.learner.name}</button></td>
-            <td><span className={'ic-status ' + (row.status === 'Stuck' ? 'is-stuck' : row.status === 'Complete' ? 'is-published' : '')}>{row.status}</span></td>
-            <td><div className="ic-progress-entry"><progress aria-label={row.learner.name + ' activities completed'} value={row.completed} max={row.total || 1} />{row.completed}/{row.total}</div></td>
-            <td>{row.minutes} min</td><td>{percent(row.pre)} → {percent(row.post)}</td><td>{points(row.gain)}</td>
-          </tr>)}</tbody>
-        </table>
-      </div> : <Empty>No students match this filter.</Empty>}
-      <p className="ic-note ic-section-gap">Stuck means three or more attempts with a score below 70%, or no activity for more than three days after starting.</p>
-    </Panel>
-    <div className="ic-two-col">
-      <Panel title="Concept mastery">
-        {mastery.length ? <><p className="ic-note">Mastery means an average score of 70% or higher on tagged checks and post-tests.</p>
-          <ul className="ic-list">{mastery.map(item => <li key={item.concept}>
-            <div><strong>{item.concept}</strong><p className="ic-note">{item.assessed ? `${item.mastered} of ${item.assessed} assessed students met mastery` : 'Awaiting assessments'}</p></div>
-            {item.score !== null && <span className={'ic-status ' + (item.score >= 70 ? 'is-published' : 'is-stuck')}>{percent(item.score)} avg.</span>}
-          </li>)}</ul></> : <Empty>No tagged assessments for this selection.</Empty>}
-        {mastery.some(item => item.assessed > 0) && <div className="ic-table-wrap ic-section-gap" tabIndex={0} role="region" aria-label="Mastery by student">
-          <table><thead><tr><th scope="col">Student</th>{mastery.map(item => <th scope="col" key={item.concept}>{item.concept}</th>)}</tr></thead>
-            <tbody>{roster.filter(row => mastery.some(item => item.scores.has(row.learner.id))).map(row => <tr key={row.learner.id}>
-              <th scope="row">{row.learner.name}</th>{mastery.map(item => {
-                const score = item.scores.get(row.learner.id) ?? null;
-                return <td key={item.concept} className={score === null ? '' : score < 70 ? 'ic-warning-row' : 'ic-mastery-met'}>{percent(score)}</td>;
-              })}
-            </tr>)}</tbody>
-          </table>
-        </div>}
-      </Panel>
-      <Panel title="Assigned curriculum" actions={course && <button type="button" className="ic-button" onClick={() => { setDraftModules(group.moduleIds); setDialog('assignment'); }}>Edit assignment</button>}>
-        {modules.length ? <ol className="ic-module-list">{modules.map(module => <li key={module.id}>{module.title}</li>)}</ol> : <Empty>No published modules assigned.</Empty>}
-      </Panel>
-    </div>
+    <ClassTabBar groupId={group.id} active={tab} />
+    {tab === 'dashboard' && <DashboardTab group={group} course={course} />}
+    {tab === 'curriculum' && <CurriculumTab group={group} course={course} onEditAssignment={editAssignment} />}
+    {tab === 'assignments' && <AssignmentsTab group={group} course={course} otherClasses={otherClasses} assignmentId={detail} onSave={onSave} />}
+    {tab === 'grades' && <GradesTab group={group} course={course} onSelect={setSelected} />}
+    {tab === 'roster' && <RosterTab group={group} course={course} onSave={onSave} onImport={openImport} onCards={openCards} />}
     {details && <Dialog wide title={details.learner.name + ' · Activity details'} onClose={() => setSelected(null)}>
       <p className="ic-note">{details.status} · {details.completed} of {details.total} completed · {details.minutes} min · Learning gain {points(details.gain)}</p>
       <ul className="ic-list ic-section-gap">{activities.map(activity => {
@@ -137,7 +98,7 @@ export function ClassDashboard({ group, course, onSave, justCreated }: {
         <input type="checkbox" checked={draftModules.includes(module.id)} onChange={event => setDraftModules(ids => event.target.checked ? [...ids, module.id] : ids.filter(id => id !== module.id))} />{module.title}
       </label>)}</fieldset>
       <div className="ic-form-footer"><button className="ic-button ic-primary" disabled={!course?.modules.some(module => module.published && draftModules.includes(module.id))} onClick={() => {
-        if (onSave({ ...group, moduleIds: draftModules })) { setModuleId(''); setDialog(null); }
+        if (onSave({ ...group, moduleIds: draftModules })) setDialog(null);
       }}>Save assignment</button></div>
     </Dialog>}
   </>;

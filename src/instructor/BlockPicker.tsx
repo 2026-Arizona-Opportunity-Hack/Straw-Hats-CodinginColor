@@ -20,15 +20,15 @@ const blocks = [
   { name: 'Exit question', detail: 'End the lesson with a reflection', type: 'exit', icon: CircleHelp, keywords: 'reflection' },
 ] satisfies { name: string; detail: string; type: ActivityType; icon: typeof AlignLeft; keywords: string }[];
 
-export function BlockPicker({ onPick, onClose, library }: {
-  library: Activity[]; onPick: (activity: Activity) => void; onClose: (restoreFocus: boolean) => void;
+export function BlockPicker({ onPick, onClose, library, allowHtml }: {
+  library: Activity[]; allowHtml: boolean; onPick: (activity: Activity) => void; onClose: (restoreFocus: boolean) => void;
 }) {
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const popup = useRef<HTMLDivElement>(null);
   const options = [
-    ...blocks.map(block => ({ ...block, key: block.name, saved: undefined as Activity | undefined })),
+    ...blocks.filter(block => allowHtml || block.type !== 'interactive_html').map(block => ({ ...block, name: block.type === 'code' && !allowHtml ? 'Code exercise' : block.name, key: block.name, saved: undefined as Activity | undefined })),
     ...library.map(saved => ({
       name: saved.title, detail: 'From My blocks', type: saved.type, icon: BookOpen, keywords: 'saved reusable', key: saved.id, saved,
     })),
@@ -47,7 +47,7 @@ export function BlockPicker({ onPick, onClose, library }: {
   function pick(block: typeof options[number]) {
     if (block.saved) return onPick(copyBlock(block.saved));
     const activity = { ...newActivity(block.type), title: block.name };
-    if (block.type === 'code') activity.code = { starter: '', tests: '', solution: '', lab: { language: 'python', checks: [] } };
+    if (block.type === 'code' && allowHtml) activity.code = { starter: '', tests: '', solution: '', lab: { language: 'python', checks: [] } };
     if (block.type === 'interactive_html') activity.interactiveHtml = { ...emptyHtml };
     if (block.name === 'Open-ended question') activity.format = 'open-ended';
     if (gradedTypes.has(block.type)) activity.questions[0].choices = ['', '', ''];
