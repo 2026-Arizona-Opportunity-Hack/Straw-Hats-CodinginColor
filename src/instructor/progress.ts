@@ -18,7 +18,9 @@ export function idleDays(learner: Learner, now: number) {
 export function classProgress(group: ClassGroup, course?: Course, moduleId?: string, now = Date.now()) {
   const rules = group.rules;
   const modules = assignedModules(group, course).filter(module => !moduleId || module.id === moduleId);
-  const activities = modules.flatMap(module => module.lessons.flatMap(lesson => lesson.activities));
+  // Readings need no submission, so they do not count toward completion.
+  const activities = modules.flatMap(module => module.lessons.flatMap(lesson => lesson.activities))
+    .filter(activity => activity.type !== 'content');
   const moduleOf = new Map(modules.flatMap(module => module.lessons.flatMap(lesson => lesson.activities.map(activity => [activity.id, module.id] as const))));
   const pretests = new Set(activities.filter(activity => activity.type === 'pretest').map(activity => activity.id));
   /**

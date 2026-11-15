@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useId, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type FormEvent } from 'react'
 import { defaultUrlTransform } from 'react-markdown'
 import type { ActivityStatus, AttemptInput, recordAttempt } from '../api/student/index.ts'
 import { slidesUrl } from '../instructor/model.ts'
@@ -44,6 +44,10 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
 }) {
   const [started, setStarted] = useState(() => performance.now())
   const formId = useId()
+  const [selectedChoice, setSelectedChoice] = useState<string>()
+  const checkingChoice = useRef(false)
+  const check = activity.type === 'check' ? (activity as Activity<'check'>).content : null
+  const choices = check?.choices
   const queryClient = useQueryClient()
   const discussionEnabled = activity.type === 'worksheet' && (activity as Activity<'worksheet'>).content.discussion_enabled === true
   const discussionKey = ['classmate-notes', studentId, activity.id]
@@ -62,9 +66,18 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
       if (canShare && loadDiscussion) void queryClient.invalidateQueries({ queryKey: discussionKey })
     },
   })
-  const done = attempt.isSuccess || status?.submitted
+  const done = activity.type !== 'content' && (attempt.isSuccess || status?.submitted)
   const score = attempt.data ? attempt.data.score : status?.best_score
   const submit = (response: unknown = {}, score?: number) => attempt.mutate({ response, score })
+  function chooseAnswer(choiceId: string) {
+    if (checkingChoice.current || (choiceId === selectedChoice && attempt.isSuccess)) return
+    checkingChoice.current = true
+    setSelectedChoice(choiceId)
+    attempt.mutate({ response: { choice_id: choiceId } }, {
+      onSettled: () => { checkingChoice.current = false },
+    })
+  }
+
   const complete = <Button type="button" disabled={attempt.isPending} onClick={() => submit()}>Mark as done</Button>
   const responseForm = (fields: { id: string; prompt: string; choices?: Choice[] }[], key?: string) => {
     if (!fields.length) return <><p>No questions were added to this activity.</p>{!done && complete}</>
@@ -106,7 +119,18 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
           {!done && (!reports_score || !allowScripts) && complete}
         </>
       }
-      case 'check':
+      case 'check': {
+        const { prompt } = (activity as Activity<'check'>).content
+        if (!choices?.length) return responseForm([{ id: 'text', prompt }])
+        return <fieldset className="space-y-1" aria-busy={attempt.isPending}>
+          <legend className="font-medium">{prompt}</legend>
+          {choices.map(choice => <Button key={choice.id} type="button" variant="secondary"
+            className="w-full justify-start text-left aria-pressed:bg-brand-tint"
+            aria-pressed={selectedChoice === choice.id}
+            aria-disabled={attempt.isPending || (selectedChoice === choice.id && attempt.isSuccess)}
+            onClick={() => chooseAnswer(choice.id)}>{choice.label}</Button>)}
+        </fieldset>
+      }
       case 'exit': {
         const { prompt, choices } = (activity as Activity<'check' | 'exit'>).content
         return responseForm([{ id: choices?.length ? 'choice_id' : 'text', prompt, choices }])
@@ -129,7 +153,7 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
           title={caption || 'Slide deck'} loading="lazy" allowFullScreen />}{!done && complete}</>
       }
       case 'content':
-        return !done && complete
+        return null
       case 'code': {
         const payload = (activity as Activity<'code'>).content
         if (payload.lab?.verifier === 'cat-photo-v1') {
@@ -148,15 +172,25 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
   const title = 'title' in content && typeof content.title === 'string' ? content.title : null
   const markdown = activity.type !== 'code' && 'markdown' in content && typeof content.markdown === 'string' ? content.markdown : null
   const themedArticle = activity.type === 'content' && (activity as Activity<'content'>).content.presentation === 'cic-article'
+  let feedback: string | undefined
+  if (choices?.length) {
+    if (attempt.isPending) feedback = 'Checking your answer…'
+    else if (attempt.isSuccess) {
+      const correct = attempt.data.is_correct
+      feedback = correct === null ? 'Answer saved.' : correct ? 'Correct!' : 'Incorrect. Try another answer.'
+    } else if (!attempt.isError && status?.best_score === 1) feedback = 'You answered correctly.'
+  }
+
   return <div className="min-w-0 space-y-3">
     {themedArticle ? <CicArticle title={title || 'Read and explore'} markdown={markdown || ''} /> : <>
       {title && <h3 className="text-base font-semibold text-brand">{title}</h3>}
       {markdown && <LessonMarkdown markdown={markdown} title={title ?? undefined} headingBase={4} />}
     </>}
     {body()}
-    {attempt.isPending && <p role="status">Saving…</p>}
+    {!!choices?.length && <p role="status" className={attempt.data?.is_correct === false ? 'text-warn' : 'text-brand'}>{feedback}</p>}
+    {attempt.isPending && !choices?.length && <p role="status">Saving…</p>}
     {attempt.isError && <p role="alert">Could not save your work. Try again.</p>}
-    {done && <p role="status" className="text-green-800">{score == null ? 'Completed' : `Completed · ${Math.round(score * 100)}%`}</p>}
+    {done && !choices?.length && <p role="status" className="text-green-800">{score == null ? 'Completed' : `Completed · ${Math.round(score * 100)}%`}</p>}
   </div>
 }
 
