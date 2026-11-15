@@ -49,7 +49,7 @@ The provided `cat.jpg` matches the photo in the freeCodeCamp Cat Photo App proje
 Migration 1004 restricts module, lesson, and activity reads using the existing enrollment and unlock rules.
 After applying it, enable `VITE_LIVE_STUDENT_CURRICULUM=true` to use the database for the signed-in student's course list, module content, and attempts.
 Source changes ship before hosted activation.
-Published snapshots, My blocks, and executable labs remain browser-local.
+Mock snapshots and My blocks remain browser-local. Runnable Python labs use the local runner.
 Run `supabase/tests/student_curriculum_access.sql` against a migrated development database to check both access and grading.
 
 ## Roster entry
