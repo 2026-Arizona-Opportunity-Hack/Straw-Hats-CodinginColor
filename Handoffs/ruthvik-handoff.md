@@ -115,7 +115,7 @@ It only fills `assignments.module_id` where it is empty and is safe to re-run.
 
 1. **Security fixes from a code review (Nov 14):**
    - The live admin login `admin` / `cic-learn-demo` is published in the README and `seed.sql`; rotate it before real use (hosted write).
-   - `profiles.archived_at` is checked nowhere, so archived staff keep access; `current_role_is()` and `teaches_class()` should require `archived_at is null` (new migration).
+   - Apply migration 3011 to enforce account archiving in database policies and RPCs. The app rechecks visible sessions every 15 seconds and on tab return. Restore clears the archive flag without losing class or progress records.
 2. **Correctness:**
    - Student `time_on_task_ms` is overcounted: the timer starts at page open, not at the last save.
    - `src/shared/labs/checks.ts` compares whole output, so a Python lab with 2+ checks never passes.
@@ -202,3 +202,4 @@ Put each sentence on its own line.
 - 2026-11-14 5:05 PM, Ruthvik: created this file.
   Live Supabase data for the instructor workspace, migration 2001 and demo seed applied to the hosted project, block-based assignments, CIC logo.
   PR #9 merged into the wrong base; `main` still needs `ruthvik/class-tabs`.
+- 2026-11-15, Ken: added migration 3011 and rollback-only tests for archive/restore with unchanged authenticated claims. Hosted application pending.
