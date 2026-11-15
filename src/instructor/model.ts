@@ -30,7 +30,7 @@ export type Activity = {
 };
 export type Lesson = { id: string; title: string; activities: Activity[]; htmlFirst?: boolean };
 export type Module = { id: string; title: string; published: boolean; revision?: number; lessons: Lesson[] };
-export type Course = { id: string; title: string; description: string; level: string; modules: Module[] };
+export type Course = { id: string; title: string; description: string; level: string; modules: Module[]; publicationRevision?: number };
 export type Attempt = {
   activityId: string;
   score: number | null;

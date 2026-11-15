@@ -76,7 +76,7 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
   localAuthoring: boolean;
   library: Activity[];
   onSaveLibrary: (blocks: Activity[]) => boolean;
-  onRelease: (course: Course, moduleId: string, selected: Module | null) => boolean;
+  onRelease: (course: Course, moduleId: string, selected: Module | null) => Promise<Course | false>;
   onSave: (course: Course) => boolean;
   assigned: Set<string>;
   draftModule: (source: { text: string; file: File | null }) => Promise<Module>;
@@ -90,6 +90,8 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
   const [importer, setImporter] = useState<'markdown' | 'converter' | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [publishing, setPublishing] = useState(false);
+  const [resetDraft, setResetDraft] = useState(false);
   const [dragging, setDragging] = useState<DragItem | null>(null);
   const [picker, setPicker] = useState<number | null>(null);
   const addBlockButton = useRef<HTMLButtonElement>(null);
@@ -102,28 +104,30 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
   const savedBlocks = new Set(released.modules.find(item => item.id === module?.id)?.lessons
     .find(item => item.id === lesson?.id)?.activities.map(block => block.id));
   const unsaved = course !== savedDraft;
+  const staleDraft = released.publicationRevision !== undefined && course.publicationRevision !== released.publicationRevision;
   const saveDraft = useCallback(() => {
-    if (!localAuthoring) {
-      const invalid = course.modules.find(item => item.published && unresolvedModuleContent(item));
-      if (!course.title.trim()) return setError('Give the course a title before saving.');
-      if (invalid) return setError(invalid.title + ' · ' + unresolvedModuleContent(invalid));
-    }
-    if (!onSave(course)) return;
+    if (!onSave(course)) return false;
     setSavedDraft(course);
-  }, [course, localAuthoring, onSave]);
+    return true;
+  }, [course, onSave]);
 
+  const flushDraft = useRef<(() => boolean) | null>(null);
   useEffect(() => {
-    if (!unsaved || !localAuthoring) return;
+    flushDraft.current = unsaved && !publishing ? () => onSave(course) : null;
+    if (!unsaved || publishing) return;
     const timer = window.setTimeout(saveDraft, 700);
     return () => window.clearTimeout(timer);
-  }, [saveDraft, unsaved, localAuthoring]);
+  }, [course, onSave, saveDraft, unsaved, publishing]);
+  useEffect(() => () => { flushDraft.current?.(); }, []);
 
   useEffect(() => {
-    if (!unsaved) return;
-    function preventLoss(event: BeforeUnloadEvent) { event.preventDefault(); }
+    if (!unsaved && !publishing) return;
+    function preventLoss(event: BeforeUnloadEvent) {
+      if (publishing || flushDraft.current?.() === false) event.preventDefault();
+    }
     window.addEventListener('beforeunload', preventLoss);
     return () => window.removeEventListener('beforeunload', preventLoss);
-  }, [unsaved]);
+  }, [unsaved, publishing]);
 
   function select(next: View) {
     setView(next);
@@ -146,31 +150,36 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
     updateLesson(lesson.id, lesson => ({ ...lesson, activities: lesson.activities.map(activity => activity.id === activityId ? fn(activity) : activity) }));
   }
 
+  async function updatePublication(selected: Module | null) {
+    if (!module || publishing || staleDraft || !saveDraft()) return;
+    setPublishing(true);
+    setError('');
+    setMessage('');
+    const draft = { ...course, modules: course.modules.map(item => item.id === module.id ? { ...item, published: !!selected } : item) };
+    try {
+      const saved = await onRelease(draft, module.id, selected);
+      if (!saved) return;
+      setCourse(saved);
+      setSavedDraft(saved);
+      setMessage(selected ? 'Module published and ready to assign.' : 'Module moved to draft.');
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : 'Could not publish this update. Your draft is saved in this browser.');
+    } finally {
+      setPublishing(false);
+    }
+  }
+
   function publish() {
     if (!module) return;
     const issue = unresolvedModuleContent(module);
     if (!course.title.trim()) return setError('Give the course a title before publishing.');
     if (issue) return setError(issue);
-    if (!localAuthoring) {
-      const invalid = course.modules.find(item => item.published && item.id !== module.id && unresolvedModuleContent(item));
-      if (invalid) return setError(invalid.title + ' · ' + unresolvedModuleContent(invalid));
-    }
-    const next = { ...course, modules: course.modules.map(item => item.id === module.id ? { ...item, published: true } : item) };
-    if (!onRelease(next, module.id, module)) return;
-    setCourse(next);
-    setSavedDraft(next);
-    setError('');
-    setMessage('Module published and ready to assign.');
+    void updatePublication(module);
   }
 
   function unpublish() {
     if (!module || assigned.has(module.id)) return setError('Remove this module from its class assignments before unpublishing.');
-    const next = { ...course, modules: course.modules.map(item => item.id === module.id ? { ...item, published: false } : item) };
-    if (!onRelease(next, module.id, null)) return;
-    setCourse(next);
-    setSavedDraft(next);
-    setError('');
-    setMessage('Module moved to draft.');
+    void updatePublication(null);
   }
 
   function addModule(next = newModule()) {
@@ -209,7 +218,7 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
   }, []);
 
   useEffect(() => {
-    if (!lesson || tab !== 'edit' || preview || importer || removal || manageBlocks || picker !== null) return;
+    if (!lesson || tab !== 'edit' || preview || importer || removal || resetDraft || manageBlocks || picker !== null) return;
     function shortcut(event: KeyboardEvent) {
       if (event.key !== '/' || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
       if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable]')) return;
@@ -220,7 +229,7 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
     }
     window.addEventListener('keydown', shortcut);
     return () => window.removeEventListener('keydown', shortcut);
-  }, [lesson, tab, preview, importer, removal, manageBlocks, picker]);
+  }, [lesson, tab, preview, importer, removal, resetDraft, manageBlocks, picker]);
 
   function move(kind: OutlineKind, parent: string, from: number, to: number) {
     if (from === to) return;
@@ -266,14 +275,18 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
       {localAuthoring && <button type="button" className="ic-button" onClick={() => setManageBlocks(true)}><Star size={16} /> My blocks</button>}
       <button type="button" className="ic-button" onClick={() => setImporter('converter')}><FilePlus2 size={16} /> Draft from materials</button>
       <button type="button" className="ic-button" disabled={!module?.lessons.length} onClick={() => setPreview(true)}><Eye size={16} /> Preview module</button>
-      <button type="button" className="ic-button ic-primary" onClick={saveDraft}><Save size={16} /> {localAuthoring ? 'Save draft' : 'Save changes'}</button>
+      <button type="button" className="ic-button ic-primary" disabled={publishing} onClick={saveDraft}><Save size={16} /> Save draft</button>
     </PageHeader>
     <div className="ic-builder-status">
-      <span>{unsaved ? 'Unsaved changes' : localAuthoring ? 'Draft saved locally' : 'Changes saved'}</span>
+      <span role="status">{publishing ? 'Updating publication…' : unsaved ? 'Unsaved draft changes' : 'Draft saved in this browser'}</span>
       <span role="status">{message}</span>
     </div>
     {error && <p className="ic-error" role="alert">{error}</p>}
-    <div className="ic-builder">
+    {staleDraft && <div className="ic-row ic-section-gap">
+      <p className="ic-note" role="alert">A newer publication is available. Copy draft edits you want to keep before starting from the latest version.</p>
+      <button className="ic-button" type="button" onClick={() => setResetDraft(true)}>Use latest version</button>
+    </div>}
+    <div className="ic-builder" inert={publishing}>
       <Panel title="Course outline">
         <button type="button" className="ic-tree-button ic-course-settings" aria-pressed={!module} onClick={() => select({})}>Course details</button>
         <div className="ic-outline">
@@ -295,9 +308,9 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
           <label>Level<select value={course.level} onChange={event => setCourse({ ...course, level: event.target.value })}>
             {['Beginner', 'Intermediate', 'Advanced', 'Expert'].map(value => <option key={value}>{value}</option>)}
           </select></label></div></Panel>}
-        {module && !lesson && <Panel title="Module details" actions={<button type="button" className="ic-button ic-primary" onClick={publish}>{liveModule ? 'Publish update' : 'Publish module'}</button>}>
+        {module && !lesson && <Panel title="Module details" actions={<button type="button" className="ic-button ic-primary" disabled={staleDraft} onClick={publish}>{liveModule ? 'Publish update' : 'Publish module'}</button>}>
           <label>Module title<input value={module.title} maxLength={100} onChange={event => updateModule(module.id, item => ({ ...item, title: event.target.value }))} /></label>
-          <div className="ic-row ic-section-gap"><span className={'ic-status ' + (module.published ? 'is-published' : '')}>{liveModule ? 'Published' : 'Draft'}</span>{liveModule && <button type="button" className="ic-button" onClick={unpublish}>Unpublish module</button>}<button type="button" className="ic-button" onClick={() => addLesson()}><Plus size={16} /> Add lesson</button>{localAuthoring && <button type="button" className="ic-button" onClick={() => addLesson(true)}><Plus size={16} /> Add HTML lesson</button>}</div>
+          <div className="ic-row ic-section-gap"><span className={'ic-status ' + (module.published ? 'is-published' : '')}>{liveModule ? 'Published' : 'Draft'}</span>{liveModule && <button type="button" className="ic-button" disabled={staleDraft} onClick={unpublish}>Unpublish module</button>}<button type="button" className="ic-button" onClick={() => addLesson()}><Plus size={16} /> Add lesson</button>{localAuthoring && <button type="button" className="ic-button" onClick={() => addLesson(true)}><Plus size={16} /> Add HTML lesson</button>}</div>
           {module.lessons.length ? <ul className="ic-list ic-section-gap">{module.lessons.map(child => <li key={child.id}><button type="button" className="ic-link-button" onClick={() => select({ moduleId: module.id, lessonId: child.id })}>{child.title}</button><span className="ic-note">{child.activities.length} activities</span></li>)}</ul> : <Empty>Add a lesson to start this module.</Empty>}
         </Panel>}
         {module && lesson && <section className={'ic-panel ic-lesson-page' + (lesson.htmlFirst ? ' ic-html-lesson' : '')} aria-label="Lesson editor">
@@ -385,6 +398,20 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
     {removal && <Dialog title={`Remove ${removal.kind}?`} onClose={() => setRemoval(null)}>
       <p>“{removal.title}” will be removed from the draft outline when you save.</p>
       <div className="ic-form-footer"><button className="ic-button" onClick={() => setRemoval(null)}>Cancel</button><button className="ic-button ic-primary" onClick={remove}>Remove {removal.kind}</button></div>
+    </Dialog>}
+    {resetDraft && <Dialog title="Replace this draft?" onClose={() => setResetDraft(false)}>
+      <p>The latest published version will replace the draft in this browser.</p>
+      <div className="ic-form-footer">
+        <button type="button" className="ic-button" onClick={() => setResetDraft(false)}>Keep draft</button>
+        <button type="button" className="ic-button ic-primary" onClick={() => {
+          if (!onSave(released)) return;
+          flushDraft.current = null;
+          setCourse(released);
+          setSavedDraft(released);
+          select({ moduleId: released.modules[0]?.id, lessonId: released.modules[0]?.lessons[0]?.id });
+          setResetDraft(false);
+        }}>Replace draft</button>
+      </div>
     </Dialog>}
   </>;
 }

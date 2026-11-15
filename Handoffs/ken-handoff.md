@@ -6,7 +6,9 @@ PR #11 adds visual lesson authoring with the shared CIC layout.
 In mock mode, drafts and My blocks belong to the author in the current browser.
 Publishing replaces the selected module's snapshot.
 The curriculum catalog and reviewer read published content.
-The live instructor workspace keeps its existing Supabase save flow.
+The live builder saves drafts in the author's current browser.
+Migration 2005 publishes the selected module and course details atomically.
+The course revision prevents a stale draft from replacing a newer publication.
 
 ## Custom HTML
 
@@ -34,6 +36,8 @@ Published snapshots, My blocks, and executable labs remain browser-local.
 Run `supabase/tests/student_curriculum_access.sql` against a migrated development database to check both access and grading.
 
 ## Log
+
+- 2026-11-14, Ken: added private live drafts and atomic module publishing.
 
 - 2026-11-14, Ken: connected the authenticated student curriculum flow to the existing server grading and unlock rules.
 
