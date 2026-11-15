@@ -16,6 +16,13 @@ Authored scripts run only in the loopback mock demo, in a frame with an opaque o
 Keep real student data out of the demo while outbound navigation is under review.
 Use the [CIC Learn lesson style guide](../docs/lesson-style-guide.md) as model instructions for future lesson-plan or slide-deck conversion.
 
+## Curriculum converter
+
+Draft from materials calls the Vercel draft endpoint for signed-in instructors and admins.
+Generated articles use the Cat Photo App presentation in preview and the student player.
+Review notes stay in the dialog, and adding a module starts it unpublished.
+See the [README](../README.md#draft-curriculum-from-materials) for preview configuration.
+
 ## Coding labs and student demo
 
 PR #15 adds instructor starter files and practice checks for Python and HTML/CSS.
@@ -44,3 +51,5 @@ Run `supabase/tests/student_curriculum_access.sql` against a migrated developmen
 - 2026-11-14, Ken: added visual editing, reusable blocks, and local module snapshots in PR #11.
 
 - 2026-11-14, Codex: documented the Cat Photo App style and conversion rules for lesson generation.
+
+- 2026-11-14, Codex: added reviewed proposal conversion with approved references and editable article blocks.

@@ -5,6 +5,7 @@ import { CodingLabEditor } from './CodingLabEditor';
 import { HtmlActivityEditor, HtmlActivityPreview } from './HtmlActivity';
 import { emptyHtml } from './htmlStarter';
 import { BlockPicker } from './BlockPicker';
+import { ImportMaterials } from './ImportMaterials';
 import { ActivityPreview, LessonPreview } from './LessonPreview';
 import {
   activityTypes, blankQuestion, copyBlock, embedUrl, gradedTypes, id, newActivity, newLesson, newModule, questionTypes, reorder, slidesUrl, unresolvedModuleContent,
@@ -70,7 +71,7 @@ export function CourseReviewer({ course }: { course: Course }) {
   </>;
 }
 
-export function CourseBuilder({ initial, released, localAuthoring, onSave, onRelease, assigned, draftModule, library, onSaveLibrary }: {
+export function CourseBuilder({ initial, released, localAuthoring, onSave, onRelease, assigned, library, onSaveLibrary }: {
   initial: Course;
   released: Course;
   localAuthoring: boolean;
@@ -79,7 +80,6 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
   onRelease: (course: Course, moduleId: string, selected: Module | null) => boolean;
   onSave: (course: Course) => boolean;
   assigned: Set<string>;
-  draftModule: (source: { text: string; file: File | null }) => Promise<Module>;
 }) {
   const [course, setCourse] = useState(initial);
   const [savedDraft, setSavedDraft] = useState(initial);
@@ -378,7 +378,7 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
     {preview && module && <Dialog wide title="Student preview" onClose={() => setPreview(false)}>
       {module.lessons.map(item => <LessonPreview lesson={item} key={item.id} interactive />)}
     </Dialog>}
-    {importer && <ImportMaterials mode={importer} draftModule={draftModule} close={() => setImporter(null)} onMarkdown={text => {
+    {importer && <ImportMaterials mode={importer} close={() => setImporter(null)} onMarkdown={text => {
       if (lesson) insertBlock({ ...newActivity(), markdown: text }, lesson.activities.length);
       setImporter(null);
     }} onDraft={draft => { addModule(draft); setImporter(null); }} />}
@@ -491,63 +491,4 @@ function ActivityEditor({ activity, onChange, localAuthoring }: { activity: Acti
       }))}><Plus size={16} /> Add {activity.type === 'worksheet' ? 'field' : 'question'}</button>}
     </>}
   </div>;
-}
-
-function ImportMaterials({ mode, close, draftModule, onMarkdown, onDraft }: {
-  mode: 'markdown' | 'converter'; close: () => void;
-  draftModule: (source: { text: string; file: File | null }) => Promise<Module>;
-  onMarkdown: (text: string) => void; onDraft: (module: Module) => void;
-}) {
-  const [text, setText] = useState('');
-  const [file, setFile] = useState<File | null>(null);
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const converter = mode === 'converter';
-  return <Dialog title={converter ? 'Draft a module from materials' : 'Import Markdown'} onClose={close}>
-    <form className="ic-stack" onSubmit={async event => {
-      event.preventDefault();
-      if (!converter) return onMarkdown(text.trim());
-      setBusy(true);
-      setError('');
-      try { onDraft(await draftModule({ text: text.trim(), file })); }
-      catch (error) { setError(error instanceof Error ? error.message : 'Could not draft a module. Try again.'); }
-      finally { setBusy(false); }
-    }}>
-      <p className="ic-note">{converter
-        ? 'The local demo turns pasted text or a text file into an editable module draft with a practice prompt. Review the draft before publishing.'
-        : 'Paste an article or upload a Markdown file. It will be added as an article in this lesson.'}</p>
-      <label>{converter ? 'Worksheet or lesson text' : 'Markdown'}<textarea rows={7} value={text} onChange={event => setText(event.target.value)} placeholder="## Your lesson title" /></label>
-      <label>{converter ? 'Text or Markdown file' : 'Markdown file'}<input type="file" accept=".md,.markdown,.txt,text/plain,text/markdown" onChange={async event => {
-        const selected = event.currentTarget.files?.[0] || null;
-        setError('');
-        if (selected && selected.size > 200_000) {
-          event.currentTarget.value = '';
-          setFile(null);
-          setError('Choose a file under 200 KB.');
-          return;
-        }
-        setFile(selected);
-        if (!converter && selected) {
-          try { setText(await selected.text()); }
-          catch { setError('Could not read the file. Paste the Markdown instead.'); }
-        }
-      }} /></label>
-      {error && <p className="ic-error" role="alert">{error}</p>}
-      <div className="ic-form-footer"><button type="submit" className="ic-button ic-primary" disabled={busy || (!text.trim() && !(converter && file))}>{busy ? 'Drafting…' : converter ? 'Generate draft' : 'Add article'}</button></div>
-    </form>
-  </Dialog>;
-}
-
-export async function demoDraftModule({ text, file }: { text: string; file: File | null }): Promise<Module> {
-  const source = text || (file ? (await file.text()).trim() : '');
-  if (!source) throw new Error('Paste lesson text or choose a text file with content.');
-  const firstLine = source.split('\n').find(line => line.trim())?.replace(/^#+\s*/, '').trim() || 'Imported lesson';
-  const title = firstLine.slice(0, 80);
-  const lesson = newLesson(title);
-  lesson.activities = [
-    { ...newActivity(), title: 'Read and explore', markdown: source },
-    { ...newActivity('worksheet'), title: 'Try it yourself', questions: [{ ...blankQuestion(), prompt: 'Use an example from the reading and explain what you changed.' }] },
-    { ...newActivity('exit'), title: 'Exit question', questions: [{ ...blankQuestion(), prompt: 'What did you learn, and what would you like to try next?' }] },
-  ];
-  return { id: id(), title, published: false, lessons: [lesson] };
 }

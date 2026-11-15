@@ -77,6 +77,7 @@ function toActivity(row: Row): Activity {
     markdown: str(content.markdown) || (type === 'code' ? str(content.prompt) : ''),
     url: str(content.url), questions,
   };
+  if (type === 'content' && content.presentation === 'cic-article') activity.presentation = 'cic-article';
   if (type === 'code') activity.code = { starter: str(content.starter_code), tests, solution: str(content.solution) };
   if (type === 'interactive_html') activity.interactiveHtml = {
     html: str(content.html), instructions: str(content.instructions), reports_score: Boolean(content.reports_score),
@@ -92,7 +93,7 @@ function activityContent(activity: Activity): Json {
   const first = activity.questions[0];
   const base: Json = { title: activity.title, questions: activity.questions };
   switch (activity.type) {
-    case 'content': return { ...base, markdown: activity.markdown };
+    case 'content': return { ...base, markdown: activity.markdown, ...(activity.presentation ? { presentation: activity.presentation } : {}) };
     case 'video':
     case 'slides': return { ...base, url: activity.url, caption: activity.title, markdown: activity.markdown };
     case 'check': return { ...base, prompt: first?.prompt ?? '', choices: first ? choices(first) : [], answer: first ? answerId(first) : undefined, markdown: activity.markdown };

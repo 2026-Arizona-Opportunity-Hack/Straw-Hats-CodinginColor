@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { isLocalDemo } from '../shared/supabase.ts';
+import { CicArticle } from '../shared/curriculum/CicArticle';
 import { CodeLab } from '../shared/labs/CodeLab';
 import { labPayload } from './labPayload';
 import { HtmlActivityPreview } from './HtmlActivity';
@@ -14,6 +15,9 @@ function safeUrl(url: string, key: string) {
 export function ActivityPreview({ activity, interactive = false }: { activity: Activity; interactive?: boolean }) {
   const previewId = useId();
   const embed = activity.type === 'video' ? embedUrl(activity.url) : activity.type === 'slides' ? slidesUrl(activity.url) : null;
+  if (activity.type === 'content' && activity.presentation === 'cic-article') {
+    return <CicArticle title={activity.title || 'Read and explore'} markdown={activity.markdown} />;
+  }
   return <section className={'ic-article-activity' + (activity.type === 'content' ? '' : ' ic-article-exercise')}>
     <h3>{activity.title || activityTypes[activity.type]}</h3>
     {activity.markdown && <Markdown skipHtml urlTransform={safeUrl} components={{

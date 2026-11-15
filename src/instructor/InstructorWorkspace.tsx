@@ -3,7 +3,7 @@ import { BarChart3, BookOpen, Eye, GraduationCap, Settings } from 'lucide-react'
 import { ClassSetup } from './ClassSetup';
 import { ClassDashboard, ClassList } from './Classes';
 import { isClassTab } from './classTabIds';
-import { CourseBuilder, CourseReviewer, CurriculumList, demoDraftModule } from './Curriculum';
+import { CourseBuilder, CourseReviewer, CurriculumList } from './Curriculum';
 import { publishModule, type Activity, type ClassGroup, type Course, type Module, type StaffRole } from './model';
 import { AccessSettings, ProgramOverview } from './Operations';
 import { browserInstructorStore, type InstructorStore } from './store';
@@ -34,10 +34,9 @@ function initialProfile() {
  * main app's sidebar layout; the signed-in role picks the profile and the router supplies the hash.
  */
 export function InstructorWorkspace({
-  store = browserInstructorStore, draftModule = demoDraftModule, role, hash, authorId,
+  store = browserInstructorStore, role, hash, authorId,
 }: {
   store?: InstructorStore;
-  draftModule?: (source: { text: string; file: File | null }) => Promise<Module>;
   role?: StaffRole;
   hash?: string;
   authorId?: string;
@@ -161,7 +160,7 @@ export function InstructorWorkspace({
     }
     if (section === 'curriculum') {
       if (course) return <CourseBuilder key={author + ':' + course.id} initial={data.courseDrafts?.[draftKey(course.id)] ?? course}
-        released={course} localAuthoring={draftsLocal} onSave={saveDraft} onRelease={release} assigned={assigned} draftModule={draftModule}
+        released={course} localAuthoring={draftsLocal} onSave={saveDraft} onRelease={release} assigned={assigned}
         library={library} onSaveLibrary={saveLibrary} />;
       if (!item) return <CurriculumList courses={data.courses.map(item => data.courseDrafts?.[draftKey(item.id)] ?? item)} onCreate={createCourse} />;
     }

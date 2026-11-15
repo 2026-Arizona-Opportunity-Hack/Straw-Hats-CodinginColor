@@ -26,6 +26,7 @@ export type Activity = {
   questions: Question[];
   code?: { starter: string; tests: string; solution: string; lab?: CodingLabSettings };
   format?: 'open-ended';
+  presentation?: 'cic-article';
   interactiveHtml?: InteractiveHtmlPayload;
 };
 export type Lesson = { id: string; title: string; activities: Activity[]; htmlFirst?: boolean };

@@ -16,6 +16,8 @@ export type ActivityType =
 export interface ContentPayload {
   /** Markdown, rendered sanitized. zyBooks-style text section. */
   markdown: string
+  presentation?: 'cic-article'
+  title?: string
 }
 
 export interface VideoPayload {

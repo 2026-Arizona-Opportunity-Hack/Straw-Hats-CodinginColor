@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { CicArticle } from '../shared/curriculum/CicArticle'
 import Markdown, { defaultUrlTransform } from 'react-markdown'
 import { getModule, listActivityStatus, recordAttempt, type ActivityStatus } from '../api/student/index.ts'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
@@ -82,8 +83,12 @@ function ActivityBlock({ activity, status, onSaved }: {
         const { url, caption } = (activity as Activity<'video'>).content
         return <><p><a className="underline" href={defaultUrlTransform(url)} target="_blank" rel="noreferrer">{caption || 'Open video'}</a></p>{!done && complete}</>
       }
-      case 'content':
-        return <><Markdown skipHtml>{(activity as Activity<'content'>).content.markdown}</Markdown>{!done && complete}</>
+      case 'content': {
+        const { markdown, presentation, title } = (activity as Activity<'content'>).content
+        return <>{presentation === 'cic-article'
+          ? <CicArticle title={title || activity.concept} markdown={markdown} />
+          : <Markdown skipHtml>{markdown}</Markdown>}{!done && complete}</>
+      }
       case 'code': {
         const { starter_code, prompt } = (activity as Activity<'code'>).content
         return <>{starter_code && <pre className="overflow-auto"><code>{starter_code}</code></pre>}
