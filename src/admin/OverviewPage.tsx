@@ -147,7 +147,7 @@ function HiringCard() {
                   value={x.status}
                   disabled={update.isPending}
                   onChange={(e) => update.mutate({ id: x.id, status: e.target.value as ApplicationStatus })}
-                  className="h-9"
+                  className="h-9 w-full"
                 >
                   {STAGES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </Select>

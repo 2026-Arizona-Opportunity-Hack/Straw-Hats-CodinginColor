@@ -172,7 +172,8 @@ export function Td({ className = '', ...p }: TdHTMLAttributes<HTMLTableCellEleme
 
 // ---- Forms -----------------------------------------------------------------
 
-const control = 'h-11 w-full rounded-lg border border-input bg-white px-3 text-sm placeholder:text-cic-muted'
+// No fixed width: controls stretch inside Field (flex column) and take the width a page sets elsewhere.
+const control = 'h-11 rounded-lg border border-input bg-white px-3 text-sm placeholder:text-cic-muted'
 
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${control} ${props.className ?? ''}`} />

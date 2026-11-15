@@ -161,7 +161,7 @@ export function AppLayout() {
   )
 
   return (
-    <div className="min-h-screen bg-canvas text-black lg:grid lg:grid-cols-[248px_1fr]">
+    <div className="min-h-screen bg-canvas text-black lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:font-semibold focus:text-brand focus:shadow"
