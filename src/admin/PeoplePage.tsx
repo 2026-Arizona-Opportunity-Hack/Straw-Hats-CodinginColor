@@ -7,7 +7,7 @@ import { useAuth } from '../shared/auth/AuthContext.tsx'
 import type { Role } from '../shared/types/db.ts'
 import { Button, Card, DataTable, EmptyState, Input, PageHeader, Select, Td, Th } from '../shared/ui/index.tsx'
 import { changeRole } from './api.ts'
-import { LoadState } from './common.tsx'
+import { ArchiveButton, LoadState } from './common.tsx'
 import { ORG_KEY, useOrg } from './hooks.ts'
 
 const ROLES: Role[] = ['admin', 'instructor', 'student', 'reviewer']
@@ -25,12 +25,17 @@ export function PeoplePage() {
   const [params, setParams] = useSearchParams()
   const q = params.get('q') ?? ''
   const role = (params.get('role') ?? '') as Role | ''
+  const showArchived = params.get('archived') === '1'
   if (!data) return <><PageHeader title="People & roles" /><LoadState isLoading={isLoading} error={error} /></>
 
   const className = new Map(data.classes.map((c) => [c.id, c.name]))
-  const counts = Object.fromEntries(ROLES.map((r) => [r, data.people.filter((p) => p.role === r).length])) as Record<Role, number>
+  const active = data.people.filter((p) => !p.archived_at)
+  const archivedCount = data.people.length - active.length
+  const counts = Object.fromEntries(ROLES.map((r) => [r, active.filter((p) => p.role === r).length])) as Record<Role, number>
   const needle = q.trim().toLowerCase()
-  const list = data.people.filter((p) => (!role || p.role === role) && (!needle || p.display_name.toLowerCase().includes(needle)))
+  const list = data.people.filter(
+    (p) => !p.archived_at === !showArchived && (!role || p.role === role) && (!needle || p.display_name.toLowerCase().includes(needle)),
+  )
   const classesFor = (id: string, r: Role) =>
     r === 'instructor'
       ? data.classInstructors.filter((x) => x.instructor_id === id).map((x) => className.get(x.class_id))
@@ -43,6 +48,7 @@ export function PeoplePage() {
     const f = new FormData(e.currentTarget)
     const next = new URLSearchParams()
     for (const k of ['q', 'role']) if (f.get(k)) next.set(k, String(f.get(k)))
+    if (showArchived) next.set('archived', '1')
     setParams(next)
   }
 
@@ -73,7 +79,14 @@ export function PeoplePage() {
 
       <section aria-labelledby="dir-heading" className="mb-10">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <h2 id="dir-heading" className="text-xl">Directory <span className="text-cic-muted">({list.length})</span></h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 id="dir-heading" className="text-xl">
+              {showArchived ? 'Archived people' : 'Directory'} <span className="text-cic-muted">({list.length})</span>
+            </h2>
+            <Link to={showArchived ? '/admin/users' : '/admin/users?archived=1'} className="text-sm font-semibold text-brand hover:underline">
+              {showArchived ? 'Back to active people' : `View archived (${archivedCount})`}
+            </Link>
+          </div>
           <form role="search" onSubmit={applyFilters} className="flex flex-wrap items-end gap-2">
             <label htmlFor="q" className="sr-only">Search people</label>
             <div className="relative">
@@ -90,7 +103,7 @@ export function PeoplePage() {
           </form>
         </div>
         {list.length === 0 ? (
-          <EmptyState icon={<Users />} title="Nobody matches" description="Try another name or clear the filters." />
+          <EmptyState icon={<Users />} title={showArchived ? 'No archived people' : 'Nobody matches'} description={showArchived ? undefined : 'Try another name or clear the filters.'} />
         ) : (
           <DataTable caption="People, their roles and classes">
             <thead><tr><Th>Name</Th><Th>School</Th><Th>Classes</Th><Th>Role</Th></tr></thead>
@@ -102,7 +115,16 @@ export function PeoplePage() {
                     <Td className="font-semibold">{p.display_name}</Td>
                     <Td>{p.school ?? <span className="text-cic-muted">CIC</span>}</Td>
                     <Td className="max-w-60">{cls.length ? cls.join(', ') : <span className="text-cic-muted">—</span>}</Td>
-                    <Td><RoleSelect userId={p.id} name={p.display_name} role={p.role} isSelf={p.id === profile?.id} /></Td>
+                    <Td>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {p.role === 'reviewer' || p.archived_at ? (
+                          <span className="px-1 text-sm font-semibold">{ROLE_LABEL[p.role]}</span>
+                        ) : (
+                          <RoleSelect userId={p.id} name={p.display_name} role={p.role} isSelf={p.id === profile?.id} />
+                        )}
+                        {p.role !== 'admin' && <ArchiveButton table="profiles" id={p.id} name={p.display_name} archived={Boolean(p.archived_at)} />}
+                      </div>
+                    </Td>
                   </tr>
                 )
               })}
