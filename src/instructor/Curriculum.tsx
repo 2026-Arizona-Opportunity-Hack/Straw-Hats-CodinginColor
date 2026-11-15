@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, ChevronLeft, ChevronRight, Library, ListTree, Pencil, Copy, Eye, FilePlus2, GripVertical, ImagePlus, Plus, Save, Star, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, ChevronLeft, ChevronRight, Library, ListTree, Copy, Eye, FilePlus2, GripVertical, ImagePlus, Plus, Save, Star, Trash2 } from 'lucide-react';
 import { isLocalDemo } from '../shared/supabase.ts';
 import { CodingLabEditor } from './CodingLabEditor';
 import { DiscussionReview } from './DiscussionReview';
@@ -13,7 +13,7 @@ import { ActivityPreview, LessonPreview } from './LessonPreview';
 import { StudentPreview } from './StudentLessonPreview';
 import {
   activityTypes, blankQuestion, copyBlock, embedUrl, gradedTypes, id, newActivity, newLesson, newModule, questionTypes, reorder, slidesUrl, unresolvedModuleContent,
-  type Activity, type Course, type Lesson, type Module,
+  type Activity, type ClassGroup, type Course, type Lesson, type Module,
 } from './model';
 import { Dialog, Empty, PageHeader, Panel } from './ui';
 
@@ -21,48 +21,47 @@ type View = { moduleId?: string; lessonId?: string; activityId?: string };
 type OutlineKind = 'module' | 'lesson' | 'block';
 type DragItem = { kind: OutlineKind; index: number; parent: string };
 
-export function CurriculumList({ courses, reviewer = false, onCreate, canEditLibrary = false, libraryOnly = false }: {
-  courses: Course[]; reviewer?: boolean; onCreate?: (course: Course) => void; canEditLibrary?: boolean;
-  /** Instructors: only the CIC library here; they edit a course inside the class that uses it. */
-  libraryOnly?: boolean;
+export function CurriculumList({ courses, classCurricula = [], unassigned = [], reviewer = false, onCreate }: {
+  courses: Course[];
+  classCurricula?: { group: ClassGroup; course: Course }[];
+  unassigned?: Course[];
+  reviewer?: boolean;
+  onCreate?: (course: Course) => void;
 }) {
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
   const [level, setLevel] = useState('Beginner');
   const [template, setTemplate] = useState('blank');
-  const visible = reviewer ? courses.filter(course => course.modules.some(module => module.published)) : courses.filter(course => !course.library);
-  if (libraryOnly) return <>
-    <PageHeader title="CIC library" description="Ready-made courses from Coding in Color. Preview them here, then add one to a class from Create a class or the class's Curriculum tab, where you can change it for that class." />
-    <LibraryList courses={courses.filter(course => course.library)} canEdit={canEditLibrary} heading={false} />
-  </>;
+  const visible = reviewer ? courses.filter(course => course.modules.some(module => module.published)) : courses;
   return <>
     <PageHeader title={reviewer ? 'Curriculum reviewer' : 'Curriculum'} description={reviewer
-      ? 'Browse published courses and article-style lessons in the read-only preview.'
-      : 'Build and publish article-style modules that students can follow independently.'}>
-      {!reviewer && <button className="ic-button ic-primary" onClick={() => setAdding(true)}><Plus size={17} /> New course</button>}
+      ? 'Browse published courses and lessons.'
+      : 'Browse global courses and curriculum used in classes.'}>
+      {onCreate && <button className="ic-button ic-primary" onClick={() => setAdding(true)}><Plus size={17} /> New course</button>}
     </PageHeader>
     <div className="ic-stack">
-      {!reviewer && <h2 className="ic-section-title">My courses</h2>}
-      {visible.map(course => {
-        const published = course.modules.filter(module => module.published).length;
-        return <article className="ic-panel ic-course-row" key={course.id}>
-          <div className="ic-class-mark"><BookOpen size={21} /></div>
-          <div><CourseHeading reviewer={reviewer}><a href={`#/${reviewer ? 'review' : 'curriculum'}/${course.id}`}>{course.title}</a></CourseHeading>
-            {course.description && <p className="ic-clamp-2">{course.description}</p>}
-            <span className="ic-note">{course.level} · {published} published{!reviewer && ` · ${course.modules.length - published} draft`}</span>
-          </div><a className="ic-button" href={`#/${reviewer ? 'review' : 'curriculum'}/${course.id}`}>{reviewer ? 'Browse course' : 'Open builder'} <ArrowRight size={16} /></a>
-        </article>;
-      })}
-      {!visible.length && <Panel><Empty>{reviewer ? 'No courses have published modules yet.' : 'Courses you build, and the ones you pick when you create a class, show up here.'}</Empty></Panel>}
-      {!reviewer && <LibraryList courses={courses.filter(course => course.library)} canEdit={canEditLibrary} />}
+      {!reviewer && <h2 className="ic-section-title">Global curriculum</h2>}
+      {visible.map(course => <CurriculumCourseRow key={course.id} course={course} reviewer={reviewer}
+        to={`#/${reviewer ? 'review' : 'curriculum'}/${course.id}`} />)}
+      {!visible.length && <Panel><Empty>No courses are available here yet.</Empty></Panel>}
+      {!reviewer && <>
+        <h2 className="ic-section-title">Class curriculum</h2>
+        {classCurricula.map(({ group, course }) => <CurriculumCourseRow key={group.id} course={course}
+          to={`#/classes/${group.id}/curriculum/view`} context={[group.name, group.school, course.library ? 'Uses global curriculum' : ''].filter(Boolean).join(' · ')} />)}
+        {!classCurricula.length && <Panel><Empty>No classes with curriculum are available.</Empty></Panel>}
+      </>}
+      {!!unassigned.length && <>
+        <h2 className="ic-section-title">Unassigned class curriculum</h2>
+        {unassigned.map(course => <CurriculumCourseRow key={course.id} course={course} to={`#/curriculum/${course.id}`} />)}
+      </>}
     </div>
-    {adding && <Dialog title="Create a course" onClose={() => setAdding(false)}>
+    {adding && onCreate && <Dialog title="Create a course" onClose={() => setAdding(false)}>
       <form className="ic-stack" onSubmit={event => {
         event.preventDefault();
         if (!title.trim()) return;
         const module = newModule();
         if (template === 'read-check') module.lessons = [readAndCheckLesson()];
-        onCreate?.({ id: id(), title: title.trim(), description: '', level, modules: [module] });
+        onCreate({ id: id(), title: title.trim(), description: '', level, modules: [module] });
       }}><label>Course title<input required autoFocus value={title} maxLength={100} onChange={event => setTitle(event.target.value)} /></label>
         <label>Level<select value={level} onChange={event => setLevel(event.target.value)}>{['Beginner', 'Intermediate', 'Advanced', 'Expert'].map(value => <option key={value}>{value}</option>)}</select></label>
         <label>Start with<select value={template} onChange={event => setTemplate(event.target.value)}>
@@ -74,41 +73,38 @@ export function CurriculumList({ courses, reviewer = false, onCreate, canEditLib
   </>;
 }
 
-// Under the "My courses" heading, course titles are one level down.
-function CourseHeading({ reviewer, children }: { reviewer: boolean; children: React.ReactNode }) {
-  return reviewer ? <h2>{children}</h2> : <h3>{children}</h3>;
-}
-
-/** Ready-made CIC courses. Instructors preview them here and pick one when they create a class. */
-function LibraryList({ courses, canEdit, heading = true }: { courses: Course[]; canEdit: boolean; heading?: boolean }) {
-  if (!courses.length) return heading ? null : <Panel><Empty>No library courses yet.</Empty></Panel>;
-  return <section className={'ic-stack' + (heading ? ' ic-section-gap' : '')} aria-labelledby={heading ? 'ic-library-heading' : undefined} aria-label={heading ? undefined : 'Library courses'}>
-    {heading && <div><h2 className="ic-section-title" id="ic-library-heading">CIC library</h2>
-      <p className="ic-note">Ready-made courses from Coding in Color. Pick one when you create a class; it becomes yours to change.</p></div>}
-    {courses.map(course => {
-      const modules = course.modules.filter(module => module.published).length;
-      return <article className="ic-panel ic-course-row" key={course.id}>
-        <div className="ic-class-mark ic-library-mark"><Library size={21} aria-hidden="true" /></div>
-        <div>{heading ? <h3><a href={`#/review/${course.id}`}>{course.title}</a></h3> : <h2><a href={`#/review/${course.id}`}>{course.title}</a></h2>}
-          {course.description && <p className="ic-clamp-2">{course.description}</p>}
-          <span className="ic-note">{course.level} · {modules} {modules === 1 ? 'module' : 'modules'} ready</span>
-        </div>
-        <div className="ic-row">
-          <a className="ic-button" href={`#/review/${course.id}`} aria-label={`Preview ${course.title}`}><Eye size={16} aria-hidden="true" /> Preview</a>
-          {canEdit && <a className="ic-button" href={`#/curriculum/${course.id}`} aria-label={`Edit ${course.title}`}><Pencil size={16} aria-hidden="true" /> Edit</a>}
-        </div>
-      </article>;
-    })}
-  </section>;
+function CurriculumCourseRow({ course, to, context, reviewer }: {
+  course: Course; to: string; context?: string; reviewer?: boolean;
+}) {
+  const Heading = reviewer ? 'h2' : 'h3';
+  const Icon = course.library ? Library : BookOpen;
+  const published = course.modules.filter(module => module.published).length;
+  return <article className="ic-panel ic-course-row">
+    <div className={'ic-class-mark' + (course.library ? ' ic-library-mark' : '')}><Icon size={21} aria-hidden="true" /></div>
+    <div>
+      <Heading><a href={to}>{course.title}</a></Heading>
+      {context && <p>{context}</p>}
+      {course.description && <p className="ic-clamp-2">{course.description}</p>}
+      <span className="ic-note">{course.level} · {published} published</span>
+    </div>
+    <a className="ic-button" href={to} aria-label={`View ${course.title}${context ? ` · ${context}` : ''}`}><Eye size={16} aria-hidden="true" /> View</a>
+  </article>;
 }
 
 const lessonListKey = 'cic.reviewer.lessonList';
 
-export function CourseReviewer({ course, back = { label: 'Reviewer library', to: '#/review' } }: { course: Course; back?: { label: string; to: string } }) {
+export function CourseReviewer({ course, back = { label: 'Reviewer library', to: '#/review' }, actions, level, blockActions, initialLessonId }: {
+  course: Course;
+  back?: { label: string; to: string };
+  actions?: ReactNode;
+  level?: 1 | 2;
+  blockActions?: (activity: Activity) => ReactNode;
+  initialLessonId?: string;
+}) {
   const modules = course.modules.filter(module => module.published);
-  const [active, setActive] = useState(modules[0]?.lessons[0]?.id);
   const lessons = modules.flatMap(module => module.lessons);
-  const index = lessons.findIndex(item => item.id === active);
+  const [active, setActive] = useState(initialLessonId ?? lessons[0]?.id);
+  const index = Math.max(0, lessons.findIndex(item => item.id === active));
   const lesson = lessons[index];
   // The lesson list starts closed so the lesson gets the full width; the choice is remembered.
   const [showList, setShowList] = useState(() => { try { return localStorage.getItem(lessonListKey) === 'open'; } catch { return false; } });
@@ -118,7 +114,7 @@ export function CourseReviewer({ course, back = { label: 'Reviewer library', to:
   }
   const go = (step: number) => { const next = lessons[index + step]; if (next) setActive(next.id); };
   return <>
-    <PageHeader title={course.title} description={course.description} back={back} />
+    <PageHeader title={course.title} description={course.description} back={back} level={level}>{actions}</PageHeader>
     {lessons.length > 0 && <div className="ic-review-bar">
       <button type="button" className="ic-button" aria-expanded={showList} aria-controls={listId} onClick={toggleList}>
         <ListTree size={16} aria-hidden="true" /> {showList ? 'Hide lessons' : 'Show lessons'}</button>
@@ -131,17 +127,19 @@ export function CourseReviewer({ course, back = { label: 'Reviewer library', to:
     <div className={'ic-builder ic-review' + (showList ? '' : ' is-collapsed')}>
       <div id={listId} hidden={!showList}><Panel title="Published lessons">
         {modules.map(module => <div className="ic-review-module" key={module.id}><h3>{module.title}</h3><ul>
-          {module.lessons.map(lesson => <li key={lesson.id}><button type="button" className="ic-tree-button" aria-pressed={active === lesson.id} onClick={() => setActive(lesson.id)}>{lesson.title}</button></li>)}
+          {module.lessons.map(item => <li key={item.id}><button type="button" className="ic-tree-button" aria-pressed={lesson?.id === item.id} onClick={() => setActive(item.id)}>{item.title}</button></li>)}
         </ul></div>)}
       </Panel></div>
-      {lesson ? <div className="ic-review-lesson"><LessonPreview lesson={lesson} /></div> : <Panel><Empty>No published lessons are available.</Empty></Panel>}
+      {lesson ? <div className="ic-review-lesson"><LessonPreview lesson={lesson} blockActions={blockActions} /></div> : <Panel><Empty>No published lessons are available.</Empty></Panel>}
     </div>
   </>;
 }
 
-export function CourseBuilder({ initial, released, localAuthoring, onSave, onRelease, assigned, library, onSaveLibrary, inClass }: {
+export function CourseBuilder({ initial, released, localAuthoring, onSave, onRelease, assigned, library, onSaveLibrary, inClass, initialLessonId, canCurate }: {
   /** Set when the builder opens inside a class card: a compact header that returns to the class. */
   inClass?: { className: string; backTo: string };
+  initialLessonId?: string;
+  canCurate?: boolean;
   initial: Course;
   released: Course;
   localAuthoring: boolean;
@@ -154,7 +152,11 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
   const [course, setCourse] = useState(initial);
   const [savedDraft, setSavedDraft] = useState(initial);
   const [manageBlocks, setManageBlocks] = useState(false);
-  const [view, setView] = useState<View>({ moduleId: initial.modules[0]?.id, lessonId: initial.modules[0]?.lessons[0]?.id });
+  const [view, setView] = useState<View>(() => {
+    const module = initial.modules.find(item => item.lessons.some(lesson => lesson.id === initialLessonId)) ?? initial.modules[0];
+    const lesson = module?.lessons.find(lesson => lesson.id === initialLessonId) ?? module?.lessons[0];
+    return { moduleId: module?.id, lessonId: lesson?.id };
+  });
   const [preview, setPreview] = useState(false);
   const [tab, setTab] = useState<'edit' | 'preview'>('edit');
   const [importer, setImporter] = useState<'markdown' | 'converter' | null>(null);
@@ -351,10 +353,11 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
       return inClass
         ? <div className="ic-class-builder-head">
           <div><a className="ic-back" href={inClass.backTo}><ArrowLeft size={15} aria-hidden="true" /> Back to {inClass.className} curriculum</a>
-            <h2>Edit curriculum</h2><p className="ic-note">Changes apply to this class only. The CIC library stays the same.</p></div>
+            <h2>Edit curriculum</h2><p className="ic-note">Edits apply to this class’s copy.</p></div>
           <div className="ic-row">{actions}</div>
         </div>
-        : <PageHeader title={course.title || 'Untitled course'} description="Course builder" back={{ label: 'Curriculum', to: '#/curriculum' }}>{actions}</PageHeader>;
+        : <PageHeader title={course.title || 'Untitled course'} description="Course builder"
+          back={{ label: 'View curriculum', to: `#/curriculum/${course.id}${initialLessonId ? `/view/${initialLessonId}` : ''}` }}>{actions}</PageHeader>;
     })()}
     <div className="ic-builder-status">
       <span role="status">{publishing ? 'Updating publication…' : unsaved ? 'Unsaved draft changes' : 'Draft saved in this browser'}</span>
@@ -456,7 +459,7 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
                         }}>{editing ? 'Done' : 'Edit'}</button>
                       </div>
                     </div>
-                    {editing ? <ActivityEditor key={block.id} activity={block} localAuthoring={localAuthoring} onChange={fn => updateActivity(block.id, fn)} />
+                    {editing ? <ActivityEditor key={block.id} activity={block} localAuthoring={localAuthoring} canCurate={canCurate} onChange={fn => updateActivity(block.id, fn)} />
                       : <ActivityPreview activity={block} />}
                   </div>
                 </div>}
@@ -501,7 +504,9 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
   </>;
 }
 
-function ActivityEditor({ activity, onChange, localAuthoring }: { activity: Activity; localAuthoring: boolean; onChange: (fn: (activity: Activity) => Activity) => void }) {
+function ActivityEditor({ activity, onChange, localAuthoring, canCurate }: {
+  activity: Activity; localAuthoring: boolean; canCurate?: boolean; onChange: (fn: (activity: Activity) => Activity) => void;
+}) {
   const [reviewNotes, setReviewNotes] = useState(false);
   const image = useRef<HTMLInputElement>(null);
   const mediaHintId = useId();
@@ -539,6 +544,10 @@ function ActivityEditor({ activity, onChange, localAuthoring }: { activity: Acti
         ? activity.url && !embedUrl(activity.url) ? 'Enter a YouTube, Vimeo, or Google Drive video link.' : 'Supports YouTube, Vimeo, and Google Drive videos.'
         : activity.url && !slidesUrl(activity.url) ? 'Enter a Google Slides or Google Drive link.' : 'Use a slide deck students have permission to view.'}</p>
     </div>}
+    {canCurate && activity.type === 'slides' && <label className="ic-checkbox">
+      <input type="checkbox" checked={activity.cicLibraryDeck === true} onChange={event => set({ cicLibraryDeck: event.target.checked || undefined })} />
+      Include in CIC Library
+    </label>}
     {activity.figure && <FigureMarkupEditor figure={activity.figure} onChange={figure => set({ figure })} />}
     {activity.type !== 'interactive_html' && !activity.figure && <label>{activity.type === 'content' ? 'Article Markdown' : activity.type === 'code' ? 'Lab instructions' : 'Instructions (optional Markdown)'}
       <textarea className="ic-markdown-input" rows={activity.type === 'content' || activity.type === 'code' ? 10 : 3}

@@ -4,6 +4,8 @@ import { maxFigureMarks, maxMaskPoints, type FigureMark, type FigurePoint } from
 
 const wasmPath = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm'
 const modelPath = 'https://storage.googleapis.com/mediapipe-models/image_segmenter/deeplab_v3/float32/1/deeplab_v3.tflite'
+type PixelMask = { pixels: Uint8Array; width: number; height: number }
+type ImageCrop = { x: number; y: number; size: number }
 let segmenter: Promise<ImageSegmenter> | undefined
 
 function loadSegmenter() {
@@ -30,7 +32,54 @@ export async function suggestFigureMarks(src: string) {
       categoryMask.getAsUint8Array(), categoryMask.width, categoryMask.height, model.getLabels(),
     )
   })
-  return marks
+  if (marks.length) return marks
+
+  const { naturalWidth: width, naturalHeight: height } = image
+  const crops = annotationCrops(width, height)
+  if (!crops.length) return marks
+
+  const size = crops[0].size
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = size
+  const context = canvas.getContext('2d')
+  if (!context) return marks
+
+  // Recover subjects squashed by the model's square input. Combine the crop
+  // masks in the displayed image's pixel space before tracing any outlines.
+  const combined = { pixels: new Uint8Array(width * height), width, height }
+  for (const crop of crops) {
+    context.drawImage(image, crop.x, crop.y, size, size, 0, 0, size, size)
+    model.segment(canvas, ({ categoryMask }) => {
+      if (!categoryMask) return
+      mergeCropMask(combined, {
+        pixels: categoryMask.getAsUint8Array(), width: categoryMask.width, height: categoryMask.height,
+      }, crop)
+    })
+  }
+  return outlinesFromMask(combined.pixels, width, height, model.getLabels())
+}
+
+export function annotationCrops(width: number, height: number): ImageCrop[] {
+  const size = Math.min(width, height)
+  const length = Math.max(width, height)
+  if (length < size * 1.5) return []
+  const travel = length - size
+  const count = Math.min(5, Math.ceil(travel / (size * 0.6)) + 1)
+  const offsets = Array.from({ length: count }, (_, index) => Math.round(index * travel / (count - 1)))
+  offsets.sort((a, b) => Math.abs(a - travel / 2) - Math.abs(b - travel / 2))
+  return offsets.map(offset => ({ x: width > height ? offset : 0, y: height > width ? offset : 0, size }))
+}
+
+export function mergeCropMask(target: PixelMask, mask: PixelMask, crop: ImageCrop) {
+  for (let y = 0; y < crop.size; y++) {
+    const sourceRow = Math.floor(y * mask.height / crop.size) * mask.width
+    const targetRow = (y + crop.y) * target.width + crop.x
+    for (let x = 0; x < crop.size; x++) {
+      const label = mask.pixels[sourceRow + Math.floor(x * mask.width / crop.size)]
+      // Central detections take precedence where two crops disagree.
+      if (label && !target.pixels[targetRow + x]) target.pixels[targetRow + x] = label
+    }
+  }
 }
 
 function outlineArea(path: number[][]) {

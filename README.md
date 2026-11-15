@@ -102,10 +102,12 @@ Instructors can create, edit, duplicate, publish, delete, export to a `.json` fi
 The Grades tab is a gradebook with needs-grading, missing, late and not-due states, rubrics, file uploads and CSV export.
 With Supabase configured, all of this is live data (`src/instructor/liveStore.ts`).
 
-**CIC library.** The sidebar's **CIC library** lists CIC's ready-made courses to preview.
-In **Create a class**, pick one; the class gets its own copy (migration `2004_copy_library_course.sql`), so the library never changes.
-Edit a class's course from its **Curriculum** tab (**Edit curriculum**); drafts and publishing work the same as in the course builder.
-Admins can also edit library courses.
+**Curriculum.** Instructors and admins can browse global courses and the classes they can access. Courses open in view mode.
+Staff can comment on individual published blocks. Comments on a class course stay in that class's staff thread.
+Admins can edit global courses, and class staff can edit their class's copy.
+**CIC Library** lists the workshop and school slide decks admins have curated. In a global course, select **Include in CIC Library** on a Slides block and publish its module to add the deck.
+In **Create a class**, picking a global course template makes an independent copy with its own content IDs.
+Apply curriculum migrations `2011` and `2012` before deploying this workspace. The [curriculum isolation audit](Handoffs/curriculum-isolation-audit-2026-11-15.md) covers the current data and legacy classes still using shared courses directly.
 
 **Class Dashboard.** Shows learning gain with the pretest and post-test averages behind it, average assignment score, work to grade and missing work.
 **Needs attention** lists each student who needs help and opens to the exact reasons (stuck, inactive, below mastery, missing or low work, post-test drop).
@@ -168,7 +170,7 @@ In draft review, choose a lesson and select **Add a coding lab** to ask GPT-6.1 
 
 In draft preview, choose **Generate image** to describe a scene for Seedream 5.0 Flash. CIC Learn uses a browser-based model to suggest boxes and masks for recognized objects. Choose **Adjust an annotation** to move points, change the label, or remove a suggestion. You can also draw your own shapes. Add an image description before approving. Approved images appear after the selected lesson block. A module has five image generation attempts. Apply migration 2008 before enabling image generation on the hosted app.
 
-On localhost, **Draft from materials** includes **Local QA** buttons for the lesson preview, image review, and the exhausted image limit. **Test image review** opens a sample photo and runs the same automatic annotations in the browser. The model downloads on first use. The QA buttons make no paid AI requests.
+On localhost, **Draft from materials** includes **Local QA** buttons for the lesson preview, image review, and the exhausted image limit. **Test image review** opens the sample photo or a PNG or JPEG chosen under **Test image (optional)**. It runs the same browser annotations, including a crop retry when a wide or tall image yields no suggestions. The overlay stays on the full image. The model downloads on first use. The QA buttons make no paid AI requests.
 
 ### Interactive HTML activities
 

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { describe, expect, it } from 'vitest';
 import { newAssignment } from './assignments/model';
-import { importLibraryCourse, loadLiveData, saveLiveClass, saveLiveData } from './liveStore';
+import { activityContent, importLibraryCourse, loadLiveData, saveLiveClass, saveLiveData } from './liveStore';
 import type { ClassGroup, Course, InstructorData } from './model';
 
 type Call = { table: string; op: string; payload?: unknown; filters: [string, ...unknown[]][] };
@@ -119,15 +119,21 @@ describe('library courses', () => {
     expect(calls.find(c => c.table === 'lessons' && c.op === 'upsert')?.payload).toMatchObject([{ id: 'll1', title: 'Intro, edited' }]);
   });
 
-  it('loads library courses as read-only and remembers where a copy came from', async () => {
+  it('loads library courses and retains local scope even when the source was removed', async () => {
     const { client } = fakeSupabase(withSettings(call => ({
       data: call.table === 'courses'
-        ? [{ id: 'lib-1', title: 'AI Academy', is_library: true, modules: [] }, { id: 'mine', title: 'AI Academy', is_library: false, copied_from: 'lib-1', modules: [] }]
+        ? [
+          { id: 'lib-1', title: 'AI Academy', is_library: true, modules: [] },
+          { id: 'mine', title: 'AI Academy', copied_from: 'lib-1', local_curricula: { course_id: 'mine' }, modules: [] },
+          { id: 'orphan', title: 'School lessons', copied_from: null, local_curricula: { course_id: 'orphan' }, modules: [] },
+        ]
         : [],
       error: null,
     })));
     const loaded = await loadLiveData(client, 'instructor', 'T');
-    expect(loaded.courses.map(c => [c.id, c.library, c.copiedFrom])).toEqual([['lib-1', true, undefined], ['mine', undefined, 'lib-1']]);
+    expect(loaded.courses.map(c => [c.id, c.library, c.copiedFrom, c.local])).toEqual([
+      ['lib-1', true, undefined, undefined], ['mine', undefined, 'lib-1', true], ['orphan', undefined, undefined, true],
+    ]);
   });
 
   it('imports through copy_library_course and loads the new copy', async () => {
@@ -140,6 +146,29 @@ describe('library courses', () => {
     expect(calls[1].filters).toContainEqual(['eq', 'id', 'copy-1']);
     expect(copy).toMatchObject({ id: 'copy-1', copiedFrom: 'lib-1' });
     expect(copy.library).toBeUndefined();
+  });
+
+  it('round-trips deck curation and writes false to clear a previously curated deck', async () => {
+    const slides = { title: 'Workshop deck', url: 'https://docs.google.com/presentation/d/example/view', cic_library_deck: true };
+    const { client } = fakeSupabase(withSettings(call => ({
+      data: call.table === 'courses'
+        ? [{ id: 'library', published: true, modules: [{ id: 'm1', lessons: [{ id: 'l1', activities: [
+          { id: 's1', type: 'slides', content: slides },
+          { id: 's2', type: 'slides', content: { title: 'Other deck', cic_library_deck: 'true' } },
+          { id: 'v1', type: 'video', content: { title: 'Video', cic_library_deck: true } },
+        ] }] }] }]
+        : [],
+      error: null,
+    })));
+    const { courses: [course] } = await loadLiveData(client, 'admin', 'T');
+    const [curated, unmarked, video] = course.modules[0].lessons[0].activities;
+    expect(course.published).toBe(true);
+    expect(curated.cicLibraryDeck).toBe(true);
+    expect(unmarked.cicLibraryDeck).toBe(false);
+    expect(video.cicLibraryDeck).toBeUndefined();
+    expect(activityContent(curated)).toMatchObject({ cic_library_deck: true });
+    expect(activityContent({ ...curated, cicLibraryDeck: false })).toMatchObject({ cic_library_deck: false });
+    expect(activityContent({ ...video, cicLibraryDeck: true })).not.toHaveProperty('cic_library_deck');
   });
 });
 
