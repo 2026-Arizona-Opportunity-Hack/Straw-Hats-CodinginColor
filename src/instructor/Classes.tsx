@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { ArrowRight, BookOpen, Clipboard, GraduationCap, Plus, Printer, Search, Users } from 'lucide-react';
 import { RosterUpload } from './RosterUpload';
 import { makeLearners, type ClassGroup, type Course, type Learner } from './model';
@@ -34,8 +34,9 @@ export function ClassList({ groups, courses }: { groups: ClassGroup[]; courses: 
   </>;
 }
 
-export function ClassDashboard({ group, course, onSave, justCreated, tab, detail, otherClasses, editor, onMakeEditable }: {
+export function ClassDashboard({ group, course, onSave, onAddStudents, justCreated, tab, detail, otherClasses, editor, onMakeEditable }: {
   group: ClassGroup; course?: Course; onSave: (group: ClassGroup) => boolean; justCreated: boolean; tab: ClassTabId;
+  onAddStudents: (students: Learner[]) => Promise<void>;
   /** Course builder shown inside the Curriculum tab while editing this class's curriculum. */
   editor?: ReactNode;
   /** Present when the class still uses a shared library course: gives the class its own copy to edit. */
@@ -47,6 +48,9 @@ export function ClassDashboard({ group, course, onSave, justCreated, tab, detail
   const [selected, setSelected] = useState<string | null>(null);
   const [dialog, setDialog] = useState<'cards' | 'roster' | 'assignment' | null>(null);
   const [rows, setRows] = useState<RosterRow[]>([]);
+  const [savingRoster, setSavingRoster] = useState(false);
+  const [rosterError, setRosterError] = useState('');
+  const rosterAttempt = useRef<Learner[] | null>(null);
   const [draftModules, setDraftModules] = useState(group.moduleIds);
   const [feedback, setFeedback] = useState('');
   const { roster, activities } = classProgress(group, course);
@@ -54,8 +58,30 @@ export function ClassDashboard({ group, course, onSave, justCreated, tab, detail
   const ready = rows.filter(row => !row.issue).map(row => row.name);
   const exampleLink = 'https://example.com/join/' + group.joinCode;
   const editAssignment = () => { setDraftModules(group.moduleIds); setDialog('assignment'); };
-  const openImport = () => { setRows([]); setDialog('roster'); };
+  const updateRoster = (next: RosterRow[]) => {
+    setRows(next);
+    setRosterError('');
+    rosterAttempt.current = null;
+  };
+  const openImport = () => { updateRoster([]); setDialog('roster'); };
   const openCards = () => { setFeedback(''); setDialog('cards'); };
+
+  async function importRoster() {
+    if (savingRoster || !ready.length) return;
+    setSavingRoster(true);
+    setRosterError('');
+    const students = rosterAttempt.current ?? makeLearners(ready, group.learners);
+    rosterAttempt.current = students;
+    try {
+      await onAddStudents(students);
+      setFeedback('');
+      setDialog('cards');
+    } catch (problem) {
+      setRosterError(problem instanceof Error ? problem.message : 'Could not save the roster. Try again.');
+    } finally {
+      setSavingRoster(false);
+    }
+  }
 
   return <>
     <PageHeader title={group.name} description={group.school + (course ? ' · ' + course.title : '')} back={{ label: 'Classes', to: '#/classes' }}>
@@ -88,14 +114,12 @@ export function ClassDashboard({ group, course, onSave, justCreated, tab, detail
       <LoginCards group={group} learners={group.learners} />
       <div className="ic-form-footer"><button className="ic-button ic-primary" onClick={() => window.print()}><Printer size={16} /> Print login cards</button></div>
     </Dialog>}
-    {dialog === 'roster' && <Dialog wide title="Import more students" onClose={() => setDialog(null)}>
-      <RosterUpload rows={rows} setRows={setRows} />
-      <div className="ic-form-footer"><button type="button" disabled={!ready.length} className="ic-button ic-primary" onClick={() => {
-        if (onSave({ ...group, learners: [...group.learners, ...makeLearners(ready, group.learners)] })) {
-          setFeedback('');
-          setDialog('cards');
-        }
-      }}>Import {ready.length || ''} students</button></div>
+    {dialog === 'roster' && <Dialog wide title="Import more students" closeDisabled={savingRoster} onClose={() => setDialog(null)}>
+      <div inert={savingRoster}><RosterUpload rows={rows} setRows={updateRoster} /></div>
+      {rosterError && <p className="ic-error" role="alert">{rosterError}</p>}
+      <div className="ic-form-footer"><button type="button" disabled={savingRoster || !ready.length} className="ic-button ic-primary" onClick={importRoster}>
+        {savingRoster ? 'Saving roster…' : `Import ${ready.length || ''} students`}
+      </button></div>
     </Dialog>}
     {dialog === 'assignment' && <Dialog title="Edit assigned modules" onClose={() => setDialog(null)}>
       <fieldset><legend>{course?.title}</legend>{course?.modules.filter(module => module.published).map(module => <label className="ic-checkbox" key={module.id}>

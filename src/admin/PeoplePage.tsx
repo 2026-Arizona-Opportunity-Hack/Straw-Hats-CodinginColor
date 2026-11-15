@@ -1,4 +1,4 @@
-// Owner: Aryan. Everyone with an account, role filters and changes, adding people, and adding students to classes.
+// Owner: Aryan. Everyone with an account, role filters and changes, adding people, and putting students and instructors in classes.
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Backpack, Check, Copy, GraduationCap, Mail, RefreshCw, Search, ShieldCheck, UserPlus, Users } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
@@ -6,7 +6,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import type { Role } from '../shared/types/db.ts'
 import { Button, DataTable, EmptyState, Field, FormStatus, Input, PageHeader, Select, Td, Th } from '../shared/ui/index.tsx'
-import { addPerson, changeRole, enrollStudent, type NewPerson } from './api.ts'
+import { addInstructor, addPerson, changeRole, enrollStudent, type NewPerson } from './api.ts'
 import { AdminDialog, ArchiveButton, LoadState } from './common.tsx'
 import { ORG_KEY, useOrg } from './hooks.ts'
 import { archivedReason } from './metrics.ts'
@@ -32,6 +32,10 @@ export function PeoplePage() {
   const list = data.people.filter(
     (p) => !p.archived_at === !showArchived && (!role || p.role === role) && (!needle || p.display_name.toLowerCase().includes(needle)),
   )
+  const inClass = (id: string, r: Role, classId: string) =>
+    r === 'instructor'
+      ? data.classInstructors.some((x) => x.class_id === classId && x.instructor_id === id)
+      : data.enrollments.some((x) => x.class_id === classId && x.student_id === id)
   const classesFor = (id: string, r: Role) =>
     r === 'instructor'
       ? data.classInstructors.filter((x) => x.instructor_id === id).map((x) => className.get(x.class_id))
@@ -110,8 +114,8 @@ export function PeoplePage() {
                     <Td className="max-w-72">
                       <div className="flex flex-col items-start gap-1.5">
                         {cls.length ? cls.join(', ') : <span className="text-cic-muted">—</span>}
-                        {p.role === 'student' && !p.archived_at && (
-                          <AddToClass studentId={p.id} name={p.display_name} classes={openClasses.filter((c) => !data.enrollments.some((e) => e.class_id === c.id && e.student_id === p.id))} />
+                        {(p.role === 'student' || p.role === 'instructor') && !p.archived_at && (
+                          <AddToClass personId={p.id} name={p.display_name} role={p.role} classes={openClasses.filter((c) => !inClass(p.id, p.role, c.id))} />
                         )}
                       </div>
                     </Td>
@@ -271,34 +275,41 @@ function AddPersonDialog({ classes }: { classes: { id: string; name: string }[] 
   )
 }
 
-/** "+ Add to class" on a student's row: picking a class enrolls them right away. */
-function AddToClass({ studentId, name, classes }: { studentId: string; name: string; classes: { id: string; name: string }[] }) {
+// Students are enrolled in a class; instructors are assigned to teach it.
+const CLASS_ACTION = {
+  student: { label: '+ Add to class', done: 'Added to', verb: 'Add', run: (personId: string, classId: string) => enrollStudent(personId, classId) },
+  instructor: { label: '+ Assign to class', done: 'Now teaching', verb: 'Assign', run: (personId: string, classId: string) => addInstructor(classId, personId) },
+}
+
+/** Class picker on a student's or instructor's row: picking a class adds them right away. */
+function AddToClass({ personId, name, role, classes }: { personId: string; name: string; role: keyof typeof CLASS_ACTION; classes: { id: string; name: string }[] }) {
   const qc = useQueryClient()
+  const action = CLASS_ACTION[role]
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
-  const enroll = useMutation({
-    mutationFn: (c: { id: string; name: string }) => enrollStudent(studentId, c.id),
+  const add = useMutation({
+    mutationFn: (c: { id: string; name: string }) => action.run(personId, c.id),
     onSuccess: (_, c) => {
-      setMsg({ ok: true, text: `Added to ${c.name}` })
+      setMsg({ ok: true, text: `${action.done} ${c.name}` })
       return qc.invalidateQueries({ queryKey: ORG_KEY })
     },
     onError: (e) => setMsg({ ok: false, text: e.message }),
   })
   if (!classes.length) return null
-  const id = `enroll-${studentId}`
+  const id = `class-${personId}`
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <label htmlFor={id} className="sr-only">Add {name} to a class</label>
+      <label htmlFor={id} className="sr-only">{action.verb} {name} to a class</label>
       <Select
         id={id}
         value=""
-        disabled={enroll.isPending}
+        disabled={add.isPending}
         onChange={(e) => {
           const c = classes.find((x) => x.id === e.target.value)
-          if (c) { setMsg(null); enroll.mutate(c) }
+          if (c) { setMsg(null); add.mutate(c) }
         }}
         className="h-8 w-40 border-dashed px-2 text-xs font-semibold text-brand"
       >
-        <option value="" disabled>{enroll.isPending ? 'Adding…' : '+ Add to class'}</option>
+        <option value="" disabled>{add.isPending ? 'Saving…' : action.label}</option>
         {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </Select>
       <span role="status" className="text-xs">{msg && <span className={msg.ok ? 'text-brand' : 'text-danger'}>{msg.text}</span>}</span>

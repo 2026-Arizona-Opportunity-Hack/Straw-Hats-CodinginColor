@@ -63,6 +63,7 @@ export type Block =
   | { id: string; type: 'text'; text: string }
   | { id: string; type: 'link'; url: string; caption: string }
   | { id: string; type: 'html'; html: string; reportsScore: boolean; points: number }
+  | { id: string; type: 'completion'; title: string; points: number }
   | { id: string; type: 'question'; question: QuizQuestion }
   | { id: string; type: 'written'; prompt: string; points: number; rubric?: RubricCriterion[] }
   | { id: string; type: 'code'; prompt: string; starter: string; tests: string; points: number; rubric?: RubricCriterion[] }
@@ -89,6 +90,7 @@ export const blockLabels: Record<BlockType, string> = {
   text: 'Text',
   link: 'Link or video',
   html: 'Interactive page',
+  completion: 'Lesson checkpoint',
   question: 'Question',
   written: 'Written response',
   code: 'Code exercise',
@@ -123,7 +125,7 @@ export function newQuestion(kind: QuestionKind = 'single'): QuizQuestion {
   return { id: id(), kind, prompt: '', points: 1, choices, correct: [], accepted: [], answer: null, tolerance: 0 };
 }
 
-export function newBlock(type: BlockType, questionKind: QuestionKind = 'single'): Block {
+export function newBlock(type: Exclude<BlockType, 'completion'>, questionKind: QuestionKind = 'single'): Block {
   switch (type) {
     case 'text': return { id: id(), type, text: '' };
     case 'link': return { id: id(), type, url: '', caption: '' };
@@ -162,15 +164,14 @@ export function cloneBlock(block: Block): Block {
 
 /** Copy with fresh ids, as a draft. */
 export function duplicateAssignment(source: Assignment, title = source.title + ' (copy)'): Assignment {
-  return { ...structuredClone(source), id: id(), title, published: false, createdAt: new Date().toISOString(), blocks: source.blocks.map(cloneBlock) };
+  return { ...structuredClone(source), id: id(), title, published: false, createdAt: new Date().toISOString(), blocks: source.blocks.filter(block => block.type !== 'completion').map(cloneBlock) };
 }
 
 export function blockPoints(block: Block) {
   if (block.type === 'question') return block.question.points || 0;
   // With a rubric, the block is worth the sum of each criterion's top rating.
   if (hasRubricSupport(block) && block.rubric?.length) return rubricTotal(block.rubric);
-  if (block.type === 'written' || block.type === 'code' || block.type === 'html' || block.type === 'file') return block.points || 0;
-  return 0;
+  return 'points' in block ? block.points || 0 : 0;
 }
 
 export function totalPoints(assignment: Assignment) {
@@ -230,7 +231,7 @@ export function blockName(blocks: Block[], index: number) {
   const block = blocks[index];
   const name = block.type === 'question'
     ? `Question ${blocks.slice(0, index + 1).filter(b => b.type === 'question').length}`
-    : blockLabels[block.type];
+    : block.type === 'completion' ? block.title : blockLabels[block.type];
   return `Block ${index + 1} (${name})`;
 }
 

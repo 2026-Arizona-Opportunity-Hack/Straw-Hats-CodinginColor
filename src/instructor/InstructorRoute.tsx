@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { supabase } from '../shared/supabase.ts'
 import { InstructorWorkspace } from './InstructorWorkspace.tsx'
-import { importLibraryCourse, loadLiveData, publishLiveCourse, saveLiveData } from './liveStore.ts'
+import { importLibraryCourse, loadLiveData, publishLiveCourse, saveLiveClass, saveLiveData } from './liveStore.ts'
 import type { InstructorData, StaffRole } from './model.ts'
 import type { InstructorStore } from './store.ts'
 
@@ -44,6 +44,8 @@ function LiveWorkspace({ role, hash, userId, name }: { role: StaffRole; hash: st
         throw problem
       })
     },
+    saveClass: (group, previous, attempted) =>
+      queue.run(() => saveLiveClass(client, userId, group, previous, attempted)),
     publishCourse: (course, previous, moduleId, expectedRevision) =>
       queue.run(() => publishLiveCourse(client, course, previous, moduleId, expectedRevision)),
     importCourse: source => importLibraryCourse(client, source.id),

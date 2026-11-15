@@ -25,7 +25,9 @@ A first pretest try at or above the pass mark tests the student out of that modu
 | `Shivraj` branch | Up to date with `main` (includes 2001) | Has 1001 committed; 1002 to commit |
 | `1001_student_progress.sql` | Merged (#16) | Applied to the hosted DB |
 | `1002_answer_keys_and_assigned_modules.sql` | Merged (#17) | Applied to the hosted DB |
-| `1003_student_sign_up.sql` | Written, tested locally (21 checks) | **Not applied to the hosted DB** |
+| `1003_student_sign_up.sql` | Merged (#19) | Applied to the hosted DB |
+| `1008_starter_quiz.sql` | Merged (#54) | Applied to the hosted DB |
+| `1009_unlock_and_duplicate_fixes.sql` | Written, tested locally (14 checks) | Applied to the hosted DB |
 
 Tests: 45 checks in a local Postgres (PGlite) with `0001`, `1001`, `1002` and `2001`, passing in both orders.
 The hosted DB applies `0001, 2001, 1001, 1002`; a fresh setup applies `0001, 1001, 1002, 2001`.
@@ -50,6 +52,29 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 - A trigger on `auth.users` gives **every** new account a student profile (Google included). Staff are promoted by an admin.
 - `join_class(code)` joins later. Progress from a self-chosen copy of the same course moves into the class.
 - Google needs setup in Google Cloud and the Supabase dashboard (redirect URI `https://aeatfaxavfppeauncbts.supabase.co/auth/v1/callback`). The client secret goes in the dashboard only.
+
+### Starter quiz (1008)
+
+- New students land on `/student/start` the first time they open home (`src/student/placement/PlacementCard.tsx` redirects when `my_placement()` is null). "Skip for now" calls `skip_placement()` and stops the redirect.
+- 12 questions in `placement_items` (interest, motivation, 7 graded knowledge items). Keys in `placement_keys` (no policies). The app sends every answer with `time_ms` and each selection change; `submit_placement(answers)` scores it and saves to `placement_results`.
+- Result: `level`, per-subject `ability` and `interest`, `pace`, `commitment`, the recommended original self-paced `course`, plain-language `reasons`, `skip_tip`, `alternatives`.
+- Edit questions with SQL (`placement_items` + `placement_keys`); the scoring adapts to any number of knowledge items. Subjects come from course titles (`course_subject()`), like `src/student/languages.ts`.
+- Explore (`listCatalog`) now lists original courses only (`copied_from is null`).
+- Off unless `VITE_LIVE_STUDENT_CURRICULUM=true`.
+
+### Fixes in 1009
+
+- An **unscorable final check** (no items or no key) counts as passed once submitted, so it no longer blocks the next class module.
+- A class with **no assigned modules** shows the whole course; assigning modules limits it again.
+- **Course families**: `course_family(id)` = the original's id for a copy. `enroll_in_course` refuses any family member the student's class already uses (`ALREADY_IN_CLASS`); `_join_class` drops self-added copies of the class course. Existing duplicates were deleted.
+- `my_activity_response(activity)` returns the student's latest saved answer; the module player shows it on locked cards (`previousResponse` prop on `ActivityBlock`).
+
+### Module player and student sidebar
+
+- `/student/module/:id` shows **one card at a time** (`ModulePlayer.tsx`). `?step=N` (1-based) opens a card. Next unlocks once a card is done; non-required cards offer "Skip for now". A segment bar shows progress without showing questions. Correct answers trigger a short confetti burst (`stepper.css`, none under reduced motion).
+- `ActivityBlock` (`LessonContent.tsx`) new optional props: `onResult` (each attempt result), `hideTitle` (caller shows the title), `answerOnce` (lock after first submission, except `posttest`). Video activities now embed via `embedUrl`, like the instructor preview.
+- Student sidebar: Home (`/student`), My courses (`/student/courses`), My classroom (`/student/classroom`). Inside a course, `StudentCourseNav.tsx` lists modules as dropdowns of their steps; locked modules show a lock and don't expand.
+- Shared step names: `src/student/steps.ts`. Shared course progress hook: `src/student/useMyCourseProgress.ts`.
 
 ### Functions the app calls (`supabase.rpc`)
 
@@ -77,7 +102,7 @@ The reply never contains the right answer.
 ### Not done yet (pick these up)
 
 1. **Swap `src/api/student/index.ts` from mocks to the RPCs above** (Shivraj, next).
-2. **Placement quiz**: tables, item bank, scoring (Shivraj).
+2. ~~Placement quiz~~: done in 1008. Next: CIC reviews the 12 questions.
 3. **Roster passcodes** (`class_students`) are not linked to sign-up yet; revisit once sign-up is live.
 4. **Ruthvik:** the course builder now loads activities without answers.
    Select `activity_keys (key)` with each activity and put answers back: `content.answer = key.answer`, `items[i].answer = key.answers[items[i].id]`, `questions[i].answer = key.question_answers[i]`, `solution = key.solution`.

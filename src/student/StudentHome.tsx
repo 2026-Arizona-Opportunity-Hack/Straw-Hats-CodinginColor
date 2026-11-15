@@ -1,13 +1,15 @@
 // Owner: Jacky. Student home: my courses, to do, my classroom, and the way into Explore.
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { listModuleStatus, listMyCourses, type ModuleStatus, type StudentCourse } from '../api/student/index.ts'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { enrollInCourse, listModuleAssignments, type ModuleAssignment, type ModuleStatus, type StudentCourse } from '../api/student/index.ts'
 import { joinClass } from '../api/student/auth.ts'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { Button, FormStatus, Input } from '../shared/ui/index.tsx'
 import { ALL_LANGUAGES, languageOf, type Language } from './languages.ts'
 import { PublishedDemoList } from './PublishedDemo'
+import { PlacementCard } from './placement/PlacementCard.tsx'
+import { useMyCourseProgress } from './useMyCourseProgress.ts'
 import './student.css'
 
 const vars = (l: Language, extra: Record<string, string> = {}) => ({ '--hue': l.hue, '--tint': l.tint, ...extra }) as CSSProperties
@@ -38,7 +40,7 @@ function Progress({ modules }: { modules?: ModuleStatus[] }) {
 /** The module to open next: the first one open, else the last one finished (to review). */
 const nextModule = (modules?: ModuleStatus[]) => modules?.find((m) => m.state === 'available') ?? modules?.findLast(complete)
 
-function CourseCard({ course, modules }: { course: StudentCourse; modules?: ModuleStatus[] }) {
+export function CourseCard({ course, modules }: { course: StudentCourse; modules?: ModuleStatus[] }) {
   const lang = languageOf(course.title)
   const next = nextModule(modules)
   const done = modules?.filter(complete).length ?? 0
@@ -87,7 +89,7 @@ function TodoPanel({ tasks, loading }: { tasks: Task[]; loading: boolean }) {
         <span className="text-xs font-semibold uppercase tracking-widest text-cic-muted">{tasks.filter((t) => t.tone !== 'done').length} open</span>
       </div>
       {loading && <p role="status" className="py-3 text-sm text-cic-muted">Loading…</p>}
-      {!loading && !tasks.length && <p className="py-3 text-sm text-cic-muted">Nothing due. Add a course in Explore to get started.</p>}
+      {!loading && !tasks.length && <p className="py-3 text-sm text-cic-muted">Nothing due right now.</p>}
       <ul className="divide-y divide-divider">
         {tasks.map((t) => {
           const body = (
@@ -105,7 +107,7 @@ function TodoPanel({ tasks, loading }: { tasks: Task[]; loading: boolean }) {
   )
 }
 
-function ClassRow({ course, modules }: { course: StudentCourse; modules?: ModuleStatus[] }) {
+export function ClassRow({ course, modules }: { course: StudentCourse; modules?: ModuleStatus[] }) {
   const lang = languageOf(course.title)
   const pct = modules?.length ? Math.round((modules.filter(complete).length / modules.length) * 100) : 0
   return (
@@ -120,12 +122,47 @@ function ClassRow({ course, modules }: { course: StudentCourse; modules?: Module
   )
 }
 
-function JoinClass() {
+function ClassAssignments({ studentId }: { studentId?: string }) {
+  const navigate = useNavigate()
+  const qc = useQueryClient()
+  const { data = [], isError } = useQuery({
+    queryKey: ['moduleAssignments', studentId], queryFn: listModuleAssignments,
+  })
+  const open = useMutation({
+    mutationFn: async (assignment: ModuleAssignment) => {
+      if (assignment.needs_enrollment) await enrollInCourse(assignment.course_id)
+      void qc.invalidateQueries({ queryKey: ['myCourses', studentId] })
+      void qc.invalidateQueries({ queryKey: ['moduleAssignments', studentId] })
+      navigate('/student/module/' + assignment.module_id)
+    },
+  })
+  if (!data.length && !isError) return null
+  return <Section title="Class assignments">
+    {isError && <p role="alert">Could not load class assignments. Try reloading.</p>}
+    {!!data.length && <ul className="divide-y divide-divider rounded-2xl bg-white/60">
+      {data.map(assignment => <li key={assignment.id} className="flex items-center justify-between gap-4 px-4 py-3">
+        <div><p className="font-semibold">{assignment.title}</p><p className="text-sm text-cic-muted">{assignment.class_name}</p></div>
+        <Button type="button" disabled={open.isPending} aria-label={'Open ' + assignment.title} onClick={() => open.mutate(assignment)}>
+          {open.isPending && open.variables.id === assignment.id ? 'Opening…' : 'Open'}
+        </Button>
+      </li>)}
+    </ul>}
+    <FormStatus error={open.error?.message} />
+  </Section>
+}
+
+export function JoinClass() {
   const qc = useQueryClient()
   const [code, setCode] = useState('')
   const join = useMutation({
     mutationFn: () => joinClass(code.trim()),
-    onSuccess: () => { setCode(''); return qc.invalidateQueries({ queryKey: ['myCourses'] }) },
+    onSuccess: async () => {
+      setCode('')
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['myCourses'] }),
+        qc.invalidateQueries({ queryKey: ['moduleAssignments'] }),
+      ])
+    },
   })
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -177,16 +214,14 @@ export function StudentHome() {
   const { profile } = useAuth()
   const { state } = useLocation() as { state: { added?: string } | null }
   const [now] = useState(() => new Date())
-  const { data: courses = [], isLoading, isError } = useQuery({ queryKey: ['myCourses', profile?.id], queryFn: listMyCourses })
-  const progress = useQueries({
-    queries: courses.map((c) => ({ queryKey: ['moduleStatus', profile?.id, c.id], queryFn: () => listModuleStatus(c.id) })),
-  })
-  const modulesOf = (id: string) => progress[courses.findIndex((c) => c.id === id)]?.data
+  const { courses, progress, modulesOf, isLoading, isError } = useMyCourseProgress()
   const all = progress.flatMap((p) => p.data ?? [])
   const gains = all.filter((m) => m.pretest_score != null && m.posttest_best != null).map((m) => (m.posttest_best! - m.pretest_score!) * 100)
   const avgGain = gains.length ? Math.round(gains.reduce((a, b) => a + b, 0) / gains.length) : null
   const tasks = courses.flatMap((c) => tasksFor(c, modulesOf(c.id)))
-  const classes = courses.filter((c) => c.source === 'class')
+  // Home shows the courses with an open module first; the full list lives on My courses.
+  const continuing = [...courses].sort((a, b) =>
+    Number(!!modulesOf(b.id)?.some((m) => m.state === 'available')) - Number(!!modulesOf(a.id)?.some((m) => m.state === 'available'))).slice(0, 2)
   const hour = now.getHours()
 
   return (
@@ -203,32 +238,32 @@ export function StudentHome() {
         </dl>
       </header>
 
+      <PlacementCard />
+
       {state?.added && <p role="status" className="mt-6 rounded-xl bg-brand-tint px-4 py-3 font-semibold text-brand">{state.added} is now in your courses.</p>}
 
-      <div className="mt-12 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <section aria-label="My courses">
+      <div className={`mt-12 grid items-start gap-8 ${courses.length ? 'lg:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
+        <section aria-label="Continue learning">
           <div className="mb-5 flex items-baseline justify-between gap-4 border-b border-divider pb-3">
-            <h2 className="st-serif text-3xl">My courses</h2>
-            <Link to="/student/explore" className="text-sm font-semibold text-brand hover:underline">+ Add a course</Link>
+            <h2 className="st-serif text-3xl">Continue learning</h2>
+            {courses.length > 0 && <Link to="/student/courses" className="text-sm font-semibold text-brand hover:underline">All my courses →</Link>}
           </div>
           {isLoading && <p role="status">Loading your courses…</p>}
           {isError && <p role="alert">Could not load your courses. Try reloading.</p>}
           {!isLoading && !isError && !courses.length && (
-            <p className="rounded-2xl border border-dashed border-cic-gray p-8 text-center text-cic-muted">No courses yet. Open Explore below to add one, or join your class.</p>
+            <p className="rounded-2xl border border-dashed border-cic-gray p-8 text-center text-cic-muted">
+              No courses yet. <Link className="font-semibold text-brand underline" to="/student/explore">Explore</Link> to add one,
+              or <Link className="font-semibold text-brand underline" to="/student/classroom">join your class</Link>.
+            </p>
           )}
           <div className="grid gap-5 sm:grid-cols-2">
-            {courses.map((c) => <CourseCard key={c.id} course={c} modules={modulesOf(c.id)} />)}
+            {continuing.map((c) => <CourseCard key={c.id} course={c} modules={modulesOf(c.id)} />)}
           </div>
         </section>
-        <TodoPanel tasks={tasks} loading={isLoading || progress.some((p) => p.isLoading)} />
+        {courses.length > 0 && <TodoPanel tasks={tasks} loading={progress.some((p) => p.isLoading)} />}
       </div>
 
-      <Section title="My classroom" note="Classes you joined with a code">
-        <div className="grid items-start gap-5 md:grid-cols-2">
-          <JoinClass />
-          {classes.length > 0 && <ul className="divide-y divide-divider rounded-2xl bg-white/60">{classes.map((c) => <ClassRow key={c.id} course={c} modules={modulesOf(c.id)} />)}</ul>}
-        </div>
-      </Section>
+      <ClassAssignments studentId={profile?.id} />
 
       <Section title="Explore" note="Every language CIC teaches">
         <ExploreOrbit />
