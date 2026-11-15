@@ -148,6 +148,12 @@ CIC staff run the program from `/admin`. In mock mode, sign in as staff with use
 
 Metric definitions live in `src/admin/metrics.ts` and on the Impact page. Learning gain is a student's best post-test % minus their first pretest %, per module.
 
+Live teacher and admin reports require migration `3008_staff_progress_snapshot.sql` before deploying the reporting UI.
+They read the same module state as the student player, including test-out, allowed tries, release/unlock rules and required activities.
+Teacher module completion shows the share of enrolled learners who completed the module; required-activity submission counts are separate.
+Reload a report to refresh its database snapshot. Missing or denied snapshots show an error instead of estimated completion.
+Mock fixtures keep their local reporting behavior. The staff snapshot is private to active authorized staff and is separate from the organization's aggregate read API.
+
 **Database needs.** On a real Supabase project the admin pages need admin policies that `0001` doesn't have yet: read `class_instructors`, `enrollments` and `class_modules`; manage `class_instructors` and `api_keys`; update `classes`. Archiving needs an `archived_at` column on `classes` and `profiles`, and the Overview cards need `instructor_issues` and `job_applications` tables. Until they exist, the pages say what's missing instead of showing zeros.
 
 **Demo data.** `supabase/seed.sql` adds 3 schools, 3 classes, 2 instructors and 16 students with realistic progress. Logins use password `cic-learn-demo`: `admin@cic.demo`, `teacher@cic.demo`, `ana.lopez@cic.demo`, `reviewer@cic.demo`.

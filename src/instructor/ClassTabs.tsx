@@ -34,16 +34,19 @@ function StatCard({ label, value, note, tone }: { label: string; value: string |
 
 function moduleStats(group: ClassGroup, course: Course | undefined, moduleId: string) {
   const { roster, activities } = classProgress(group, course, moduleId);
+  const eligible = roster.filter(row => row.learner.moduleProgress === undefined || row.learner.moduleProgress.some(state => state.module_id === moduleId));
+  const done = eligible.filter(row => row.status === 'Complete').length;
+  const live = roster.some(row => row.learner.moduleProgress !== undefined);
   const possible = roster.length * activities.length;
-  const done = roster.reduce((sum, row) => sum + row.completed, 0);
   const scores = roster.flatMap(row => row.submitted.map(attempt => attempt.score)).filter((score): score is number => score !== null);
   return {
-    completion: possible ? (done / possible) * 100 : null,
-    finished: roster.filter(row => row.status === 'Complete').length,
+    completion: live ? (eligible.length ? (done / eligible.length) * 100 : null)
+      : possible ? roster.reduce((sum, row) => sum + row.completed, 0) / possible * 100 : null,
+    finished: done,
     stuck: roster.filter(row => row.status === 'Stuck').length,
     avgScore: scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null,
     activities: activities.length,
-    students: roster.length,
+    students: live ? eligible.length : roster.length,
   };
 }
 
@@ -86,7 +89,7 @@ export function DashboardTab({ group, course }: { group: ClassGroup; course?: Co
             <summary>
               <span className="ic-drill-title">{module.title}</span>
               <span className="ic-bar-track" aria-hidden="true"><span className="ic-bar-fill" style={{ width: `${completion ?? 0}%` }} /></span>
-              <strong aria-label={`${percent(completion)} of activities submitted`}>{percent(completion)}</strong>
+              <strong aria-label={`${percent(completion)} of enrolled students completed this module`}>{percent(completion)}</strong>
             </summary>
             {work.length ? <ul className="ic-module-work">{work.map(({ assignment, submitted, toGrade, missing, students }) => <li key={assignment.id}>
               <a href={`#/classes/${group.id}/assignments/${assignment.id}`}>{assignment.title}</a>
@@ -145,7 +148,7 @@ function CurriculumProgress({ group, course, onSelect }: { group: ClassGroup; co
     <section className="ic-tile">
       {filtered.length ? <div className="ic-table-wrap" tabIndex={0} role="region" aria-label="Grades table">
         <table className="ic-progress-table ic-data-table">
-          <thead><tr>{['Student', 'Status', 'Activities', 'Time', 'Pretest', 'Post-test', 'Gain'].map(text => <th scope="col" key={text}>{text}</th>)}</tr></thead>
+          <thead><tr>{['Student', 'Status', 'Required activities', 'Time', 'Pretest', 'Post-test', 'Gain'].map(text => <th scope="col" key={text}>{text}</th>)}</tr></thead>
           <tbody>{filtered.map(row => <tr key={row.learner.id}>
             <td><button type="button" className="ic-link-button" onClick={() => onSelect(row.learner.id)}>{row.learner.name}</button></td>
             <td><span className={'ic-status ' + (row.status === 'Stuck' ? 'is-stuck' : row.status === 'Complete' ? 'is-published' : '')}>{row.status}</span></td>
@@ -154,7 +157,7 @@ function CurriculumProgress({ group, course, onSelect }: { group: ClassGroup; co
           </tr>)}</tbody>
         </table>
       </div> : <Empty>No students match this filter.</Empty>}
-      <p className="ic-note ic-section-gap">Select a name to see every attempt, code submission and hint.</p>
+      <p className="ic-note ic-section-gap">Completion follows the student's module state, including testing out and allowed final-check attempts. Required activity submissions are shown separately. Select a name to see activity details.</p>
     </section>
   </div>;
 }

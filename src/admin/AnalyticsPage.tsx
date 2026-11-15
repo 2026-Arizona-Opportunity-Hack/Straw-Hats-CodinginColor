@@ -41,7 +41,7 @@ function countStatuses(list: StudentSummary[]): Record<Status, number> {
 /** Per-student, per-module rows for the current filters, downloaded as a CSV file. */
 function exportCsv(a: ReturnType<typeof analyze>, modTitle: Map<string, string>) {
   const statusOf = new Map(a.students.map((s) => [`${s.classId}|${s.studentId}`, s]))
-  const header = ['student', 'school', 'class', 'module', 'started', 'complete', 'pretest_pct', 'posttest_pct', 'learning_gain_pts', 'activities_done', 'activities_total', 'time_on_task_min', 'status']
+  const header = ['student', 'school', 'class', 'module', 'started', 'complete', 'pretest_pct', 'posttest_pct', 'learning_gain_pts', 'required_activities_done', 'required_activities_total', 'time_on_task_min', 'status']
   const round = (v: number | null) => (v == null ? '' : Math.round(v))
   const lines = a.studentModules.map((r) => {
     const c = a.classOf.get(r.classId)
@@ -168,7 +168,7 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
           <ImpactNumber value={a.schoolOptions.filter((s) => a.classes.some((c) => c.school === s)).length} label="Partner schools" hint={`${a.classes.length} ${a.classes.length === 1 ? 'class' : 'classes'}`} />
           <ImpactNumber value={instructorIds.length} label="Instructors" hint="Teaching CIC courses" />
           <ImpactNumber value={hours} label="Hours of learning" hint="Time students spent on lessons" />
-          <ImpactNumber value={modulesCompleted} label="Modules completed" hint={`${fmtPct(a.overall.completionPct)} of modules started`} />
+          <ImpactNumber value={modulesCompleted} label="Modules completed" hint={`${fmtPct(a.overall.completionPct)} of student/module opportunities`} />
           <ImpactNumber value={a.overall.avgGain ?? 0} label="Avg learning gain" hint={a.overall.avgGain == null ? 'Needs students with a pretest and a post-test' : `${fmtPct(a.overall.avgPre)} → ${fmtPct(a.overall.avgPost)} on tests`} format={(v) => (a.overall.avgGain == null ? '—' : fmtGain(v))} />
         </div>
         {a.selfPaced && a.selfPaced.students > 0 && (
@@ -387,11 +387,11 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
         <ul className="mt-3 list-disc space-y-1 pl-5 text-cic-muted">
           <li><strong className="text-black">Pretest</strong>: the student's first pretest attempt in a module. <strong className="text-black">Post-test</strong>: their best post-test attempt.</li>
           <li><strong className="text-black">Learning gain</strong>: post-test % minus pretest %, in percentage points. Only counted when a student has both.</li>
-          <li><strong className="text-black">Module completed</strong>: every activity that counts toward unlocking is submitted, and the post-test (best of the tries that count) meets the pass mark the class set for that module.</li>
+          <li><strong className="text-black">Module completed</strong>: the same state shown to the student. A first pretest can test them out. Otherwise required work must be submitted and the final-check rule met by passing, using the allowed tries, or submitting an unscorable check. Sequential and teacher unlocks still apply.</li>
           <li><strong className="text-black">Stuck</strong>: below a module's pass mark after using all of its post-test tries, or no activity for more than {data.settings.inactive_days} days.</li>
           <li><strong className="text-black">Self-paced learners</strong>: students taking a course on their own, outside any class. A module counts as completed once every activity that counts toward unlocking is submitted.</li>
           <li><strong className="text-black">Hours of learning</strong>: total time students spent on submitted activities.</li>
-          <li><strong className="text-black">Modules in progress</strong>: self-paced courses count every published module; instructor-led courses count modules released to the class.</li>
+          <li><strong className="text-black">Modules in scope</strong>: published modules released to the class, or the whole published course when none are released. Self-enrolled learners use all published modules. Completion divides completed student/module pairs by those in scope.</li>
         </ul>
       </details>
     </div>
