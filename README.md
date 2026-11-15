@@ -143,10 +143,12 @@ CIC staff run the program from `/admin`. In mock mode, sign in as staff with use
 | Overview | Headline numbers, issues raised by instructors (reply or resolve), and hiring (applications by stage, recent hires) |
 | Schools & classes | Search classes, see completion and learning gain per class, create a class, assign or remove instructors, archive classes (automatic when their term ends) |
 | People & roles | See everyone and filter by role. **Add person** creates an instructor, student or admin with an email and temporary password (migrations `3002`, `3003`); copy or email the sign-in, and they change it from **Change password** in the sidebar. Put existing students in any class (`3004`) and assign instructors to teach one. Change roles (not for reviewers; admins can't remove their own access); archive and restore people |
-| Impact & learning | Donor-ready report: overall progress, reach by school, before/after growth per module, instructors and their courses, student progress, CSV export |
+| Impact & learning | Internal progress and learning gain by class, school, or module, with a named student CSV for staff and a separate aggregate CSV for donors and partners |
 | Settings & API | Create API keys for the read API (shown once, stored as SHA-256 hashes) and revoke them |
 
 Metric definitions live in `src/admin/metrics.ts` and on the Impact page. Learning gain is a student's best post-test % minus their first pretest %, per module.
+
+**Partner summary CSV** exports one row across all active classes, independent of the page filters. Learning gain averages each student's paired results before averaging across students. Metrics for fewer than five distinct students are blank. Completion also requires five students with completed work and five with incomplete work. Keep the **Internal student CSV** within CIC.
 
 **Database needs.** On a real Supabase project the admin pages need admin policies that `0001` doesn't have yet: read `class_instructors`, `enrollments` and `class_modules`; manage `class_instructors` and `api_keys`; update `classes`. Archiving needs an `archived_at` column on `classes` and `profiles`, and the Overview cards need `instructor_issues` and `job_applications` tables. Until they exist, the pages say what's missing instead of showing zeros.
 
