@@ -84,24 +84,7 @@ With Supabase configured, the instructor workspace reads and writes live data (c
 Apply migration `3007_roster_student_login.sql` and deploy the `roster-login` Supabase Edge Function before using imported learners' login cards.
 Students enter their class code and individual six-digit passcode; their existing roster row is linked to an Auth identity and enrollment on first login.
 New identities use an opaque internal address, with no personal email or email delivery.
-Existing linked students keep their accounts and progress, and email sign-in remains available.
-
-#### Student data minimization
-
-New students receive a login card from their class roster; the app asks for no personal email or Google signup.
-**People & roles → Add person** creates staff accounts only (instructor, admin, reviewer).
-Add students with CSV import or manual names in the class roster.
-Existing email/Google accounts keep access and saved work through **I already have an email or Google account**.
-Existing stored addresses are not deleted by this change.
-
-Deploy the roster login function and migration `3007` before enabling this UI, and apply migration `3006_student_data_minimization.sql`.
-It revokes the public email-signup RPC, blocks new personal-email Auth accounts and student email changes, and keeps authorized staff creation available.
-The internal roster identity requires a server-owned marker; an ordinary signup cannot claim it.
-For hosted Supabase, also turn off **Allow new users to sign up** under Authentication settings.
-`supabase/config.toml` disables public signup locally; it does not change hosted settings.
-Existing users can still sign in. Create new staff from People & roles; database administrators retain trusted seed/backfill access.
-Regression checks: run `supabase/tests/student_data_minimization.sql` and `supabase/tests/roster_login.sql` on a disposable migrated Supabase database.
-
+Existing linked students keep their accounts and progress. Username account creation and sign-in remain available, with email access for older accounts.
 The function uses Supabase's built-in server credentials; never add its service key to frontend environment variables.
 Login attempts are limited in the database to 10 per card and 120 per class per 15 minutes, including failures; a throttled class must wait for its window to expire.
 Verify with `supabase/tests/roster_login.sql` against a local migrated database and `npm test -- tests/roster-login.test.ts`.
@@ -115,6 +98,19 @@ Apply `1007_passive_reading_blocks.sql` before deploying the reading-block updat
 Before opening a PR: `npm run build && npm run lint`.
 
 Multiple-choice knowledge checks show feedback when students select an answer. The teacher preview grades the same interaction as practice.
+
+### Student data minimization
+
+Students can use a teacher-issued login card or create a username account without a personal email.
+People & roles can create student usernames, or instructor, admin and reviewer accounts with staff email.
+Legacy email accounts retain their access and saved work; Google sign-in remains available to educators on the staff side.
+
+Apply migrations `3006_student_data_minimization.sql`, `3007_roster_student_login.sql` and `3010_username_privacy_compatibility.sql`, and deploy the roster-login function before using cards.
+The database rejects direct personal-email student signup and student email changes, even if someone bypasses the app.
+Only the internal username helper can stamp a matching synthetic username identity; clients cannot authorize themselves with user metadata.
+Keep general Auth signup enabled for new educator Google accounts and email authentication enabled for password sign-in.
+The database guard restricts direct email creation; do not globally disable signup, which would block new educators.
+Regression checks: run `supabase/tests/student_data_minimization.sql`, `supabase/tests/username_privacy_compatibility.sql` and `supabase/tests/roster_login.sql` on a disposable migrated database.
 
 ### Instructor workspace
 
@@ -169,7 +165,7 @@ CIC staff run the program from `/admin`. In mock mode, sign in as staff with use
 |---|---|
 | Overview | Headline numbers, issues raised by instructors (reply or resolve), and hiring (applications by stage, recent hires) |
 | Schools & classes | Search classes, see completion and learning gain per class, create a class, assign or remove instructors, archive classes (automatic when their term ends) |
-| People & roles | See everyone and filter by role. **Add person** creates an instructor, reviewer or admin with an email and temporary password (migration `3006`); add new students through the class roster without email. For staff, copy or email the sign-in, and they change it from **Change password** in the sidebar. Put existing students in any class (`3004`) and assign instructors to teach one. Change roles (not for reviewers; admins can't remove their own access); archive and restore people |
+| People & roles | See everyone and filter by role. **Add person** creates a student username without email, or an instructor, reviewer or admin with staff email and a temporary password (migrations `1013`, `3006`, `3010`); copy the student sign-in or copy/email staff details, and they change it from **Change password** in the sidebar. Put existing students in any class (`3004`) and assign instructors to teach one. Change roles (not for reviewers; admins can't remove their own access); archive and restore people |
 | Impact & learning | Donor-ready report: overall progress, reach by school, before/after growth per module, instructors and their courses, student progress, CSV export |
 | Settings & API | Create API keys for the read API (shown once, stored as SHA-256 hashes) and revoke them |
 

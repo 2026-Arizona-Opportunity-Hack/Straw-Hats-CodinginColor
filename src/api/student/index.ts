@@ -77,6 +77,19 @@ export async function listCatalog(): Promise<CatalogCourse[]> {
   return mockDelay(MOCK_COURSES.filter((c) => c.published))
 }
 
+export interface CatalogModule { course_id: string; title: string; concept: string | null }
+
+/** Module titles of every catalog course, for the Explore preview (1012). */
+export async function listCatalogModules(): Promise<CatalogModule[]> {
+  if (curriculumBackend) {
+    const rows = await result<{ course_id: string; module_title: string; module_concept: string | null }[]>(
+      curriculumBackend.rpc('catalog_modules'))
+    return rows.map((r) => ({ course_id: r.course_id, title: r.module_title, concept: r.module_concept }))
+  }
+  return mockDelay(MOCK_MODULES.filter((m) => m.published).sort((a, b) => a.position - b.position)
+    .map((m) => ({ course_id: m.course_id, title: m.title, concept: m.concept })))
+}
+
 const ENROLL_ERRORS: Record<string, string> = {
   ALREADY_IN_CLASS: 'You already take this course with your class.',
   COURSE_NOT_AVAILABLE: 'This course runs with a class. Ask your teacher for the class code.',

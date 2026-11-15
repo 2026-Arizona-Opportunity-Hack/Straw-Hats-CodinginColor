@@ -168,15 +168,17 @@ export async function changeRole(userId: string, role: Role, adminId: string): P
 
 export interface NewPerson {
   display_name: string
+  /** Staff only. Students get a generated username instead (1013). */
   email: string
+  /** Filled in after adding a student. */
+  username?: string
   password: string
-  role: 'instructor' | 'admin' | 'reviewer'
+  role: 'student' | 'instructor' | 'admin' | 'reviewer'
   school: string
   class_id: string
 }
 
 const ADD_ERRORS: Record<string, string> = {
-  USE_STUDENT_ROSTER: 'Add students through their class roster. They do not need email accounts.',
   EMAIL_TAKEN: 'Someone already has an account with that email.',
   BAD_EMAIL: "That email address doesn't look right.",
   BAD_PASSWORD: 'The password needs 8 to 72 characters.',
@@ -184,8 +186,17 @@ const ADD_ERRORS: Record<string, string> = {
   BAD_SCHOOL: 'The school name is too long (up to 120 characters).',
 }
 
-/** Creates a staff account; students are added through their class roster. */
-export async function addPerson(p: NewPerson): Promise<void> {
+/** Creates a sign-in account (migrations 3002, 3003); students are enrolled in the class, instructors teach it.
+ * Students have no email: they get a username like jsmith1 (1013), which is returned. */
+export async function addPerson(p: NewPerson): Promise<string | null> {
+  if (p.role === 'student') {
+    const [first, ...rest] = p.display_name.trim().split(/\s+/)
+    const { data, error } = await db().rpc('admin_create_student', {
+      p_first_name: first ?? '', p_last_name: rest.join(' '), p_password: p.password, p_class_id: p.class_id || null,
+    })
+    if (error) throw rpcError(error, ADD_ERRORS, 'adding the student')
+    return (data as { username: string }).username
+  }
   const { error } = await db().rpc('admin_create_user', {
     p_email: p.email,
     p_password: p.password,
@@ -195,6 +206,7 @@ export async function addPerson(p: NewPerson): Promise<void> {
     p_class_id: p.class_id || null,
   })
   if (error) throw rpcError(error, ADD_ERRORS, 'adding the person')
+  return null
 }
 
 const ENROLL_ERRORS: Record<string, string> = {
