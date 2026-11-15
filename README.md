@@ -61,8 +61,8 @@ Judges score **Scope, Documentation, Polish and Security**, plus a separate **Ac
 ## Run it locally
 
 ```bash
-git clone https://github.com/2026-Arizona-Opportunity-Hack/Straw Hats-CodinginColor.git
-cd Straw Hats-CodinginColor
+git clone https://github.com/2026-Arizona-Opportunity-Hack/Straw-Hats-CodinginColor.git
+cd Straw-Hats-CodinginColor
 cp .env.example .env   # fill in your own values — never commit .env
 npm install
 npm run dev            # http://localhost:5173
