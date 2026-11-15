@@ -10,7 +10,7 @@
 .cic-lesson-layout a:hover { background: #eaf0e6; }
 .cic-lesson-layout :focus-visible { outline: 3px solid #8a5029; outline-offset: 3px; }
 .cic-lesson-prose { min-width: 0; width: 100%; max-width: 68ch; font: 1rem/1.65 "DM Sans", system-ui, sans-serif; overflow-wrap: anywhere; }
-.cic-lesson-prose > * + * { margin-block-start: .85em; }
+.cic-lesson-article .cic-lesson-prose > * + * { margin-block-start: .85em; }
 .cic-lesson-article .cic-lesson-prose h4 { padding-top: 16px; border-top: 1px solid #d5ddd2; font-size: clamp(1.5rem, 3.7cqw, 2.35rem); scroll-margin-top: 22px; }
 .cic-lesson-prose h5 { font-weight: 700; }
 .cic-lesson-article .cic-lesson-prose pre { overflow: auto; padding: 14px 16px; border-radius: 6px; background: #162c27; color: #ebf3eb; }
