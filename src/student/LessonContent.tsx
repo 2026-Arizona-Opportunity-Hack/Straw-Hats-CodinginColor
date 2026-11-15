@@ -3,6 +3,7 @@ import { useId, useState, type FormEvent } from 'react'
 import Markdown, { defaultUrlTransform } from 'react-markdown'
 import type { ActivityStatus, AttemptInput, recordAttempt } from '../api/student/index.ts'
 import { slidesUrl } from '../instructor/model.ts'
+import { CicArticle } from '../shared/curriculum/CicArticle.tsx'
 import { CodeLab, type VerifyWebLab } from '../shared/labs/CodeLab.tsx'
 import { previewCatPhotoChecks } from '../shared/labs/catPhoto.ts'
 import type { Choice, DiscussionState } from '../shared/types/activities.ts'
@@ -146,9 +147,12 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
   const { content } = activity
   const title = 'title' in content && typeof content.title === 'string' ? content.title : null
   const markdown = activity.type !== 'code' && 'markdown' in content && typeof content.markdown === 'string' ? content.markdown : null
+  const themedArticle = activity.type === 'content' && (activity as Activity<'content'>).content.presentation === 'cic-article'
   return <div className="min-w-0 space-y-3">
-    {title && <h3 className="text-base font-semibold text-brand">{title}</h3>}
-    {markdown && <Markdown skipHtml urlTransform={curriculumUrl}>{markdown}</Markdown>}
+    {themedArticle ? <CicArticle title={title || 'Read and explore'} markdown={markdown || ''} /> : <>
+      {title && <h3 className="text-base font-semibold text-brand">{title}</h3>}
+      {markdown && <Markdown skipHtml urlTransform={curriculumUrl}>{markdown}</Markdown>}
+    </>}
     {body()}
     {attempt.isPending && <p role="status">Saving…</p>}
     {attempt.isError && <p role="alert">Could not save your work. Try again.</p>}

@@ -26,6 +26,7 @@ export type Activity = {
   questions: Question[];
   code?: { starter: string; tests: string; solution: string; lab?: CodingLabSettings };
   format?: 'open-ended';
+  presentation?: 'cic-article';
   discussionEnabled?: boolean;
   interactiveHtml?: InteractiveHtmlPayload;
 };

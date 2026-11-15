@@ -1,3 +1,7 @@
 {
-  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
+  "fluid": true,
+  "functions": {
+    "api/curriculum/draft.ts": { "maxDuration": 300, "includeFiles": "docs/lesson-style-guide.md" }
+  },
+  "rewrites": [{ "source": "/((?!api(?:/|$)).*)", "destination": "/index.html" }]
 }

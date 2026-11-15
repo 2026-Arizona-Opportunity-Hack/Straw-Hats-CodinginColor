@@ -18,6 +18,15 @@ Authored scripts run only in the loopback mock demo, in a frame with an opaque o
 Keep real student data out of the demo while outbound navigation is under review.
 Use the [CIC Learn lesson style guide](../docs/lesson-style-guide.md) as model instructions for future lesson-plan or slide-deck conversion.
 
+## Curriculum converter
+
+Draft from materials calls the Vercel draft endpoint for signed-in instructors and admins.
+Generated articles use the Cat Photo App presentation in preview and the student player.
+Review notes stay in the dialog, and adding a module starts it unpublished.
+GPT-6.1 Terra is the default. Claude Opus 5.5 is available under High quality.
+Both use the same five-minute function runtime and a dedicated capped OpenRouter key.
+See the [README](../README.md#draft-curriculum-from-materials) for preview configuration.
+
 ## Student preview
 
 Lesson and module previews reuse the renderer from the corresponding student player.
@@ -90,3 +99,5 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 - 2026-11-14, Ken: added visual editing, reusable blocks, and local module snapshots in PR #11.
 
 - 2026-11-14, Codex: documented the Cat Photo App style and conversion rules for lesson generation.
+
+- 2026-11-14, Codex: added reviewed proposal conversion with approved references and editable article blocks.
