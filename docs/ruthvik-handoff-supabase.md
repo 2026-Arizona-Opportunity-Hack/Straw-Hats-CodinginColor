@@ -85,8 +85,18 @@ From `2002_assignment_submissions.sql`:
 |---|---|
 | `assignment_submissions` | One row per student per assignment: `responses` (answer per block id), `manual_scores` (instructor points per block id, overriding auto scores), `feedback`, `submitted_at`, `graded_at`, `graded_by`. `class_id` is set from the assignment by a trigger. |
 
+From `2003_rubrics_and_file_uploads.sql`:
+
+| Change | What |
+|---|---|
+| `assignments.kind` | Allows `file` |
+| `assignment_submissions.rubric_scores` | Rubric rating chosen per block, then per criterion |
+| Storage bucket `submission-files` | Private, 25 MB per file. Path: `<class_id>/<assignment_id>/<class_student_id>/<file>` |
+| `try_uuid(text)` | Safe cast used by the storage policy |
+
 Demo data outside the seed: `supabase/demo/grading_demo.sql` adds two Maryvale assignments and nine fictional submissions (applied to the hosted project on Nov 14).
 Run it with `npx supabase db query --remote --file supabase/demo/grading_demo.sql`; fixed ids make re-runs a no-op.
+`supabase/demo/rubric_demo.sql` adds a file-upload assignment with a rubric and three submissions; the header comment has the `storage cp` commands that upload `supabase/demo/sample-write-up.pdf` first.
 
 ## Row Level Security
 
@@ -101,6 +111,8 @@ Policies today (minimal, a full permissions pass is still open):
 - `activity_attempts`: students insert their own; read by the student, their teacher, or admin.
 - `assignment_submissions`: read and update (grade) if `can_manage_class`. No insert or delete policy yet: instructors never create or delete student work, and student inserts wait for student sign-in.
   RLS hides rows instead of erroring, so `liveStore.ts` treats an update that matched no rows as a permission error.
+- `storage.objects` in `submission-files`: authenticated users can read a file only if `can_manage_class` on the class id in its path. No insert policy yet (students upload once sign-in exists).
+  Verified: anonymous and another class's instructor get "Object not found"; the class's instructor gets a signed URL.
 - `api_keys`: no policies (service role only).
 
 Known gaps for the permissions pass:
@@ -113,6 +125,7 @@ Known gaps for the permissions pass:
 
 - Supabase keeps `pgcrypto` in the `extensions` schema: call `extensions.crypt(...)` and `extensions.gen_salt(...)`, not the bare names.
 - `INSERT ... RETURNING` on `classes` needs a select policy that matches before triggers run, hence the "creator reads class" policy.
+- `npx supabase storage cp` needs `--experimental` and `--remote`; destination looks like `ss:///submission-files/<path>`.
 - In a `union all` insert, string literals are typed as text; cast ids with `::uuid`.
 - `due_at` is stored as a UTC timestamp; the app converts it to and from the browser's local time for the `datetime-local` input (`isoToLocal`, `localToIso` in `liveStore.ts`).
 

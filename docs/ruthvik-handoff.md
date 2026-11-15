@@ -50,6 +50,9 @@ Renaming one of the two branches on GitHub fixes it for everyone.
 - Grading (Grades tab, `src/instructor/assignments/Gradebook.tsx`): gradebook of students by published assignments with needs-grading, missing and late states, totals and CSV export.
   Each cell opens the submission block by block; questions are auto-graded and can be overridden, written and code answers take points, feedback is saved.
   Previous and next walk through the class.
+- Rubrics: written, code and file upload blocks can carry Canvas-style rubrics (criteria with named ratings and points).
+  Students see the rubric; while grading, clicking a rating per criterion sums the score, and typed points still override.
+- File upload blocks: allowed types, file count, size limit (up to 25 MB). Files live in the private `submission-files` bucket; instructors open them through 10-minute signed URLs.
 - Admin pages (Aryan, `src/admin/`) still read from `src/admin/mocks.ts`, not Supabase.
 
 ### Not done yet (pick these up)
@@ -59,7 +62,7 @@ Renaming one of the two branches on GitHub fixes it for everyone.
    Plan: an Edge Function that verifies `classes.join_code` + `class_students.passcode` and signs the student in (creates or reuses an auth user, sets `class_students.profile_id`).
 2. **Students submitting assignments.**
    The `assignment_submissions` table exists (migration 2002) and instructors can grade, but students cannot submit yet.
-   Needs student sign-in (item 1) plus an insert policy for the student's own row.
+   Needs student sign-in (item 1) plus an insert policy for the student's own row, and a storage insert policy so students can upload into their own folder.
    The Assignments list's Submitted and Avg columns still read curriculum attempts; switch them to submissions.
 3. **Progress for roster-only students.**
    `activity_attempts.student_id` points at `profiles`, so students without a login have no progress.
@@ -129,6 +132,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-14 6:45 PM, Ruthvik: rubrics and file uploads. Migration 2003 (rubric scores, private `submission-files` bucket, `file` assignment type) and `supabase/demo/rubric_demo.sql` plus three sample PDFs applied to the hosted project. Checked that another class's instructor and anonymous users cannot read the files.
 - 2026-11-14 6:00 PM, Ruthvik: grading. Migration 2002 (`assignment_submissions`) and `supabase/demo/grading_demo.sql` applied to the hosted project; gradebook and grading dialog in the Grades tab, live and mock.
 - 2026-11-14 5:35 PM, Ruthvik: deleted stale `ruthvik/instructor-in-app` (PR #9 had merged into it; nothing unique on it). Opened #13 (schema) and #14 (UI) into `main`.
 - 2026-11-14 5:25 PM, Ruthvik: pushed `ruthvik/schema-2001` (migration 2001 + seed fixes only) so teammates can get the schema without the UI work.
