@@ -136,7 +136,7 @@ Execute is granted to `authenticated` only.
 Checked against a throwaway local Postgres with migrations 0001 to 2004: student refused, non-library course refused, copy and keys correct, library rows unchanged.
 Applied to the hosted project on 2026-11-14 with `npx supabase db push --linked --include-all` (2004 sorts before 3001-3004, so `--include-all` is needed).
 
-## Migration 2006: program settings and module rules (not applied yet)
+## Migration 2006: program settings and module rules (applied)
 
 `supabase/migrations/2006_program_settings_and_rules.sql` moves every threshold the dashboards use into the database.
 
@@ -151,7 +151,9 @@ Applied to the hosted project on 2026-11-14 with `npx supabase db push --linked 
 The app needs this migration: the instructor workspace and the admin Analytics page refuse to load without the view and the settings row, and the error names what is missing.
 The instructor side reads it in `src/instructor/liveStore.ts` (each class gets `rules`, the data gets `settings`); the admin side in `src/admin/api.ts`.
 Checked on a throwaway local Postgres with all migrations, the seed and the demo files: `supabase/tests/program_settings_and_rules.sql` passes (and fails when the creator policy is dropped), and `supabase/tests/student_curriculum_access.sql` still passes.
-Apply with `npx supabase db push --linked --include-all` (2006 sorts before the applied 3001-3004).
+Applied to the hosted project on 2026-11-15 with `npx supabase db push --linked --include-all` (2006 sorts before the applied 3001-3004).
+It was first numbered 2005, but Ken's `2005_publish_curriculum` already held that version on hosted, so the CLI would have skipped it; check `npx supabase migration list --linked` before numbering a migration.
+After applying: `program_settings` has its row and `class_module_settings` returned 29 rows.
 
 ## Gotchas we already hit
 
@@ -167,6 +169,8 @@ Plan, not done yet.
 Delete demo auth users and rows (or create a fresh project), apply migrations without `--include-seed`, then create the real CIC admin account in Authentication and a matching `profiles` row with `role = 'admin'`.
 
 ## Log
+
+- 2026-11-15 8:55 AM, Ruthvik: migration 2006 is applied on hosted (renumbered from 2005); every migration through 2008 is applied. `supabase/demo/assignment_modules_demo.sql` is still not run on hosted.
 
 - 2026-11-15 1:15 AM, Ruthvik: added migration 2006 (program settings, `class_module_settings`), its SQL test and `supabase/demo/assignment_modules_demo.sql`. Neither is applied to the hosted project yet.
 

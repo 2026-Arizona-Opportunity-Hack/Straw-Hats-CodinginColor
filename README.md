@@ -99,7 +99,22 @@ During class setup or in an existing roster, upload a CSV or enter names directl
 With Supabase staff sign-in and a Jev provider configured, **Suggest matches** sends only reviewed CSV header labels to Jev. The file and sample values stay in the browser during mapping. Column selection and manual entry also work without Jev. Set a server-side `OPENROUTER_API_KEY` to use OpenRouter. The Vercel AI Gateway path uses a server-side `AI_GATEWAY_API_KEY` or Vercel's runtime OIDC token.
 Assignments (`src/instructor/assignments/`) are built from blocks in any order: text, links and videos, interactive HTML pages, questions (multiple choice, select all, true/false, short answer, number), written responses and code exercises, so a video can be followed by questions about it.
 Instructors can create, edit, duplicate, publish, delete, export to a `.json` file, and import from that file, from another class, or from pasted quiz text in the Aiken format (`A.` choices plus an `ANSWER: B` line).
-It still uses fictional data saved in the browser; connecting it to `src/api/instructor/` and Supabase is the next step.
+The Grades tab is a gradebook with needs-grading, missing, late and not-due states, rubrics, file uploads and CSV export.
+With Supabase configured, all of this is live data (`src/instructor/liveStore.ts`).
+
+**CIC library.** The sidebar's **CIC library** lists CIC's ready-made courses to preview.
+In **Create a class**, pick one; the class gets its own copy (migration `2004_copy_library_course.sql`), so the library never changes.
+Edit a class's course from its **Curriculum** tab (**Edit curriculum**); drafts and publishing work the same as in the course builder.
+Admins can also edit library courses.
+
+**Class Dashboard.** Shows learning gain with the pretest and post-test averages behind it, average assignment score, work to grade and missing work.
+**Needs attention** lists each student who needs help and opens to the exact reasons (stuck, inactive, below mastery, missing or low work, post-test drop).
+**Module completion** opens each module to its assignments, due dates and turn-in counts.
+Thresholds (inactive days, low score, pass mark, post-test tries) come from the database: apply `2006_program_settings_and_rules.sql`, and change them in `program_settings` or per module in `module_rules`.
+
+**Preloaded curriculum.** `curriculum/` holds the AI Academy course built from CIC's Week 1 deck, as a self-paced and a classroom library course with interactive HTML-and-CSS pages.
+Run `npm run curriculum` to rebuild `supabase/curriculum/ai-academy.sql`, then run that file on the database.
+See [`curriculum/README.md`](curriculum/README.md) and the teacher guide in `curriculum/ai-academy/teacher-guide.md`.
 
 `npm run dev:instructor` (port 5176) still runs it standalone with its own sidebar and profile picker.
 

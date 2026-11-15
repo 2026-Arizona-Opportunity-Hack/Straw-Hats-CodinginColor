@@ -4,8 +4,9 @@ Read this first if you are a teammate or an AI coding agent picking up work.
 It says what exists, where it lives, what is half done, and what to watch out for.
 Update it in the same branch as your change (see "How to update this file" at the bottom).
 Each teammate keeps their own `Handoffs/<name>-handoff.md` in the same format; read them all.
+Database details live in [`ruthvik-handoff-supabase.md`](ruthvik-handoff-supabase.md).
 
-Last updated: Sat Nov 14 2026, 7:30 PM MST, by Ruthvik (with Claude Code).
+Last updated: Sun Nov 15 2026, 8:55 AM MST, by Ruthvik (with Claude Code).
 
 ## The product in one paragraph
 
@@ -13,165 +14,170 @@ CIC Learn is a learning platform for Coding in Color (CIC Problem 1).
 Four roles: student, instructor, CIC admin, external reviewer.
 Instructors run classes: dashboard, curriculum, assignments, grades, roster.
 Admins see every class and funder-facing learning gain.
-Students follow modules like a code.org lesson.
+Students follow modules lesson by lesson.
 The team plan is in [`plan.md`](../plan.md); the nonprofit brief is linked from [`AGENTS.md`](../AGENTS.md).
 
-## Where things stand
+## What I built (all on `main`)
 
-### Branches and PRs
+| PR | What |
+|---|---|
+| #2 | React + Vite + Supabase app scaffold and the shared data contract (`src/shared/types/`). |
+| #3 | Core database schema with baseline RLS (`0001_core_schema.sql`). |
+| #4 | Starter pages for each role on mock data. |
+| #6, #8 | Instructor UI as the shared styling baseline; workspace mounted in the main app's sidebar layout (`src/instructor/InstructorRoute.tsx`). |
+| #9 | Class page split into tabs: Dashboard, Curriculum, Assignments, Grades, Roster. |
+| #10, #13 | Migration 2001: class rosters (`class_students`) and assignments. |
+| #14 | Instructor workspace on live Supabase data (`src/instructor/liveStore.ts`). |
+| #18 | Fixed live saves deleting teammates' rows; grading, rubrics and file uploads (migrations 2002, 2003). |
+| #20 | Review fixes: stale course saves, Supabase 1000-row cap, gradebook totals, first Vitest tests. |
+| #49 | CIC library, edit curriculum inside a class, Dashboard drill-downs, rules in the database (2004, 2006), AI Academy curriculum, interactive HTML activities, lesson reading view. 46 commits, merged Nov 15. |
 
-| Branch | State | Notes |
-|---|---|---|
-| `main` | Has everything through PR #14 (tabs, assignments, live data), Shivraj's #16 and #17 (migrations 1001, 1002) | Source of truth |
-| `ruthvik/class-tabs` | PR #20 merged | Review fixes (stale course saves, 1000-row cap, totals, tests). |
-| `ruthvik/class-library-dashboard` | PR into `main`, open | Supersedes #26, #27 and #28: library, edit in class, Dashboard, DB rules, reading view, curriculum. |
-| `jacky/student-join-and-player` | Pushed, no PR | Student module player with a renderer per activity type (`src/student/activities.tsx`). |
-| `Shivraj` | 2 commits ahead of `main` | Supabase CLI config (`supabase/config.toml`). Already merged into `ruthvik/class-tabs`. |
-| `Aryan`, `Ken`, `Jacky` | Nothing new beyond `main` | |
+#26, #27 and #28 are still open but superseded by #49: close them.
+The #27 student "Browse courses" UI was dropped in favor of the Explore page already on `main`.
 
-macOS note: the remote has both `Jacky` and `jacky/student-join-and-player`.
-On a case-insensitive disk `git fetch` fails with "cannot lock ref".
-Fetch it under another name: `git fetch origin refs/heads/jacky/student-join-and-player:refs/remotes/origin-jacky/student-join-and-player`.
-Renaming one of the two branches on GitHub fixes it for everyone.
+## How each feature works
 
-### Fixed (data loss), merged in PR #18
+### Instructor workspace
 
-The live save in `main` deletes every assignment, roster student, module, lesson or activity that the saving browser does not know about.
-A browser opened before a teammate added something deletes it on its next save; on Nov 14 this removed two demo assignments and their submissions.
-`ruthvik/class-tabs` now deletes only rows the user removed in that browser (`deleteRemoved` in `src/instructor/liveStore.ts`).
-Course saves now also write only changed modules, lessons and activities, so a stale browser cannot put back deleted items or overwrite a teammate's edits.
-
-### What works today (on `ruthvik/class-tabs`)
-
-- Login: staff sign in with email and password (Supabase Auth).
-  With no Supabase keys in `.env`, a mock role picker appears instead.
-- Instructor workspace at `/instructor` inside the shared sidebar layout (Aryan's `AppLayout`).
-  Hash routes: `#/classes`, `#/classes/<id>/<tab>`, `#/curriculum`, `#/curriculum/<courseId>`, `#/review`.
-- Class page tabs: Dashboard, Curriculum, Assignments, Grades, Roster (`#/classes/<id>/<tab>`).
-- Assignments are an ordered list of blocks: text, link or video, interactive HTML page, questions (multiple choice, select all, true/false, short answer, number), written response, code exercise.
-  Create, edit, duplicate, publish, delete, export to JSON, import from JSON, from another class, or from pasted Aiken quiz text.
-  Student preview grades the questions so instructors can test the answer key.
-- Live data: with Supabase keys set, the instructor workspace loads and saves classes, roster, assigned modules, assignments and course content (`src/instructor/liveStore.ts`).
-  Only changed rows are written, one save at a time.
+- Lives at `/instructor` inside the shared sidebar (Aryan's `AppLayout`).
+  Hash routes: `#/classes`, `#/classes/<id>/<tab>`, `#/classes/<id>/curriculum/edit`, `#/curriculum`, `#/curriculum/<courseId>`, `#/review`.
+- Live data: `src/instructor/liveStore.ts` loads classes, roster, assigned modules, assignments, submissions, courses and attempts, and saves only changed rows, one save at a time (`InstructorRoute.tsx` queue).
+  It deletes only rows the user removed in that browser (`deleteRemoved`), so a stale tab never wipes a teammate's work.
   A failed save shows an error and reloads from the database.
-- Grading (Grades tab, `src/instructor/assignments/Gradebook.tsx`): gradebook of students by published assignments with needs-grading, missing and late states, totals and CSV export.
-  Each cell opens the submission block by block; questions are auto-graded and can be overridden, written and code answers take points, feedback is saved.
-  Previous and next walk through the class.
-- Rubrics: written, code and file upload blocks can carry Canvas-style rubrics (criteria with named ratings and points).
-  Students see the rubric; while grading, clicking a rating per criterion sums the score, and typed points still override.
-- File upload blocks: allowed types, file count, size limit (up to 25 MB). Files live in the private `submission-files` bucket; instructors open them through 10-minute signed URLs.
-- Course builder on live data reads answer keys from `activity_keys` (Shivraj's 1002 moves them out of content) and writes them back through his trigger; verified round trip.
-- Progress on live data follows Shivraj's scoring rules: pretest try #1, post-test best of the first `module_rules.max_posttest_tries` (default 3), otherwise best try.
-- Admin pages (Aryan, `src/admin/`) still read from `src/admin/mocks.ts`, not Supabase.
+- Attempts and rules load in pages, past the 1000-row cap (`selectAll`).
 
-### Students pick self-paced courses (`ruthvik/student-course-enroll`)
+### CIC library and class curriculum
 
-- My courses has a "Browse courses" section: published self-paced courses the student is not in yet, each with an Enroll button.
-- `listAvailableCourses()` reads `courses` (RLS "read published courses"); `enrollInCourse()` calls Shivraj's `enroll_in_course`; `enrollErrorMessage()` turns `COURSE_NOT_AVAILABLE`, `ALREADY_IN_CLASS` and `STUDENTS_ONLY` into plain words.
-- After enrolling, the course appears under My courses with module 1 open, a status line announces it, and focus moves to the new course heading.
-- No migration needed: in a local PGlite run of 0001, 1001, 1002 and 1004, a self-enrolled student reads module 1, submits with `class_id` null (nullable since 1001, confirmed on the hosted DB), and module 2 opens after.
-- Module counts are not shown: 1004 hides modules of courses the student is not in, so counting them would need a new RPC.
-- Mock mode adds an "AI Academy (Self-paced)" fixture course; picks are kept in `localStorage` (`cic.mockCourseEnrollments`).
-### Lesson reading view (branch `ruthvik/lesson-reading-view`, not pushed)
+- The sidebar's **CIC library** (`#/curriculum`) lists CIC's ready-made courses (`courses.is_library`) with **Preview**.
+  Admins also get **Edit**, to maintain library courses.
+- **Create a class**, step 3, offers the library courses as cards.
+  On Create, the course is copied for the class with `copy_library_course` (migration 2004): modules, lessons, activities and answer keys get new ids, and the library stays unchanged.
+- Inside a class, the **Curriculum** tab has **Edit curriculum**, which opens the course builder in the class card (`#/classes/<id>/curriculum/edit`).
+  A class still on a library course gets **Edit for this class**, which copies it first (with a warning if students have progress).
+- Class edits use Ken's flow: drafts are kept in the author's browser, and **Publish module** goes through `publish_curriculum` (migration 2005).
+- Instructors' old standalone courses are hidden from the list, not deleted.
+- Code: `src/instructor/Curriculum.tsx` (`CurriculumList`, `LibraryList`, `CourseBuilder` with `inClass`, `CourseReviewer` with a collapsible lesson list), `ClassSetup.tsx`, `ClassTabs.tsx` (`CurriculumTab`), `InstructorWorkspace.tsx` (`importCourse`, `makeClassEditable`, `builderFor`).
 
-All lesson content now renders through `src/shared/ui/LessonMarkdown.tsx` and `src/shared/ui/ActivityCard.tsx`, styled by `src/shared/ui/lesson.css` (`cic-*` classes).
-Used by the student player (`src/student/ModulePlayer.tsx`), `LessonPreview`/`ActivityPreview` (reviewer, builder, "Student preview" dialog) and the browser demo (`src/student/PublishedDemo.tsx`).
-Lesson authors get callouts by starting a blockquote with a bold label: `> **Key idea:**`, `**Did you know?**`, `**Try it:**`, `**Watch out:**`, `**Remember:**`, `**Think about it:**`.
-Any other blockquote is a plain quote.
-A leading `#`/`##` heading equal to the activity title is dropped, so titles never repeat.
-Tables use `remark-gfm` (new dependency) and scroll inside their own box.
-Every rule in `lesson.css` starts with `:root` so it outranks Tailwind's reset and the `.ic-app` element rules whatever the load order; keep that when adding rules.
-Data contracts, scoring and the responses sent to `recordAttempt`/`submit_attempt` are unchanged; the player only shows "Correct"/"Not quite" on a single multiple-choice question when the server returns `is_correct`.
+### Class Dashboard
 
-### Not done yet (pick these up)
+- `src/instructor/dashboard.ts` (pure, tested in `dashboard.test.ts`) and `DashboardTab` in `ClassTabs.tsx`.
+- Top cards: average learning gain with the pretest and post-test averages behind it ("+N pts", not "pp"), average assignment score, work waiting to be graded, missing work.
+- **Needs attention:** one row per student, opening to the exact reasons: stuck on an activity, inactive for N days, below mastery in a concept, missing or low-scored assignment, post-test lower than pretest.
+- **Module completion:** each module opens to its linked assignments (`assignments.module_id`), due dates, turned-in, to-grade and missing counts, with overdue items marked.
+- No thresholds are hardcoded on the frontend.
+  Inactive days, low score, pass mark and post-test tries come from `program_settings` and the `class_module_settings` view (migration 2006); each class gets `rules` in `liveStore.ts`.
+  Admin analytics (`src/admin/api.ts`, `metrics.ts`) read the same tables, every row, including self-enrolled students.
 
-1. **Student sign-in with class code + passcode.**
-   Roster rows have passcodes, but nothing checks them.
-   Plan: an Edge Function that verifies `classes.join_code` + `class_students.passcode` and signs the student in (creates or reuses an auth user, sets `class_students.profile_id`).
-2. **Students submitting assignments.**
-   The `assignment_submissions` table exists (migration 2002) and instructors can grade, but students cannot submit yet.
-   Needs student sign-in (item 1) plus an insert policy for the student's own row, and a storage insert policy so students can upload into their own folder.
-   The Assignments list's Submitted and Avg columns still read curriculum attempts; switch them to submissions.
-3. **Progress for roster-only students.**
-   `activity_attempts.student_id` points at `profiles`, so students without a login have no progress.
-   Either give every student a login (item 1) or add `class_student_id` to attempts.
-4. **Permissions pass.**
-   RLS is on for every table, but policies are minimal (see [`ruthvik-handoff-supabase.md`](ruthvik-handoff-supabase.md)).
-   Library courses: instructors now import their own copy (see "Import from library" below); admins can still edit library courses in place.
-5. **Grades for curriculum activities** (module checks, pre/post tests) live in a separate "Curriculum progress" view; they are not in the assignment gradebook.
-6. **Code runner (Pyodide)** is a placeholder in assignment code blocks and the module player.
-7. **Admin pages on live data** (`src/admin/api.ts` still returns mocks).
-8. **PR hygiene:** `ruthvik/class-tabs` is far over the 400-line guideline.
-   Consider splitting before merging to `main`.
+### Assignments and grading
 
-### Import from library (branch `ruthvik/import-library-course`)
+- Assignments are ordered blocks: text, link or video, interactive HTML page, questions (multiple choice, select all, true/false, short answer, number), written response, code exercise, file upload (`src/instructor/assignments/`).
+  Create, edit, duplicate, publish, delete, export and import JSON, import from another class or from Aiken quiz text.
+- Grades tab (`Gradebook.tsx`): students by published assignments with needs-grading, missing, late and "Not due yet" states, totals and CSV export.
+  Each cell opens the submission block by block; auto-graded questions can be overridden, feedback is saved.
+- Rubrics on written, code and file blocks: click a rating per criterion to sum the score; typed points still override.
+- File uploads go to the private `submission-files` bucket; instructors open them through 10-minute signed URLs.
 
-An instructor imports a preloaded library course (`courses.is_library`, for example "AI Academy (Classroom)") as their own editable copy.
-The "Import from library" list is in Create a class (step 3) and at the bottom of Curriculum (`src/instructor/LibraryImport.tsx`).
-Live: it calls `copy_library_course` (migration 2004, applied to the hosted project), which deep-copies modules, lessons, activities and answer keys with new ids.
-Mock mode: `copyCourse` in `model.ts` copies the course in the browser; `demoData.ts` has a short `LibraryDemo` course.
-Library courses are never opened in the builder or saved: `saveLiveData` skips them, and Create a class lists only non-library courses (`assignableCourses`).
+### AI Academy curriculum (from CIC's Week 1 deck)
+
+- Source: `curriculum/ai-academy/course.json` plus widget pages in `curriculum/ai-academy/widgets/`.
+  `npm run curriculum` (`scripts/build-curriculum.mjs`) writes idempotent SQL to `supabase/curriculum/ai-academy.sql`, already loaded on hosted.
+- One source builds two library courses: **AI Academy (Self-paced)** for students on their own and **AI Academy (Classroom)** for instructors to import and edit.
+- Module 1 (Intro to Computers & AI) is complete with 7 lessons; modules 2-6 are stubs.
+- 5 interactive pages (Build the machine, Binary name, Then vs now, AI or not, AI app investigation) are HTML and CSS only, no scripts, so they run on live; motion stops under reduced motion.
+- Teacher notes are in `curriculum/ai-academy/teacher-guide.md`, not in lessons, because students can open every activity.
+- "Web Development Foundations" was marked `is_library` on hosted so it appears in the library too.
+
+### Interactive HTML and the reading view
+
+- HTML activities run in a sandboxed iframe without `allow-same-origin` (`src/shared/ui/InteractiveHtmlFrame.tsx`).
+  The frame grows to its content: only the platform's height script runs (allowed by its sha256 in the CSP, `src/shared/ui/isolatedHtml.ts`), so there is no inner scroll box.
+- Lesson text renders through `src/shared/ui/LessonMarkdown.tsx` (tables via `remark-gfm`, callouts) and `ActivityCard.tsx`, styled by `lesson.css` (`cic-*`, every rule starts with `:root`).
+  Callouts: start a blockquote with `**Key idea:**`, `**Did you know?**`, `**Try it:**`, `**Watch out:**`, `**Remember:**` or `**Think about it:**`.
+- Used by the library preview, the builder's student preview and the student player's `LessonContent`.
+
+## Migrations I own
+
+All applied to the hosted project (checked with `npx supabase migration list --linked` on Nov 15).
+
+| File | What |
+|---|---|
+| `0001_core_schema.sql` | Core schema and baseline RLS (shared contract). |
+| `2001_instructor_workspace.sql` | `class_students` roster, `assignments`, deferrable position constraints. |
+| `2002_assignment_submissions.sql` | `assignment_submissions` for grading. |
+| `2003_rubrics_and_file_uploads.sql` | Rubric scores, `file` assignments, `submission-files` bucket. |
+| `2004_copy_library_course.sql` | `copy_library_course(p_course_id)`. |
+| `2006_program_settings_and_rules.sql` | `program_settings`, `class_module_settings` view, defaults from the database. |
+
+Not run on hosted: `supabase/demo/assignment_modules_demo.sql`, which links demo assignments to modules so the Dashboard's module drop-downs show work.
+It only fills `assignments.module_id` where it is empty and is safe to re-run.
+
+## Not done yet (pick these up)
+
+1. **Security fixes from a code review (Nov 14):**
+   - The live admin login `admin` / `cic-learn-demo` is published in the README and `seed.sql`; rotate it before real use (hosted write).
+   - `profiles.archived_at` is checked nowhere, so archived staff keep access; `current_role_is()` and `teaches_class()` should require `archived_at is null` (new migration).
+2. **Correctness:**
+   - Student `time_on_task_ms` is overcounted: the timer starts at page open, not at the last save.
+   - `src/shared/labs/checks.ts` compares whole output, so a Python lab with 2+ checks never passes.
+   - `isolatedHtml.ts` parses without `scriptingEnabled`, so `<noscript>` content is ignored.
+3. **Remove mock mode.**
+   Done once on a local branch (`ruthvik/remove-mock-mode`), but it conflicts with teammates' new features; redo it on top of current `main`.
+4. **Students submitting assignments.**
+   `assignment_submissions` exists and instructors can grade, but students have no insert policy or storage upload policy yet.
+5. **Grades for curriculum activities** (checks, pre and post tests) are in Curriculum progress, not in the assignment gradebook.
+6. **Tests to add:** answer shapes sent to `submit_attempt`, and students getting `ADMINS_ONLY` from admin RPCs.
 
 ## How the code is organized
 
 | Path | What | Owner |
 |---|---|---|
-| `src/shared/` | Types (data contract), Supabase client, auth context, route guards, layout, UI kit | Aryan |
-| `src/routes.tsx` | All routes | Aryan |
-| `src/admin/` | Admin pages (overview, classes, people, impact, settings) | Aryan |
-| `src/instructor/` | Instructor workspace (Ken's UI, `ic-*` styles in `styles.css`) | Ken + Ruthvik |
-| `src/instructor/assignments/` | Block-based assignments: model, editor, preview, list | Ruthvik |
-| `src/instructor/liveStore.ts` | Supabase load and save for the instructor workspace | Ruthvik |
-| `src/instructor/store.ts` | Browser-storage store used in mock mode | Ken |
+| `src/shared/` | Types (data contract), Supabase client, auth, layout, UI kit, lesson renderer (`ui/LessonMarkdown.tsx`, `ui/ActivityCard.tsx`) | Aryan, Ruthvik (lesson UI) |
+| `src/admin/` | Admin pages; `api.ts` and `metrics.ts` read live rules | Aryan |
+| `src/instructor/` | Instructor workspace (`ic-*` styles in `styles.css`) | Ken + Ruthvik |
+| `src/instructor/assignments/` | Block assignments, gradebook, rubrics | Ruthvik |
+| `src/instructor/liveStore.ts` | Supabase load and save for the workspace | Ruthvik |
+| `src/instructor/dashboard.ts`, `progress.ts` | Dashboard and progress numbers | Ruthvik |
 | `src/student/` | Student pages and module player | Jacky |
-| `src/api/` | Typed data functions with mocks, from the first scaffold | Shivraj (student), Ruthvik (instructor) |
-| `supabase/migrations/` | `0001` core schema, `1xxx` student side, `2xxx` instructor side. Append-only. | Shivraj + Ruthvik |
-| `supabase/seed.sql` | Demo data | Aryan |
+| `curriculum/`, `scripts/build-curriculum.mjs` | Preloaded curriculum source and SQL generator | Ruthvik |
+| `supabase/migrations/` | `0001` core, `1xxx` student side, `2xxx` instructor side, `3xxx` admin. Append-only. | Shivraj, Ruthvik, Aryan |
 
-Two data models exist on purpose for now:
-the instructor workspace uses its own nested types in `src/instructor/model.ts`,
-and `liveStore.ts` converts them to and from the database rows and the shared activity contract in `src/shared/types/activities.ts`.
-Activity `content` in the database always carries the shared contract fields (what the student app reads) plus a `questions` list and `title` for the course builder.
-Keep that true if you touch either side.
+The workspace uses its own nested types (`src/instructor/model.ts`); `liveStore.ts` converts them to and from database rows and the shared activity contract (`src/shared/types/activities.ts`).
+Keep activity `content` in the shared contract shape plus `questions` and `title` for the builder.
 
 ## Tests
 
-`npm test` runs Vitest: `src/instructor/assignments/grading.test.ts` (scores, rubrics, late, not-due, CSV) and `src/instructor/liveStore.test.ts` (saves never delete unloaded rows, only changed rows are written, attempts load past 1000 rows).
-Each liveStore test was checked to fail against the old code it guards.
+`npm test` runs Vitest: grading, liveStore saves (never delete unloaded rows, write only changed rows, page past 1000 rows), dashboard reasons and module work, lesson Markdown, the HTML frame height script and the curriculum generator.
+SQL tests in `supabase/tests/` run against a throwaway Postgres (see the Supabase handoff).
 
 ## Running it
 
 ```bash
 npm install
-npm run dev            # http://localhost:5173, live data if .env has Supabase keys
-VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= npm run dev -- --port 5181   # force mock mode
-npm run build && npm run lint && npm test   # run before every PR
+npm run dev                  # http://localhost:5173, live data when .env has Supabase keys
+npm run curriculum           # rebuild supabase/curriculum/ai-academy.sql from curriculum/
+npm run build && npm run lint && npm test   # before every PR
 ```
 
-Demo logins (password `cic-learn-demo`): `admin@cic.demo`, `teacher@cic.demo` (Maryvale), `ana.lopez@cic.demo` (Desert Edge, Carl Hayden), `reviewer@cic.demo`.
-
-Supabase details, migrations and gotchas: [`Handoffs/ruthvik-handoff-supabase.md`](ruthvik-handoff-supabase.md).
+Demo logins (password `cic-learn-demo`): `admin@cic.demo`, `teacher@cic.demo` (Maryvale), `ana.lopez@cic.demo`, `reviewer@cic.demo`.
 
 ## Team agreements that bite
 
 - Never commit `.env` or keys; a hook blocks it.
   Server-only keys never get a `VITE_` prefix.
 - Students are minors: store name, school and class only.
-  No email.
-- Migrations are append-only: add a new numbered file, never edit a merged one.
-- One change per PR, under 400 lines where possible, imperative title, template order.
-- Instructor-authored HTML only renders inside `src/shared/ui/InteractiveHtmlFrame.tsx` (sandbox without `allow-same-origin`).
-  Do not loosen it.
-- Ken's styles use the `ic-*` prefix and assume Tailwind's reset is active.
-  Native dialogs need `margin: auto`; inputs are only styled inside a `<label>` or `.ic-choice-row`.
+- Migrations are append-only and numbers must not clash with hosted ones: check `npx supabase migration list --linked` first (2005 was taken, so ours became 2006).
+- One change per PR, under 400 lines where possible.
+- Instructor-authored HTML only renders inside `InteractiveHtmlFrame.tsx`; do not loosen its sandbox.
+- macOS: the remote has `Jacky`/`jacky/...` and `Ken`/`ken/...` branches, so a full `git fetch` fails with "cannot lock ref"; fetch single branches (`git fetch origin main`).
 
 ## How to update this file
 
-Agents and teammates: when you finish a change, update the sections above that it affects (branches, what works, not done, ownership) and add one line to the log below.
+When you finish a change, update the sections above that it affects and add one line to the log below.
 Keep it short; link to code instead of copying it.
 Put each sentence on its own line.
 
 ## Log
+- 2026-11-15 8:55 AM, Ruthvik: rewrote this handoff to cover everything I built (PR list, features, migrations, open work) now that #49 is on `main`. Updated the README instructor section and the Supabase handoff (2006 applied).
 - 2026-11-15 1:20 AM, Ruthvik: opened one PR from `ruthvik/class-library-dashboard` that merges latest `main` with the CIC library, edit-in-class curriculum, class Dashboard drill-downs, DB-driven thresholds (migration 2006, already applied to hosted), the lesson reading view, AI Academy curriculum and embedded HTML activities.
   Merge choices: course edits for a class use Ken's browser drafts and `publish_curriculum`; the student player stays on main's `LessonContent` (now rendering Markdown with `LessonMarkdown`); the student enrollment UI from #27 is dropped for main's Explore page.
   Not included: removing mock mode (conflicts with teammates' new work; redo on top of `main` later) and the demo SQL `supabase/demo/assignment_modules_demo.sql` (not run on hosted).
