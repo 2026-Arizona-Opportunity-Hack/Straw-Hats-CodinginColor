@@ -177,6 +177,7 @@ Keep it short; link to code instead of copying it.
 Put each sentence on its own line.
 
 ## Log
+- 2026-11-15, Ken: added migration 3011 and rollback-only tests for archive/restore with unchanged authenticated claims. Hosted application pending.
 - 2026-11-15 8:55 AM, Ruthvik: rewrote this handoff to cover everything I built (PR list, features, migrations, open work) now that #49 is on `main`. Updated the README instructor section and the Supabase handoff (2006 applied).
 - 2026-11-15 1:20 AM, Ruthvik: opened one PR from `ruthvik/class-library-dashboard` that merges latest `main` with the CIC library, edit-in-class curriculum, class Dashboard drill-downs, DB-driven thresholds (migration 2006, already applied to hosted), the lesson reading view, AI Academy curriculum and embedded HTML activities.
   Merge choices: course edits for a class use Ken's browser drafts and `publish_curriculum`; the student player stays on main's `LessonContent` (now rendering Markdown with `LessonMarkdown`); the student enrollment UI from #27 is dropped for main's Explore page.
@@ -202,4 +203,3 @@ Put each sentence on its own line.
 - 2026-11-14 5:05 PM, Ruthvik: created this file.
   Live Supabase data for the instructor workspace, migration 2001 and demo seed applied to the hosted project, block-based assignments, CIC logo.
   PR #9 merged into the wrong base; `main` still needs `ruthvik/class-tabs`.
-- 2026-11-15, Ken: added migration 3011 and rollback-only tests for archive/restore with unchanged authenticated claims. Hosted application pending.
