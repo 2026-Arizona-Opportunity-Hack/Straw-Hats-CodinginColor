@@ -145,7 +145,7 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
   localAuthoring: boolean;
   library: Activity[];
   onSaveLibrary: (blocks: Activity[]) => boolean;
-  onRelease: (course: Course, moduleId: string, selected: Module | null) => Promise<Course | false>;
+  onRelease: (course: Course, moduleId: string, selected: Module | null) => Promise<{ draft: Course; assessmentWarning?: string } | false>;
   onSave: (course: Course) => boolean;
   assigned: Set<string>;
 }) {
@@ -231,9 +231,13 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
     try {
       const saved = await onRelease(draft, module.id, selected);
       if (!saved) return;
-      setCourse(saved);
-      setSavedDraft(saved);
-      setMessage(selected ? 'Module published and ready to assign.' : 'Module moved to draft.');
+      setCourse(saved.draft);
+      setSavedDraft(saved.draft);
+      if (saved.assessmentWarning) {
+        setError('Module published. ' + saved.assessmentWarning);
+      } else {
+        setMessage(selected ? 'Module published and ready to assign.' : 'Module moved to draft.');
+      }
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : 'Could not publish this update. Your draft is saved in this browser.');
     } finally {

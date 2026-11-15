@@ -123,6 +123,8 @@ The existing class course and Python assignments stay in place.
 ## Sign-in and navigation accessibility
 
 The separate sign-in route has its own main landmark. The sidebar and mobile home link take their accessible name from the visible CIC Learn brand label.
+The unsubmitted final check uses a native modal. Focus stays on **Back to my test** while it is open. Escape or the button returns focus to the test heading. Submitting the final check releases the navigation lock.
+On November 15, Lighthouse 13.6.0 scored 100/100 for accessibility on the hosted homepage, sign-in and sign-up routes and on the local final-check page using demo data. The homepage had an unweighted label-in-name finding on two course links. The open modal was verified by keyboard in Chrome.
 
 ## Roster entry
 
@@ -141,6 +143,8 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 The public root introduces AI Academy and Responsive Web Development using the existing CIC brand tokens and fonts. Log in and Sign up open the existing student and staff flows. Featured course links continue to a catalog search after student sign-in. Coming Soon mirrors planned subjects in Student Explore.
 
 ## Log
+
+- 2026-11-15, Codex: verified final-check modal focus, Escape and submission navigation in Chrome with local demo data.
 
 - 2026-11-15, Codex: added admin class removal for students with preserved work and class-and-school dropdown labels.
 

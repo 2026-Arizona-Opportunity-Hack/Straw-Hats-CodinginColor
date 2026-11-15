@@ -1,12 +1,38 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { newAssignment } from './assignments/model';
-import { activityContent, importLibraryCourse, loadLiveData, saveLiveClass, saveLiveData } from './liveStore';
+import { activityContent, importLibraryCourse, loadLiveData, publishLiveCourse, saveLiveClass, saveLiveData } from './liveStore';
 import type { ClassGroup, Course, InstructorData } from './model';
 import { classProgress } from './progress';
 
 type Call = { table: string; op: string; payload?: unknown; filters: [string, ...unknown[]][] };
 type Reply = { data: unknown; error: null | { message: string; code?: string } };
+
+describe('assessment readiness after publication', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each([
+    [Response.json({ ready: true, written: false }), undefined],
+    [Response.json({ ready: false, written: false }), 'incomplete'],
+    [Response.json({}, { status: 503 }), 'Could not verify'],
+  ])('keeps the committed revision when readiness is checked', async (response, warning) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+    const rpc = vi.fn().mockResolvedValue({ data: 7, error: null });
+    const auth = { getSession: vi.fn().mockResolvedValue({ data: { session: { access_token: 'fixture' } } }) };
+    const modules = [{ id: 'module', title: 'Module', published: true, lessons: [] }];
+    const { client: stored } = fakeSupabase(() => ({ data: { publication_revision: 7, modules }, error: null }));
+    const client = { rpc, auth, from: stored.from } as unknown as SupabaseClient;
+    const course: Course = { id: 'course', title: 'Course', description: '', level: 'Beginner',
+      modules: [{ id: 'module', title: 'Module', published: true, lessons: [] }] };
+    const result = await publishLiveCourse(client, course, undefined, 'module', undefined);
+    expect(result.revision).toBe(7);
+    if (warning) expect(result.assessmentWarning).toContain(warning);
+    else {
+      expect(result.assessmentWarning).toBeUndefined();
+      expect(result.released?.id).toBe('module');
+    }
+  });
+});
 
 /** The seeded program_settings row (migration 2006). */
 const settingsRow = { inactive_days: 3, low_score_pct: 60 };

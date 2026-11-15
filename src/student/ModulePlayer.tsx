@@ -2,7 +2,7 @@
 // code.org lesson, so students never face a wall of questions. ?step=N (1-based) opens a card;
 // the sidebar uses it. Next unlocks once the card is finished; readings can always continue.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { checkCatPhotoLab, getActivityResponse, getCheckAnswer, getClassmateNotes, getModule, listActivityStatus, recordAttempt, type ModuleWithContent } from '../api/student/index.ts'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
@@ -84,6 +84,9 @@ function ModuleSteps({ mod, studentId, revision }: { mod: ModuleWithContent; stu
   const testLocked = steps[current]?.activity.type === 'posttest' && !isDone(current)
   const [nudges, setNudges] = useState(0)
   const [nudgeOpen, setNudgeOpen] = useState(false)
+  const showNudge = useCallback((dialog: HTMLDialogElement | null) => {
+    if (dialog && !dialog.open) dialog.showModal()
+  }, [])
   const blocker = useBlocker(({ currentLocation, nextLocation }) => {
     const block = testLocked && new URLSearchParams(currentLocation.search).has('step')
       && (currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search)
@@ -169,18 +172,32 @@ function ModuleSteps({ mod, studentId, revision }: { mod: ModuleWithContent; stu
       </div>
 
       {nudgeOpen && testLocked && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-[rgb(11_61_35/0.45)] p-4 backdrop-blur-[2px]" onClick={() => setNudgeOpen(false)}>
-          <div key={nudges} role="alertdialog" aria-modal="true" aria-labelledby="nudge-title" aria-describedby="nudge-text"
-            onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl ${nudges > 1 ? 'sp-shake' : 'sp-nudge-in'}`}>
+        <dialog role="alertdialog" aria-modal="true" aria-labelledby="nudge-title" aria-describedby="nudge-text"
+          ref={showNudge}
+          onClose={() => {
+            setNudgeOpen(false)
+            heading.current?.focus()
+          }}
+          onClick={(event) => { if (event.target === event.currentTarget) event.currentTarget.close() }}
+          onKeyDown={(event) => {
+            if (event.key === 'Tab') {
+              // The return button is the only control. Keep Tab in the dialog in both directions.
+              event.preventDefault()
+              event.currentTarget.querySelector('button')?.focus()
+            }
+          }}
+          className="m-auto w-[min(24rem,calc(100%-2rem))] rounded-3xl bg-white text-center shadow-2xl backdrop:bg-[rgb(11_61_35/0.45)] backdrop:backdrop-blur-[2px]">
+          <div key={nudges} className={`p-6 ${nudges > 1 ? 'sp-shake' : 'sp-nudge-in'}`}>
             <p className="text-4xl" aria-hidden="true">✋</p>
             <h2 id="nudge-title" className="mt-2 text-xl font-bold">Finish the final check first</h2>
             <p id="nudge-text" className="mt-1 text-cic-muted">
               {nudges > 2 ? 'Still here! Submit your answers, then you can go anywhere.' : 'You can leave once you submit your answers. It shows what you learned in this module.'}
             </p>
-            <Button type="button" className="mt-5 w-full" autoFocus onClick={() => setNudgeOpen(false)}>Back to my test</Button>
+            <form method="dialog">
+              <Button type="submit" className="mt-5 w-full" autoFocus>Back to my test</Button>
+            </form>
           </div>
-        </div>
+        </dialog>
       )}
 
       {allDone && last && (
