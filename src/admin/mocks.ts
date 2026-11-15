@@ -2,6 +2,7 @@
 // (supabase/migrations/0001_core_schema.sql). Deterministic so demos look the same every time.
 // Mirrors supabase/seed.sql so mock mode and the seeded database tell the same story.
 import type { ActivityType } from '../shared/types/activities.ts'
+import type { Application, Issue } from './api.ts'
 import type { OrgData } from './metrics.ts'
 
 function rng(seed: number) {
@@ -42,13 +43,19 @@ export function buildMockOrg(now = Date.now()): OrgData {
     { id: 'class-mary-p3', name: 'Maryvale Period 3', school: 'Maryvale High School', join_code: 'MARY-P3' },
     { id: 'class-dehs-p5', name: 'Desert Edge Period 5', school: 'Desert Edge High School', join_code: 'DEHS-P5' },
     { id: 'class-chchs-as', name: 'Carl Hayden After School', school: 'Carl Hayden Community High School', join_code: 'CHCHS-AS' },
-  ].map((c) => ({ ...c, course_id: course.id, created_at: new Date(now - 25 * DAY).toISOString() }))
+  ].map((c) => ({ ...c, course_id: course.id, created_at: new Date(now - 25 * DAY).toISOString(), archived_at: null as string | null }))
+  // A past-term class: archived automatically because its term has ended.
+  classes.push({
+    id: 'class-mary-spring', name: 'Maryvale Spring Cohort', school: 'Maryvale High School', join_code: 'MARY-SP26',
+    course_id: course.id, created_at: new Date(new Date(now).getFullYear(), 1, 2).toISOString(), archived_at: null,
+  })
 
   const people: OrgData['people'] = [
     { id: 'mock-admin', role: 'admin', display_name: 'CIC Admin', school: null },
     { id: 'mock-instructor', role: 'instructor', display_name: 'Mr. Lopez', school: 'Maryvale High School' },
     { id: 'instr-ana', role: 'instructor', display_name: 'Ana Lopez', school: 'Desert Edge High School' },
     { id: 'mock-reviewer', role: 'reviewer', display_name: 'District Reviewer', school: null },
+    { id: 'instr-jordan', role: 'instructor', display_name: 'Jordan Ellis', school: 'Maryvale High School', archived_at: new Date(now - 60 * DAY).toISOString() },
   ]
   const classInstructors = [
     { class_id: 'class-mary-p3', instructor_id: 'mock-instructor' },
@@ -125,3 +132,19 @@ export function buildMockOrg(now = Date.now()): OrgData {
     people,
   }
 }
+
+const ago = (days: number) => new Date(Date.now() - days * DAY).toISOString()
+
+export const MOCK_ISSUES: Issue[] = [
+  { id: 'iss-1', instructor_name: 'Mr. Lopez', contact_email: 'lopez@maryvale.example', class_name: 'Maryvale Period 3', subject: 'Three students locked out', message: 'Malik, Diego and Imani forgot their passcodes and the reset link is not arriving.', status: 'open', created_at: ago(0.2) },
+  { id: 'iss-2', instructor_name: 'Ana Lopez', contact_email: 'ana.lopez@desertedge.example', class_name: 'Desert Edge Period 5', subject: 'Loops video will not play on Chromebooks', message: 'The school network blocks the embedded player. Can we get a downloadable copy?', status: 'open', created_at: ago(1.5) },
+  { id: 'iss-3', instructor_name: 'Ana Lopez', contact_email: 'ana.lopez@desertedge.example', class_name: 'Carl Hayden After School', subject: 'Need more laptops for Thursday', message: 'We have 9 students and 6 working laptops.', status: 'resolved', created_at: ago(6) },
+]
+
+export const MOCK_APPLICATIONS: Application[] = [
+  { id: 'app-1', name: 'Tasha Greene', email: 'tasha.g@example.com', role: 'Instructor', school: 'Maryvale High School', status: 'new', applied_at: ago(1), updated_at: ago(1) },
+  { id: 'app-2', name: 'Luis Moreno', email: 'luis.m@example.com', role: 'Teaching assistant', school: 'Desert Edge High School', status: 'interviewing', applied_at: ago(5), updated_at: ago(2) },
+  { id: 'app-3', name: 'Priya Shah', email: 'priya.s@example.com', role: 'Curriculum developer', school: null, status: 'offer', applied_at: ago(12), updated_at: ago(3) },
+  { id: 'app-4', name: 'Devon Carter', email: 'devon.c@example.com', role: 'Instructor', school: 'Carl Hayden Community High School', status: 'hired', applied_at: ago(20), updated_at: ago(4) },
+  { id: 'app-5', name: 'Mei Lin', email: 'mei.l@example.com', role: 'Teaching assistant', school: 'Maryvale High School', status: 'hired', applied_at: ago(30), updated_at: ago(10) },
+]

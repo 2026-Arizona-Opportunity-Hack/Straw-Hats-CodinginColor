@@ -3,7 +3,13 @@ import { isMockMode, supabase } from '../supabase.ts'
 import type { Profile, Role } from '../types/db.ts'
 
 interface AuthState {
+  /** The signed-in profile. While an admin previews another role, `role` is that role. */
   profile: Profile | null
+  /** The account's actual role, unaffected by preview. */
+  realRole: Role | null
+  /** Admin only: the role being previewed, or null. UI only; data access stays the admin's (RLS). */
+  previewRole: Role | null
+  setPreviewRole: (role: Role | null) => void
   loading: boolean
   /** Mock mode only: pretend to be a user with this role. */
   signInAsMock: (role: Role) => void
@@ -20,6 +26,16 @@ const MOCK_PROFILES: Record<Role, Profile> = {
 }
 
 const MOCK_ROLE_KEY = 'cic-mock-role'
+const PREVIEW_KEY = 'cic-preview-role'
+
+function readPreview(): Role | null {
+  try {
+    const role = sessionStorage.getItem(PREVIEW_KEY) as Role | null
+    return role && role in MOCK_PROFILES && role !== 'admin' ? role : null
+  } catch {
+    return null
+  }
+}
 
 /** Mock mode only: keep the picked role across page reloads (per tab). */
 function readMockProfile(): Profile | null {
@@ -58,6 +74,17 @@ async function loadProfile(userId: string): Promise<Profile | null> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(readMockProfile)
   const [loading, setLoading] = useState(!isMockMode)
+  const [previewRole, setPreview] = useState<Role | null>(readPreview)
+  const canPreview = profile?.role === 'admin'
+  const setPreviewRole = (role: Role | null) => {
+    try {
+      if (role) sessionStorage.setItem(PREVIEW_KEY, role)
+      else sessionStorage.removeItem(PREVIEW_KEY)
+    } catch {
+      // Storage blocked: preview just won't survive a reload.
+    }
+    setPreview(role)
+  }
 
   useEffect(() => {
     if (!supabase) return
@@ -72,8 +99,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe()
   }, [])
 
+  const activePreview = canPreview ? previewRole : null
   const value: AuthState = {
-    profile,
+    profile: profile && activePreview ? { ...profile, role: activePreview } : profile,
+    realRole: profile?.role ?? null,
+    previewRole: activePreview,
+    setPreviewRole: (role) => canPreview && setPreviewRole(role),
     loading,
     signInAsMock: (role) => {
       if (!isMockMode) return
@@ -83,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut: async () => {
       if (supabase) await supabase.auth.signOut()
       writeMockRole(null)
+      setPreviewRole(null)
       setProfile(null)
     },
   }

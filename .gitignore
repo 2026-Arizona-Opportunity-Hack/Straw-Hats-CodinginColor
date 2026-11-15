@@ -31,3 +31,6 @@ Thumbs.db
 # Supabase CLI local state
 supabase/.temp/
 supabase/.branches/
+
+# Personal local notes (never committed)
+shivraj-docs/

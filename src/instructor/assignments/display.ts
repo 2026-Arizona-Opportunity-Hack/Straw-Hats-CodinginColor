@@ -1,6 +1,6 @@
-import { Code2, FileText, Globe, ListChecks, MonitorPlay } from 'lucide-react';
+import { Code2, FileText, FileUp, Globe, ListChecks, MonitorPlay } from 'lucide-react';
 
-export const kindIcon = { quiz: ListChecks, link: Globe, html: MonitorPlay, written: FileText, code: Code2 } as const;
+export const kindIcon = { quiz: ListChecks, link: Globe, html: MonitorPlay, written: FileText, code: Code2, file: FileUp } as const;
 
 export function formatDue(value: string | null) {
   if (!value) return 'No due date';
