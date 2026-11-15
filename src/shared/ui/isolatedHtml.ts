@@ -1,11 +1,12 @@
 import { parse, parseFragment, serialize, type DefaultTreeAdapterTypes } from 'parse5'
 
 export const maxHtmlBytes = 256 * 1024
-// The platform's own script: it reports the page height so the frame can grow to fit and
-// never scrolls inside. When authored scripts are off, the policy allows only this exact
+// The platform's own script: it reports the page's content height (the html box, not
+// scrollHeight, which never drops below the frame), so the frame grows and shrinks to fit
+// and never scrolls inside. When authored scripts are off, the policy allows only this exact
 // script (by its sha256), so authored <script> tags and inline handlers still never run.
-export const heightScript = '(function(){var last=0;function send(){var d=document.documentElement,b=document.body,h=Math.ceil(Math.max(d.scrollHeight,b?b.scrollHeight:0));if(Math.abs(h-last)>1){last=h;parent.postMessage({type:"cic:height",height:h},"*")}}function start(){var o=new ResizeObserver(send);o.observe(document.documentElement);if(document.body)o.observe(document.body);send()}if(document.readyState==="loading")addEventListener("DOMContentLoaded",start);else start();addEventListener("load",send)})()'
-export const heightScriptHash = 'sha256-RJQpmkRfUOuGA5LHz7bd5FO2TOs8vnXYT+7DYR9FlhA='
+export const heightScript = '(function(){var last=0;function send(){var h=Math.ceil(document.documentElement.getBoundingClientRect().height);if(Math.abs(h-last)>1){last=h;parent.postMessage({type:"cic:height",height:h},"*")}}function start(){var o=new ResizeObserver(send);o.observe(document.documentElement);if(document.body)o.observe(document.body);send()}if(document.readyState==="loading")addEventListener("DOMContentLoaded",start);else start();addEventListener("load",send)})()'
+export const heightScriptHash = 'sha256-A+9TKsFjXCSZ+Y4HYuKNLoSKSfwL8/huYcspDogRJdw='
 const removedTags = new Set(['base', 'link', 'iframe', 'frame', 'frameset', 'object', 'embed', 'portal', 'fencedframe'])
 
 export function isolatedHtml(source: string, scripts: boolean, css = '') {
