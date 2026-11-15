@@ -114,7 +114,7 @@ Policies today (minimal, a full permissions pass is still open):
 - `modules`, `lessons`, `activities`: curriculum reads follow migration 1004's enrollment/publication rules; after 2010, writes require an instructor-owner or admin through `can_edit_course`.
 - `activity_keys`: 2010 applies the same write boundary through `can_edit_activity`; the separate staff/reviewer read policy remains.
 - `classes`: read if you teach it, created it, are enrolled, or are admin; insert by instructors and admins; update and delete if `can_manage_class` (teacher, creator, or admin).
-- `class_modules`, `class_students`, `assignments`: full access if `can_manage_class`.
+- `class_modules`, `class_students`, `assignments`: full access if `can_manage_class`; after 3009, this also requires an active instructor/admin profile.
 - `activity_attempts`: students insert their own; read by the student, their teacher, or admin.
 - `assignment_submissions`: read and update (grade) if `can_manage_class`. No insert or delete policy yet: instructors never create or delete student work, and student inserts wait for student sign-in.
   RLS hides rows instead of erroring, so `liveStore.ts` treats an update that matched no rows as a permission error.
@@ -127,13 +127,15 @@ Known gaps for the permissions pass:
 - Students cannot read assignments yet (no student policy).
 - Instructors cannot edit library courses owned by the admin; they import their own copy instead (migration 2004 below).
 
-## Migration 2010: course role boundaries (not applied to hosted)
+## Migrations 2010 and 3009: staff role boundaries (not applied to hosted)
 
 Ownership alone no longer authorizes curriculum or answer-key writes.
 Students and reviewers cannot create courses or edit legacy courses they own; demoting an instructor removes write access immediately.
 Instructor owners retain access to their own trees, and admins retain access across owners.
 `supabase/tests/course_role_boundaries.sql` checks actual RLS, parent moves, role changes and published reads on a disposable migrated database.
 Run with `psql -v ON_ERROR_STOP=1 -f supabase/tests/course_role_boundaries.sql`; fixtures roll back.
+Migration 3009 also requires an active staff profile in `teaches_class` and `can_manage_class`, so old class assignments/creator IDs cannot expose roster passcodes after demotion or instructor archiving.
+`supabase/tests/class_role_boundaries.sql` verifies roster and student-attempt access after those transitions, plus legitimate assigned teachers, creators and admins.
 
 ## Migration 2004: copy a library course (applied)
 
@@ -186,4 +188,4 @@ Delete demo auth users and rows (or create a fresh project), apply migrations wi
 - 2026-11-15 12:45 AM, Ruthvik: set `is_library = true` on the hosted "Web Development Foundations" course (owner Dana Whitfield, no classes) so it shows in the CIC library. Data-only change, not in a migration or seed.
 - 2026-11-14 9:00 PM, Ruthvik: added and applied migration 2004 `copy_library_course`. Also loaded `supabase/curriculum/ai-academy.sql` (AI Academy library courses).
 
-- 2026-11-15, Codex: added migration 2010 and local RLS regression coverage for course, nested content and answer-key role boundaries; not applied to hosted.
+- 2026-11-15, Codex: added migrations 2010 and 3009 with local RLS regressions for course/content/answer-key writes and class access after staff demotion or archiving; not applied to hosted.
