@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { test } from 'vitest'
 import { isolatedHtml, readCompletion, readFrameCompletion } from '../src/shared/ui/isolatedHtml.ts'
 
 test('the restrictive policy comes before authored source and removes document navigation markup', () => {
