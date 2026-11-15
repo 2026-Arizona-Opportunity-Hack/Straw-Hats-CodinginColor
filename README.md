@@ -151,7 +151,7 @@ Need a hand this weekend? [#ask-a-mentor](https://opportunity-hack.slack.com/arc
 
 ### Curriculum builder demo
 
-1. Run `npm ci`, then `npm run dev` and, in another terminal, `npm run dev:runner`. The Python runner listens only on loopback at port 5178 and serves the pinned runtime from installed dependencies.
+1. Run `npm ci`, then `VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= npm run dev` for mock mode. In another terminal, run `npm run dev:runner`. The Python runner listens only on loopback at port 5178 and serves the pinned runtime from installed dependencies.
 2. At [localhost:5173](http://localhost:5173), choose **Instructor**, open **Curriculum**, and open **Try the curriculum builder**. Use `+` or `/` to insert a reusable block, a Custom HTML activity, or a Python or HTML/CSS Coding Lab. Under **Module details**, use **Add HTML lesson** for a full-width HTML canvas.
 3. **Save draft** (also saves after a short pause) and **Publish module** or **Publish update** are separate actions. Choose **Student** after signing out and open the module under **Instructor-published demos** in the same browser. Each new publication starts a separate demo attempt. Course drafts, reusable blocks, edits, and submissions are kept locally.
 4. Use `node --test tests/*.test.mjs`, `npm run build`, `npm run build:instructor`, and `npm run lint` to verify the change.
