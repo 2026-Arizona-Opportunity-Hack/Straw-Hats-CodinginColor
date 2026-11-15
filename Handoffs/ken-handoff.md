@@ -74,6 +74,15 @@ Migration 1006 scopes opt-in worksheet notes to a class and reveals up to 15 aft
 Instructors can review and hide notes for classes they manage.
 The Cat Photo App demo activation script opts in Maryvale without sharing prior submissions.
 
+## Maryvale Cat Photo App assignment
+
+Migration 2007 links selected curriculum activities to separate completion entries in Assignment grades.
+Run `supabase/demo/maryvale_cat_photo_assignment.sql` on the hosted CIC demo after 2007 and the Cat Photo App lab and reflection are in place.
+It publishes the existing draft and counts prior submissions for current Maryvale students.
+The lab is worth one point after server verification and the reflection is worth one point after a written response.
+Maryvale students open it under Class assignments. Teachers open its grade cell to see both checkpoints.
+The existing class course and Python assignments stay in place.
+
 ## Roster entry
 
 Class setup and existing classes share the same CSV and manual-entry controls.
@@ -82,6 +91,8 @@ The roster mapping endpoint checks the signed-in Supabase profile and calls Jev 
 Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
 
 ## Log
+
+- 2026-11-15, Ken: linked the verified Cat Photo App lab and reflection to the Maryvale assignment.
 
 - 2026-11-15, Ken: matched builder previews to the published student lesson layout.
 
