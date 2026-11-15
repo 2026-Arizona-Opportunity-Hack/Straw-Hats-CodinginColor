@@ -1,10 +1,12 @@
 // Owner: Shivraj. "My classroom" page: the classes you're in as course cards (like My courses),
 // with the join-a-class box centered underneath.
-import { CourseCard, JoinClass } from './StudentHome.tsx'
+import { useAuth } from '../shared/auth/AuthContext.tsx'
+import { ClassAssignments, CourseCard, JoinClass } from './StudentHome.tsx'
 import { useMyCourseProgress } from './useMyCourseProgress.ts'
 import './student.css'
 
 export function StudentClassroom() {
+  const { profile } = useAuth()
   const { courses, modulesOf, isLoading, isError } = useMyCourseProgress()
   const classes = courses.filter((c) => c.source === 'class')
 
@@ -29,6 +31,8 @@ export function StudentClassroom() {
           </div>
         )}
       </section>
+
+      <ClassAssignments studentId={profile?.id} />
 
       <div className="mx-auto mt-10 w-full max-w-md">
         <JoinClass />

@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import { Copy, Plus, Search, Trash2, Upload } from 'lucide-react';
 import type { ClassGroup, Course } from '../model';
-import { attemptFor, percent } from '../progress';
+import { percent } from '../progress';
+import { gradeSubmission } from './grading';
 import { Dialog, Empty } from '../ui';
 import { AssignmentEditor } from './AssignmentEditor';
 import { formatDue, kindIcon } from './display';
@@ -59,6 +60,7 @@ function AssignmentList({ group, course, otherClasses, assignments, base, onCrea
     .filter(a => a.title.toLowerCase().includes(search.trim().toLowerCase()))
     .sort((a, b) => (a.dueAt ?? '9999').localeCompare(b.dueAt ?? '9999'));
   const published = assignments.filter(a => a.published).length;
+  const roster = new Set(group.learners.map(learner => learner.id));
 
   function togglePublish(item: Assignment) {
     const problem = item.published ? null : publishProblem(item);
@@ -101,15 +103,17 @@ function AssignmentList({ group, course, otherClasses, assignments, base, onCrea
           <thead><tr>{['Assignment', 'Content', 'Module', 'Due', 'Points', 'Submitted', 'Avg', 'Status', ''].map((text, i) => <th scope="col" key={i}>{text || <span className="ic-sr-only">Actions</span>}</th>)}</tr></thead>
           <tbody>{rows.map(item => {
             const Icon = kindIcon[item.kind];
-            const attempts = group.learners.map(learner => attemptFor(learner, item.id)).filter(attempt => attempt?.submitted);
-            const scores = attempts.map(attempt => attempt!.score).filter((score): score is number => score !== null);
+            const submissions = (group.submissions ?? []).filter(s => s.assignmentId === item.id && roster.has(s.studentId));
+            const scores = submissions.map(s => gradeSubmission(item, s))
+              .filter(grade => grade.status === 'graded' && grade.possible > 0)
+              .map(grade => (grade.earned ?? 0) / grade.possible * 100);
             return <tr key={item.id}>
               <td><a className="ic-strong-link" href={`${base}/${item.id}`}>{item.title}</a></td>
               <td><span className="ic-kind"><Icon size={15} aria-hidden="true" />{contentSummary(item)}</span></td>
               <td>{modules.find(m => m.id === item.moduleId)?.title ?? '—'}</td>
               <td className="ic-nowrap">{formatDue(item.dueAt)}</td>
               <td>{totalPoints(item)}</td>
-              <td><div className="ic-progress-entry"><progress aria-label={item.title + ' submissions'} value={attempts.length} max={group.learners.length || 1} />{attempts.length}/{group.learners.length}</div></td>
+              <td><div className="ic-progress-entry"><progress aria-label={item.title + ' submissions'} value={submissions.length} max={group.learners.length || 1} />{submissions.length}/{group.learners.length}</div></td>
               <td>{percent(scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null)}</td>
               <td><button type="button" className={'ic-status ic-status-button ' + (item.published ? 'is-published' : '')} onClick={() => togglePublish(item)}
                 aria-label={`${item.published ? 'Published' : 'Draft'}: ${item.published ? 'unpublish' : 'publish'} ${item.title}`}>{item.published ? 'Published' : 'Draft'}</button></td>
@@ -121,7 +125,7 @@ function AssignmentList({ group, course, otherClasses, assignments, base, onCrea
           })}</tbody>
         </table>
       </div> : <Empty>{assignments.length ? 'No assignments match these filters.' : 'No assignments yet. Create one or import a quiz.'}</Empty>}
-      <p className="ic-note ic-section-gap">Students only see published assignments. Click the status to publish or unpublish.</p>
+      <p className="ic-note ic-section-gap">Published quizzes appear under Class assignments for enrolled students. Click the status to publish or unpublish.</p>
     </section>
     {dialog === 'new' && <Dialog wide title="New assignment" onClose={() => setDialog(null)}>
       <p className="ic-note">Pick a type. You can change everything else on the next screen.</p>

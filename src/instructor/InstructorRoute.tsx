@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { supabase } from '../shared/supabase.ts'
 import { InstructorWorkspace } from './InstructorWorkspace.tsx'
-import { importLibraryCourse, loadLiveData, publishLiveCourse, saveLiveClass, saveLiveData } from './liveStore.ts'
+import { importLibraryCourse, loadLiveClassSubmissions, loadLiveData, publishLiveCourse, saveLiveClass, saveLiveData } from './liveStore.ts'
 import type { InstructorData, StaffRole } from './model.ts'
 import type { InstructorStore } from './store.ts'
 
@@ -44,6 +44,7 @@ function LiveWorkspace({ role, hash, userId, name }: { role: StaffRole; hash: st
     }
     return {
       load: () => structuredClone(data),
+      loadClassSubmissions: classId => queue.run(() => loadLiveClassSubmissions(client, classId)),
       save: (next: InstructorData, previous: InstructorData) => {
         return queue.run(() => saveLiveData(client, userId, previous, next, { editLibrary: role === 'admin' })).then(refreshProgress).catch(problem => {
           setSyncError(`${problem instanceof Error ? problem.message : 'Saving failed.'} The page was reloaded from the database, so recent changes may be missing.`)

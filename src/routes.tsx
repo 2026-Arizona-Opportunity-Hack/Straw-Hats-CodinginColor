@@ -1,7 +1,7 @@
 // Owner: Aryan. Add routes here; page components live in each owner's folder.
 import { createBrowserRouter } from 'react-router-dom'
 import {
-  AdminAnalytics, AdminClasses, AdminHome, AdminSettings, AdminUsers, InstructorRoute, ModulePlayer, PublishedDemo, RolePage, StarterQuiz, StudentClassroom, StudentCourse, StudentCourses, StudentExplore, StudentHome,
+  AdminAnalytics, AdminClasses, AdminHome, AdminSettings, AdminUsers, InstructorRoute, ModulePlayer, PublishedDemo, RolePage, StarterQuiz, StudentClassroom, StudentCourse, StudentCourses, StudentExplore, StudentHome, StudentQuiz,
 } from './lazyPages.tsx'
 import { AuthPage } from './AuthPage.tsx'
 import { HomePage } from './home/HomePage.tsx'
@@ -24,6 +24,7 @@ export const router = createBrowserRouter([
       { path: 'student/start', element: <RolePage roles={['student']} page={StarterQuiz} /> },
       { path: 'student/courses', element: <RolePage roles={['student']} page={StudentCourses} /> },
       { path: 'student/classroom', element: <RolePage roles={['student']} page={StudentClassroom} /> },
+      { path: 'student/quiz/:quizId', element: <RolePage roles={['student']} page={StudentQuiz} /> },
       { path: 'student/demo/:moduleId', element: <RolePage roles={['student']} page={PublishedDemo} /> },
       {
         path: 'student/module/:moduleId',

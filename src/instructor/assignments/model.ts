@@ -287,7 +287,10 @@ export function normalizeAssignment(raw: Partial<Assignment> & Record<string, un
     prompts.forEach(prompt => blocks.push({ id: id(), type: 'written', prompt, points: Math.round(points / Math.max(prompts.length, 1)) }));
   }
   if (kind === 'code') blocks.push({ id: id(), type: 'code', prompt: String(raw.instructions ?? ''), starter: String(legacy.code?.starter ?? ''), tests: String(legacy.code?.tests ?? ''), points });
-  for (const question of questions) blocks.push({ id: id(), type: 'question', question });
+  // Match the legacy quiz IDs used by the student submission RPC.
+  questions.forEach((question, index) => blocks.push({
+    id: kind === 'quiz' ? 'legacy-question-' + (index + 1) : id(), type: 'question', question,
+  }));
   for (const key of ['quiz', 'link', 'html', 'written', 'code', 'points']) delete base[key];
   return { ...base, blocks, shuffle: Boolean(quiz.shuffle), showAnswers: (quiz.showAnswers as ShowAnswers) ?? 'after_submit' };
 }
@@ -361,13 +364,15 @@ export type QuizResponse = Record<string, number[] | string>;
 /** Scores one question: 1 for correct, 0 otherwise. Select-all needs the exact set. */
 export function questionCorrect(q: QuizQuestion, response: number[] | string | undefined): boolean {
   if (response === undefined) return false;
-  if (q.kind === 'short') return typeof response === 'string' && q.accepted.some(a => a.trim().toLowerCase() === response.trim().toLowerCase());
+  if (q.kind === 'short') return typeof response === 'string' && !!response.trim()
+    && q.accepted.some(a => a.trim().toLowerCase() === response.trim().toLowerCase());
   if (q.kind === 'numeric') {
-    const value = typeof response === 'string' ? Number(response) : NaN;
+    const value = typeof response === 'string' && response.trim() ? Number(response) : NaN;
     return q.answer !== null && Number.isFinite(value) && Math.abs(value - q.answer) <= q.tolerance;
   }
   if (!Array.isArray(response)) return false;
-  return response.length === q.correct.length && response.every(i => q.correct.includes(i));
+  return response.length === q.correct.length && new Set(response).size === response.length
+    && response.every(i => q.correct.includes(i));
 }
 
 export function gradeQuiz(questions: QuizQuestion[], responses: QuizResponse) {
