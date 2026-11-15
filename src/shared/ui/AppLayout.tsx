@@ -5,6 +5,7 @@ import {
   BarChart3,
   BookOpen,
   GraduationCap,
+  KeyRound,
   LayoutDashboard,
   Eye,
   LogOut,
@@ -150,10 +151,17 @@ export function AppLayout() {
           <p className="text-xs text-sidebar-muted">{ROLE_LABEL[profile.role]}{previewRole && ' (preview)'}</p>
         </div>
       </div>
+      <Link
+        to="/account"
+        onClick={() => setOpen(false)}
+        className="dot-hover mt-3 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-sidebar-muted [--dot:rgb(255_255_255/0.22)] hover:text-white"
+      >
+        <KeyRound aria-hidden="true" className="size-4" /> Change password
+      </Link>
       <button
         type="button"
         onClick={() => void signOut()}
-        className="dot-hover mt-3 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-sidebar-muted [--dot:rgb(255_255_255/0.22)] hover:text-white"
+        className="dot-hover flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-sidebar-muted [--dot:rgb(255_255_255/0.22)] hover:text-white"
       >
         <LogOut aria-hidden="true" className="size-4" /> Sign out
       </button>

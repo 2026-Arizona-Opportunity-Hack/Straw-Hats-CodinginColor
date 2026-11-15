@@ -4,6 +4,7 @@ import {
   AdminAnalytics, AdminClasses, AdminHome, AdminSettings, AdminUsers, InstructorRoute, ModulePlayer, RolePage, StudentHome,
 } from './lazyPages.tsx'
 import { LoginPage } from './LoginPage.tsx'
+import { AccountPage } from './shared/auth/AccountPage.tsx'
 import { AppLayout } from './shared/ui/AppLayout.tsx'
 
 export const router = createBrowserRouter([
@@ -47,6 +48,10 @@ export const router = createBrowserRouter([
       {
         path: 'reviewer',
         element: <RolePage roles={['reviewer', 'admin']} page={InstructorRoute} />,
+      },
+      {
+        path: 'account',
+        element: <RolePage roles={['student', 'instructor', 'admin', 'reviewer']} page={AccountPage} />,
       },
       { path: '*', element: <p>Page not found.</p> },
     ],
