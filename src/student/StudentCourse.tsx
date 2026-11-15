@@ -55,7 +55,9 @@ export function StudentCourse() {
   return (
     <div className="grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]" style={{ '--hue': lang.hue, '--tint': lang.tint } as CSSProperties}>
       <nav aria-label={`${lang.key} courses`} className="lg:sticky lg:top-6 lg:self-start">
-        <Link to={`/student/explore?lang=${encodeURIComponent(lang.key)}`} className="mb-3 flex items-center gap-2 font-semibold text-cic-muted hover:text-black">‹ {lang.key}</Link>
+        {/* Back goes where the student came from: their courses once they've added it, else Explore. */}
+        <Link to={enrolled ? '/student/courses' : `/student/explore?lang=${encodeURIComponent(lang.key)}`} className="mb-3 flex items-center gap-2 font-semibold text-cic-muted hover:text-black">‹ {enrolled ? 'My courses' : 'Browse subjects'}</Link>
+        <p className="mb-2 px-3 text-xs font-bold uppercase tracking-widest text-cic-muted">{lang.key}</p>
         <ul className="flex gap-1 overflow-x-auto lg:flex-col">
           {siblings.map((c) => (
             <li key={c.id}>

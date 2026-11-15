@@ -156,6 +156,7 @@ export function AppLayout() {
         </span>
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-white">{profile.display_name}</p>
+          {profile.username && <p className="truncate font-mono text-xs text-white/90">@{profile.username}</p>}
           <p className="text-xs text-sidebar-muted">{ROLE_LABEL[profile.role]}{previewRole && ' (preview)'}</p>
         </div>
       </div>

@@ -15,6 +15,8 @@ export interface Profile {
   role: Role
   display_name: string
   school: string | null
+  /** Students only (1013): their sign-in name, e.g. jsmith1. */
+  username?: string | null
 }
 
 export interface Course {

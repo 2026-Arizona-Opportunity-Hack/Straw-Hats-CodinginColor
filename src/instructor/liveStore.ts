@@ -381,7 +381,26 @@ export async function publishLiveCourse(supabase: SupabaseClient, course: Course
     p_removed_activities: before.activities.filter(row => !next.activities.some(item => item.id === row.id)).map(row => row.id),
   });
   fail('publish the module', error);
+  void requestModuleAssessment(supabase, moduleId);
   return Number(data);
+}
+
+/** After publishing, (re)build the module's warm-up and final check from its curriculum
+ * (api/curriculum/assessment.ts, migration 1014). Runs in the background: publishing never
+ * waits for it, and the database falls back to the module's own checks if the AI fails. */
+export async function requestModuleAssessment(supabase: SupabaseClient, moduleId: string) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    const response = await fetch('/api/curriculum/assessment', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ moduleId }),
+    });
+    return response.ok ? await response.json() as { source: 'ai' | 'checks' | null; pretest?: number; posttest?: number } : null;
+  } catch {
+    return null;
+  }
 }
 
 async function syncCourse(supabase: SupabaseClient, userId: string, course: Course, prev: Course | undefined) {
