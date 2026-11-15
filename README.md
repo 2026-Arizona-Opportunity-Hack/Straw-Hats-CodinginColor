@@ -79,6 +79,16 @@ npx supabase db push --include-seed   # runs supabase/migrations/ in order, then
 
 With Supabase configured, the instructor workspace reads and writes live data (classes, rosters, assigned modules, assignments, course content); Row Level Security limits each instructor to their own classes.
 
+### Student login cards
+
+Apply migration `3007_roster_student_login.sql` and deploy the `roster-login` Supabase Edge Function before using imported learners' login cards.
+Students enter their class code and individual six-digit passcode; their existing roster row is linked to an Auth identity and enrollment on first login.
+New identities use an opaque internal address, with no personal email or email delivery.
+Existing linked students keep their accounts and progress. Username account creation and sign-in remain available, with email access for older accounts.
+The function uses Supabase's built-in server credentials; never add its service key to frontend environment variables.
+Login attempts are limited in the database to 10 per card and 120 per class per 15 minutes, including failures; a throttled class must wait for its window to expire.
+Verify with `supabase/tests/roster_login.sql` against a local migrated database and `npm test -- tests/roster-login.test.ts`.
+
 For the live student curriculum, apply migration `1004_student_curriculum_access.sql` before setting `VITE_LIVE_STUDENT_CURRICULUM=true` and rebuilding. Students can then open published, unlocked modules in their enrolled courses and save attempts to Supabase. Live HTML is scriptless. The full Coding Lab runner is available in the local demo.
 
 Apply migration `2005_publish_curriculum.sql` before deploying the private-draft builder. **Save draft** keeps edits in the signed-in author's current browser. **Publish module** applies the selected module and course details to the shared course. Other unfinished modules stay in the draft.

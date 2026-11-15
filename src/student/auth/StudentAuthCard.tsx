@@ -2,13 +2,14 @@
 // Students have no email: sign-up asks for first and last name, then shows the generated
 // username (jsmith1) to keep for next time. Google sign-in is for educators (LoginPage).
 import { useState, type FormEvent } from 'react'
-import { signInStudent, signUpStudent } from '../../api/student/auth.ts'
+import { signInStudent, signInWithRoster, signUpStudent } from '../../api/student/auth.ts'
 import { Button, Card, Field, FormStatus, Input } from '../../shared/ui/index.tsx'
 
-type Mode = 'sign-in' | 'sign-up'
+type Mode = 'card' | 'sign-in' | 'sign-up'
 
 export function StudentAuthCard() {
-  const [mode, setMode] = useState<Mode>('sign-in')
+  const [mode, setMode] = useState<Mode>('card')
+  const [passcode, setPasscode] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [firstName, setFirstName] = useState('')
@@ -43,6 +44,7 @@ export function StudentAuthCard() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     void run(async () => {
+      if (mode === 'card') return signInWithRoster(classCode, passcode)
       if (!isSignUp) return signInStudent(username, password)
       const result = await signUpStudent({ firstName, lastName, password, classCode })
       setCreated({ username: result.username, className: result.joinedClass?.class_name ?? null })
@@ -82,6 +84,25 @@ export function StudentAuthCard() {
   return (
     <Card title={isSignUp ? 'Create your student account' : 'Student sign in'}>
       <div className="space-y-4">
+        {mode === 'card' ? <>
+          <p className="text-sm text-cic-muted">Use the login card from your teacher.</p>
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <Field id="roster-class-code" label="Class code">
+              <Input id="roster-class-code" required maxLength={100} autoCapitalize="characters" autoComplete="username"
+                value={classCode} onChange={e => setClassCode(e.target.value.toUpperCase())} />
+            </Field>
+            <Field id="roster-passcode" label="Your six-digit passcode">
+              <Input id="roster-passcode" type="password" inputMode="numeric" pattern="[0-9]{6}" required minLength={6} maxLength={6}
+                autoComplete="current-password" value={passcode} onChange={e => setPasscode(e.target.value)} />
+            </Field>
+            <FormStatus error={error} />
+            <Button type="submit" className="w-full" disabled={busy}>{busy ? 'Please wait…' : 'Sign in'}</Button>
+          </form>
+          <button type="button" className="text-sm font-semibold text-brand underline" disabled={busy}
+            onClick={() => switchMode('sign-in')}>Use a username account instead</button>
+        </> : <>
+        <button type="button" className="text-sm font-semibold text-brand underline" disabled={busy}
+          onClick={() => switchMode('card')}>Use a login card</button>
         <form onSubmit={handleSubmit} className="space-y-3">
           {isSignUp ? (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -95,7 +116,7 @@ export function StudentAuthCard() {
               </Field>
             </div>
           ) : (
-            <Field id="student-username" label="Username" hint="Like jsmith1: first initial, last name, number.">
+            <Field id="student-username" label="Username" hint="Like jsmith1. Existing email accounts can still use their email.">
               <Input id="student-username" required autoComplete="username" autoCapitalize="none" spellCheck={false}
                 aria-describedby="student-username-hint" value={username} onChange={(e) => setUsername(e.target.value)} />
             </Field>
@@ -150,6 +171,7 @@ export function StudentAuthCard() {
             {isSignUp ? 'Sign in' : 'Create an account'}
           </button>
         </p>
+        </>}
       </div>
     </Card>
   )
