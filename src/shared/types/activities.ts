@@ -5,6 +5,7 @@
 export type ActivityType =
   | 'content'
   | 'video'
+  | 'slides'
   | 'check'
   | 'worksheet'
   | 'code'
@@ -114,6 +115,7 @@ export interface AssessmentPayload {
 export interface ActivityPayloads {
   content: ContentPayload
   video: VideoPayload
+  slides: VideoPayload
   check: CheckPayload
   worksheet: WorksheetPayload
   code: CodePayload

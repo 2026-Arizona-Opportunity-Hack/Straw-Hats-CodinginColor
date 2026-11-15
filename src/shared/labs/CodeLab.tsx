@@ -20,8 +20,8 @@ function loadWork(key: string | undefined, starter: LabFiles): LabWork {
   return { files: starter }
 }
 
-export function CodeLab({ payload, storageKey, enabled = true }: {
-  payload: CodePayload; storageKey?: string; enabled?: boolean
+export function CodeLab({ payload, storageKey, enabled = true, allowSubmit = !!storageKey }: {
+  payload: CodePayload; storageKey?: string; enabled?: boolean; allowSubmit?: boolean
 }) {
   const lab: CodingLabSettings = payload.lab ?? { language: 'python', checks: [] }
   const web = lab.language === 'web'
@@ -41,7 +41,10 @@ export function CodeLab({ payload, storageKey, enabled = true }: {
 
   function save(next: LabWork, isSubmission = false) {
     if (!isSubmission) setWork(next)
-    if (!storageKey) return true
+    if (!storageKey) {
+      if (isSubmission) setWork(next)
+      return true
+    }
     try {
       localStorage.setItem(storageKey, JSON.stringify(next))
       if (isSubmission) setWork(next)
@@ -123,7 +126,7 @@ export function CodeLab({ payload, storageKey, enabled = true }: {
     <div className="cic-lab-actions">
       <button type="button" disabled={!enabled || !!busy} onClick={() => void execute('run')}>Run</button>
       <button type="button" disabled={!enabled || !!busy} onClick={() => void execute('check')}>Check</button>
-      {storageKey && <button type="button" className="cic-lab-primary" disabled={!enabled || !!busy} onClick={() => void execute('submit')}>Submit</button>}
+      {allowSubmit && <button type="button" className="cic-lab-primary" disabled={!enabled || !!busy} onClick={() => void execute('submit')}>Submit</button>}
       {busy && <button type="button" onClick={() => controller.current?.abort()}>Stop</button>}
       <button type="button" disabled={!!busy} onClick={() => reset.current?.showModal()}>Reset to starter</button>
     </div>

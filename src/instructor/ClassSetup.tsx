@@ -1,81 +1,10 @@
 import { useRef, useState } from 'react';
-import { ArrowRight, Check, FileSpreadsheet, Upload } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 import type { ClassGroup, Course } from './model';
 import { id, makeLearners, publishedCourses } from './model';
-import { readRoster, rosterTemplate, sampleRoster, type RosterRow } from './roster';
+import type { RosterRow } from './roster';
+import { RosterUpload } from './RosterUpload';
 import { PageHeader, Panel } from './ui';
-
-export function RosterUpload({ rows, setRows }: { rows: RosterRow[]; setRows: (rows: RosterRow[]) => void }) {
-  const fileInput = useRef<HTMLInputElement>(null);
-  const uploadVersion = useRef(0);
-  const [filename, setFilename] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const validCount = rows.filter(row => !row.issue).length;
-
-  function load(text: string, name: string) {
-    setFilename(name);
-    try {
-      setRows(readRoster(text));
-      setError('');
-    } catch (error) {
-      setRows([]);
-      setError(error instanceof Error ? error.message : 'Could not read that roster.');
-    }
-  }
-
-  return <>
-    <p className="ic-note">Use a <code>name</code> column, or <code>first_name</code> and <code>last_name</code>. Other columns are ignored. Use fictional names in this preview.</p>
-    <div className="ic-upload">
-      <FileSpreadsheet size={25} aria-hidden="true" />
-      <div><strong>{filename || (rows.length ? 'Previously selected roster' : 'Choose a roster CSV')}</strong><br />
-        <a download="cic-roster-template.csv" href={'data:text/csv;charset=utf-8,' + encodeURIComponent(rosterTemplate)}>Download CSV template</a>
-      </div>
-      <div className="ic-row">
-        <input type="file" ref={fileInput} aria-label="Roster CSV file" accept=".csv,text/csv" hidden onChange={async event => {
-          const file = event.currentTarget.files?.[0];
-          event.currentTarget.value = '';
-          if (!file) return;
-          const version = ++uploadVersion.current;
-          setBusy(true);
-          setRows([]);
-          setError('');
-          try {
-            if (file.size > 1_000_000) throw new Error('Choose a CSV under 1 MB.');
-            const text = await file.text();
-            if (version === uploadVersion.current) load(text, file.name);
-          } catch (error) {
-            if (version !== uploadVersion.current) return;
-            setFilename(file.name);
-            setRows([]);
-            setError(error instanceof Error ? error.message : 'Could not read that file.');
-          } finally {
-            if (version === uploadVersion.current) setBusy(false);
-          }
-        }} />
-        <button className="ic-button" type="button" onClick={() => fileInput.current?.click()}><Upload size={15} /> {busy ? 'Reading…' : 'Choose CSV'}</button>
-        <button className="ic-link-button" type="button" onClick={() => {
-          uploadVersion.current++;
-          setBusy(false);
-          load(sampleRoster, 'sample-roster.csv');
-        }}>Use sample roster</button>
-      </div>
-    </div>
-    {error && <p className="ic-error" role="alert">{error}</p>}
-    {!!rows.length && <>
-      <div className="ic-import-summary" role="status"><strong>Import preview</strong><span>{validCount} ready{validCount !== rows.length && ` · ${rows.length - validCount} to fix`}</span></div>
-      <div className="ic-table-wrap" tabIndex={0} role="region" aria-label="CSV preview">
-        <table><thead><tr><th scope="col">Row</th><th scope="col">Student name</th><th scope="col">Status</th></tr></thead>
-          <tbody>{rows.slice(0, 15).map(row => <tr key={row.row} className={row.issue ? 'ic-warning-row' : ''}>
-            <td>{row.row}</td><td>{row.name || '—'}</td><td>{row.issue || 'Ready'}</td>
-          </tr>)}</tbody>
-        </table>
-      </div>
-      {rows.length > 15 && <p className="ic-note">Showing 15 of {rows.length} rows.</p>}
-      {validCount !== rows.length && <p className="ic-note">Rows with errors will be skipped. To include them, fix the CSV and upload it again.</p>}
-    </>}
-  </>;
-}
 
 export function ClassSetup({ courses, classes, onCreate }: {
   courses: Course[]; classes: ClassGroup[]; onCreate: (group: ClassGroup) => void;
@@ -107,7 +36,7 @@ export function ClassSetup({ courses, classes, onCreate }: {
       return;
     }
     if (step === 1 && !valid.length) {
-      setError('Choose a CSV with at least one valid row.');
+      setError('Confirm at least one student before continuing.');
       return;
     }
     if (step < 2) return move(step + 1);
@@ -149,7 +78,7 @@ export function ClassSetup({ courses, classes, onCreate }: {
         {error && <p className="ic-error" role="alert">{error}</p>}
         <div className="ic-form-footer">
           {step > 0 && <button type="button" className="ic-button" onClick={() => move(step - 1)}>Back</button>}
-          <button className="ic-button ic-primary" type="submit">{['Continue to roster', 'Choose curriculum', 'Create class'][step]} <ArrowRight size={16} /></button>
+          <button className="ic-button ic-primary" type="submit" disabled={step === 1 && !valid.length}>{['Continue to roster', 'Choose curriculum', 'Create class'][step]} <ArrowRight size={16} /></button>
         </div>
       </form></Panel>
       <Panel title="Class summary"><dl className="ic-summary">

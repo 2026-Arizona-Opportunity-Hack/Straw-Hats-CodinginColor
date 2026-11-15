@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowRight, BookOpen, Clipboard, GraduationCap, Plus, Printer, Search, Users } from 'lucide-react';
-import { RosterUpload } from './ClassSetup';
+import { RosterUpload } from './RosterUpload';
 import { makeLearners, type ClassGroup, type Course, type Learner } from './model';
 import { attemptFor, classProgress, percent, points } from './progress';
 import {

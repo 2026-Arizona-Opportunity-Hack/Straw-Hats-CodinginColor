@@ -1,8 +1,19 @@
 import { BuilderDemo, demoData } from './demoData';
 import { normalizeAssignment, type Assignment } from './assignments/model';
-import type { ClassGroup, InstructorData } from './model';
+import type { ClassGroup, Course, InstructorData } from './model';
 
 const storeKey = 'cic-learn.instructor-preview.v1';
+const liveDraftKey = (author: string) => 'cic-learn.course-drafts.v1:' + author;
+
+export function loadCourseDrafts(author: string): Record<string, Course> {
+  try { return JSON.parse(localStorage.getItem(liveDraftKey(author)) || '{}') ?? {}; }
+  catch { return {}; }
+}
+
+export function saveCourseDraft(author: string, course: Course) {
+  const drafts = loadCourseDrafts(author);
+  localStorage.setItem(liveDraftKey(author), JSON.stringify({ ...drafts, [course.id]: course }));
+}
 
 export interface InstructorStore {
   load(): InstructorData;
@@ -11,6 +22,7 @@ export interface InstructorStore {
    * promise and report failures through it. `previous` lets a store write only what changed.
    */
   save(data: InstructorData, previous: InstructorData): void | Promise<void>;
+  publishCourse?(course: Course, previous: Course | undefined, moduleId: string, expectedRevision: number | undefined): Promise<number>;
 }
 
 export const browserInstructorStore: InstructorStore = {
