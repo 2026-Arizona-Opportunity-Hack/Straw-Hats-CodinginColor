@@ -58,6 +58,9 @@ The #27 student "Browse courses" UI was dropped in favor of the Explore page alr
 - Instructors' old standalone courses are hidden from the list, not deleted.
 - Code: `src/instructor/Curriculum.tsx` (`CurriculumList`, `LibraryList`, `CourseBuilder` with `inClass`, `CourseReviewer` with a collapsible lesson list), `ClassSetup.tsx`, `ClassTabs.tsx` (`CurriculumTab`), `InstructorWorkspace.tsx` (`importCourse`, `makeClassEditable`, `builderFor`).
 
+Migration 3010 limits external reviewers to published original library courses and their published modules.
+Their workspace fetches only curriculum, without assessment answer keys or learner data.
+
 ### Class Dashboard
 
 - `src/instructor/dashboard.ts` (pure, tested in `dashboard.test.ts`) and `DashboardTab` in `ClassTabs.tsx`.
@@ -202,3 +205,4 @@ Put each sentence on its own line.
 - 2026-11-14 5:05 PM, Ruthvik: created this file.
   Live Supabase data for the instructor workspace, migration 2001 and demo seed applied to the hosted project, block-based assignments, CIC logo.
   PR #9 merged into the wrong base; `main` still needs `ruthvik/class-tabs`.
+- 2026-11-15, Codex: added reviewer curriculum read boundaries and verified them with `supabase/tests/reviewer_curriculum_access.sql` in an isolated Postgres instance.

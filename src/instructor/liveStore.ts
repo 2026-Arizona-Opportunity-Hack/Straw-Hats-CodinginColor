@@ -287,6 +287,23 @@ function rulesFor(classId: string, rows: Row[], settings: ProgramSettings): Clas
 }
 
 export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, displayName: string): Promise<InstructorData> {
+  if (role === 'reviewer') {
+    const reviewColumns = 'id, title, description, level, is_library, copied_from, published, publication_revision, created_at, modules (id, position, title, published, lessons (id, position, title, activities (id, position, type, concept, points, content)))';
+    const { data, error } = await supabase.from('courses')
+      .select(reviewColumns)
+      .eq('is_library', true)
+      .is('copied_from', null)
+      .eq('published', true)
+      .eq('modules.published', true)
+      .order('created_at');
+    fail('load published library courses', error);
+    return {
+      courses: (data as Row[]).map(toCourse),
+      classes: [],
+      staff: [{ id: role, name: displayName, role, classIds: [] }],
+    };
+  }
+
   const [courses, classes, attempts, moduleSettings, programSettings] = await Promise.all([
     // Includes published library courses (RLS "read published courses") so instructors can import them.
     supabase.from('courses').select(courseColumns).order('created_at'),
