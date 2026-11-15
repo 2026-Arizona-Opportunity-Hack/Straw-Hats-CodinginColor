@@ -465,7 +465,8 @@
               "htmlFile": "widgets/build-the-machine.html",
               "instructions": "Trace what happens when you type your name and save it, and pick the computer part for each step. Work on your own, or follow along while your teacher shows this page to the class. Click \"Mark as done\" when you finish.",
               "concept": "computer parts",
-              "points": 1
+              "points": 1,
+              "title": "Build the Machine"
             },
             {
               "key": "build-the-machine-worksheet",
@@ -558,7 +559,8 @@
               "htmlFile": "widgets/binary-name.html",
               "instructions": "Flip the switches to see how letters turn into 0s and 1s, then build your first initial in binary. Try it on your own, or follow along while your teacher shows this page to the class. Nothing here is saved. Click \"Mark as done\" when you finish.",
               "concept": "binary",
-              "points": 1
+              "points": 1,
+              "title": "Binary Letters"
             },
             {
               "key": "check-binary",
@@ -717,7 +719,8 @@
               "htmlFile": "widgets/then-vs-now.html",
               "instructions": "Predict first, then flip each card to compare the Difference Engine with a phone or laptop. Work with a partner, on your own, or as a class while your teacher shows this page. Click \"Mark as done\" when you finish.",
               "concept": "early vs modern computers",
-              "points": 1
+              "points": 1,
+              "title": "Then vs. Now"
             },
             {
               "key": "then-vs-now-worksheet",
@@ -941,7 +944,8 @@
               "htmlFile": "widgets/ai-or-not.html",
               "instructions": "Sort each example into AI, Not AI, or Depends. Think of a reason before you pick. Work on your own, or vote as a class while your teacher shows this page. Click \"Mark as done\" when you finish.",
               "concept": "AI or not",
-              "points": 1
+              "points": 1,
+              "title": "AI or Not AI?"
             },
             {
               "key": "ai-or-not-worksheet",
@@ -1410,7 +1414,8 @@
               "htmlFile": "widgets/ai-app-investigation.html",
               "instructions": "Use this checklist to plan your investigation and pick your three prompts. Work on your own, or follow along while your teacher walks the class through it. Nothing you type here is saved, so copy your answers into the worksheet. Click \"Mark as done\" when you finish.",
               "concept": "AI app investigation",
-              "points": 1
+              "points": 1,
+              "title": "AI App Investigation checklist"
             },
             {
               "key": "worksheet",
