@@ -133,6 +133,19 @@ Percentages/gains are null when their denominator is zero. This is an authorized
 Only GET is accepted, with no query parameters. Errors are `400` for query parameters, `401` for missing/invalid/revoked keys, `405` for other methods, and `503` for unavailable configuration/database.
 Tests: `npm test -- tests/progress-api.test.ts` and `psql "$LOCAL_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/aggregate_read_api.sql` against a migrated disposable local database.
 
+### Student data minimization
+
+Students can use a teacher-issued login card or create a username account without a personal email.
+People & roles can create student usernames, or instructor, admin and reviewer accounts with staff email.
+Legacy email accounts retain their access and saved work; Google sign-in remains available to educators on the staff side.
+
+Apply migrations `3006_student_data_minimization.sql`, `3007_roster_student_login.sql` and `3012_username_privacy_compatibility.sql`, and deploy the roster-login function before using cards.
+The database rejects direct personal-email student signup and student email changes, even if someone bypasses the app.
+Only the internal username helper can stamp a matching synthetic username identity; clients cannot authorize themselves with user metadata.
+Keep general Auth signup enabled for new educator Google accounts and email authentication enabled for password sign-in.
+The database guard restricts direct email creation; do not globally disable signup, which would block new educators.
+Regression checks: run `supabase/tests/student_data_minimization.sql`, `supabase/tests/username_privacy_compatibility.sql` and `supabase/tests/roster_login.sql` on a disposable migrated database.
+
 ### Instructor workspace
 
 Instructors and reviewers use the workspace in `src/instructor/` inside the main app, under the shared sidebar: `/instructor#/classes`, `/instructor#/curriculum`, `/instructor#/review`, and `/reviewer` for external reviewers.
@@ -144,6 +157,7 @@ With Supabase staff sign-in and a Jev provider configured, **Suggest matches** s
 Assignments (`src/instructor/assignments/`) are built from blocks in any order: text, links and videos, interactive HTML pages, questions (multiple choice, select all, true/false, short answer, number), written responses and code exercises, so a video can be followed by questions about it.
 Instructors can create, edit, duplicate, publish, delete, export to a `.json` file, and import from that file, from another class, or from pasted quiz text in the Aiken format (`A.` choices plus an `ANSWER: B` line).
 The Grades tab is a gradebook with needs-grading, missing, late and not-due states, rubrics, file uploads and CSV export.
+Student activity details show saved worksheet answers, question choices, exit reflections and code. The latest response and counted score identify their attempts when they differ; concept mastery follows the counted assessment, excluding later practice tries.
 With Supabase configured, all of this is live data (`src/instructor/liveStore.ts`).
 
 **Curriculum.** Instructors and admins can browse global courses and the classes they can access. Courses open in view mode.
@@ -188,11 +202,17 @@ CIC staff run the program from `/admin`. In mock mode, sign in as staff with use
 |---|---|
 | Overview | Headline numbers, issues raised by instructors (reply or resolve), and hiring (applications by stage, recent hires) |
 | Schools & classes | Search classes, see completion and learning gain per class, create a class, assign or remove instructors, archive classes (automatic when their term ends) |
-| People & roles | See everyone and filter by role. **Add person** creates an instructor, student or admin with an email and temporary password (migrations `3002`, `3003`); copy or email the sign-in, and they change it from **Change password** in the sidebar. Put existing students in any class (`3004`) and assign instructors to teach one. Change roles (not for reviewers; admins can't remove their own access); archive and restore people |
+| People & roles | See everyone and filter by role. **Add person** creates a student username without email, or an instructor, reviewer or admin with staff email and a temporary password (migrations `1013`, `3006`, `3012`); copy the student sign-in or copy/email staff details, and they change it from **Change password** in the sidebar. Put existing students in any class (`3004`) and assign instructors to teach one. Change roles (not for reviewers; admins can't remove their own access); archive and restore people |
 | Impact & learning | Donor-ready report: overall progress, reach by school, before/after growth per module, instructors and their courses, student progress, CSV export |
 | Settings & API | Create API keys for the read API (shown once, stored as SHA-256 hashes) and revoke them |
 
 Metric definitions live in `src/admin/metrics.ts` and on the Impact page. Learning gain is a student's best post-test % minus their first pretest %, per module.
+
+Live teacher and admin reports require migration `3008_staff_progress_snapshot.sql` before deploying the reporting UI.
+They read the same module state as the student player, including test-out, allowed tries, release/unlock rules and required activities.
+Teacher module completion shows the share of enrolled learners who completed the module; required-activity submission counts are separate.
+Reload a report to refresh its database snapshot. Missing or denied snapshots show an error instead of estimated completion.
+Mock fixtures keep their local reporting behavior. The staff snapshot is private to active authorized staff and is separate from the organization's aggregate read API.
 
 **Database needs.** On a real Supabase project the admin pages need admin policies that `0001` doesn't have yet: read `class_instructors`, `enrollments` and `class_modules`; manage `class_instructors` and `api_keys`; update `classes`. Archiving needs an `archived_at` column on `classes` and `profiles`, and the Overview cards need `instructor_issues` and `job_applications` tables. Until they exist, the pages say what's missing instead of showing zeros.
 
@@ -213,6 +233,8 @@ For a preview, configure the existing Supabase project variables and a dedicated
 In draft review, choose a lesson and select **Add a coding lab** to ask GPT-6.1 Sol for an HTML/CSS practice block. Try the starter and the reference solution with **Check your work**. **Add as draft** keeps the starter and checks in the module for editing. The lab uses the same capped key and shows server stages with elapsed time. Sample mode offers a local example lab.
 
 In draft preview, choose **Generate image** to describe a scene for Seedream 5.0 Flash. CIC Learn uses a browser-based model to suggest boxes and masks for recognized objects. Choose **Adjust an annotation** to move points, change the label, or remove a suggestion. You can also draw your own shapes. Add an image description before approving. Approved images appear after the selected lesson block. A module has five image generation attempts. Apply migration 2008 before enabling image generation on the hosted app.
+
+To create annotations without a pointer, expand **Add points with the keyboard** and enter percentages from the image's left and top. Add two opposite corners for a box, or at least three points followed by **Finish mask**. For example, points at `(10%, 20%)` and `(80%, 75%)` create a box even when the image has no suggested annotations.
 
 On localhost, **Draft from materials** includes **Local QA** buttons for the lesson preview, image review, and the exhausted image limit. **Test image review** opens the sample photo or a PNG or JPEG chosen under **Test image (optional)**. It runs the same browser annotations, including a crop retry when a wide or tall image yields no suggestions. The overlay stays on the full image. The model downloads on first use. The QA buttons make no paid AI requests.
 

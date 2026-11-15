@@ -174,7 +174,8 @@ enable_refresh_token_rotation = true
 # Allows refresh tokens to be reused after expiry, up to the specified interval in seconds.
 # Requires enable_refresh_token_rotation = true.
 refresh_token_reuse_interval = 10
-# Allow/disallow new user signups to your project. Existing users can still sign in.
+# Keep signup enabled for educator Google accounts. Migration 3012 rejects
+# direct email signup; username and roster accounts use trusted provisioning.
 enable_signup = true
 # Allow/disallow anonymous sign-ins to your project.
 enable_anonymous_sign_ins = false

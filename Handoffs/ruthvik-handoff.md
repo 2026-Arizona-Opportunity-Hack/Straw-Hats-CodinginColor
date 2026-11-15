@@ -83,6 +83,14 @@ Both Explore catalog queries keep the durable class-local scope from migration 2
 - Rubrics on written, code and file blocks: click a rating per criterion to sum the score; typed points still override.
 - File uploads go to the private `submission-files` bucket; instructors open them through 10-minute signed URLs.
 
+### Canonical live progress reports
+
+Apply migration 3008 before deploying the completion-report UI.
+Both loaders require `staff_progress_snapshot()` and fail visibly if it is missing or denied.
+Teacher/admin live completion and pre/post scores come from `_course_state`; browser mock fixtures retain local calculations.
+Teacher module completion counts completed enrolled learners, with required-activity submissions shown separately.
+The snapshot refreshes when the workspace/report reloads; assignment editing still keeps its stored module selection.
+
 ### AI Academy curriculum (from CIC's Week 1 deck)
 
 - Source: `curriculum/ai-academy/course.json` plus widget pages in `curriculum/ai-academy/widgets/`.
@@ -206,6 +214,7 @@ Put each sentence on its own line.
 - 2026-11-14 5:35 PM, Ruthvik: deleted stale `ruthvik/instructor-in-app` (PR #9 had merged into it; nothing unique on it). Opened #13 (schema) and #14 (UI) into `main`.
 - 2026-11-14 5:25 PM, Ruthvik: pushed `ruthvik/schema-2001` (migration 2001 + seed fixes only) so teammates can get the schema without the UI work.
 - 2026-11-14 5:15 PM, Ruthvik: renamed to `ruthvik-handoff.md` and `ruthvik-handoff-supabase.md`.
+- 2026-11-15, Codex: connected teacher/admin live reports to canonical student state, with loader failure checks and regression coverage for test-out, exhausted tries, locks and required-work counts; migration 3008 is a deployment prerequisite.
 - 2026-11-14 5:05 PM, Ruthvik: created this file.
   Live Supabase data for the instructor workspace, migration 2001 and demo seed applied to the hosted project, block-based assignments, CIC logo.
   PR #9 merged into the wrong base; `main` still needs `ruthvik/class-tabs`.
