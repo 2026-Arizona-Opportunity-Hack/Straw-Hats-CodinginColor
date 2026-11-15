@@ -551,6 +551,15 @@ body:has(.ic-app) { margin: 0; }
 .ic-gradebook tr > :last-child { position: sticky; right: 0; z-index: 1; background: var(--ic-paper); box-shadow: -1px 0 0 var(--ic-border); }
 .ic-gradebook thead tr > :last-child { background: var(--ic-tint); }
 
+/* Roster column review */
+.ic-roster-column { border: 1px solid var(--ic-border); border-radius: 7px; padding: 12px; min-width: 0; overflow-wrap: anywhere; }
+.ic-roster-column summary, .ic-roster-headers summary { cursor: pointer; }
+.ic-roster-headers ul { display: flex; flex-wrap: wrap; gap: 4px 20px; max-height: 120px; overflow: auto; padding-inline-start: 20px; overflow-wrap: anywhere; }
+.ic-roster-column details > label { margin-top: 8px; }
+.ic-roster-alternative { display: block; text-align: left; width: 100%; margin-top: 8px; padding: 7px 9px; border: 1px solid var(--ic-border); border-radius: 5px; background: var(--ic-paper); color: inherit; font: inherit; cursor: pointer; }
+.ic-roster-alternative:hover { background: var(--ic-canvas); }
+.ic-roster-alternative span { display: block; }
+
 .ic-draft-images { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 10px; margin-top: 8px; }
 .ic-draft-images label { display: grid; align-content: start; gap: 5px; padding: 7px; border: 1px solid var(--ic-border); border-radius: 5px; }
 .ic-draft-images input[type="checkbox"] { width: auto; justify-self: start; }

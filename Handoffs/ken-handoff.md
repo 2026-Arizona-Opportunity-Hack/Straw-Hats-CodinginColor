@@ -1,4 +1,4 @@
-# Ken's handoff: curriculum builder
+# Ken's handoff: curriculum builder and roster entry
 
 ## Drafts and publication
 
@@ -6,7 +6,9 @@ PR #11 adds visual lesson authoring with the shared CIC layout.
 In mock mode, drafts and My blocks belong to the author in the current browser.
 Publishing replaces the selected module's snapshot.
 The curriculum catalog and reviewer read published content.
-The live instructor workspace keeps its existing Supabase save flow.
+The live builder saves drafts in the author's current browser.
+Migration 2005 publishes the selected module and course details atomically.
+The course revision prevents a stale draft from replacing a newer publication.
 
 ## Custom HTML
 
@@ -21,8 +23,22 @@ Use the [CIC Learn lesson style guide](../docs/lesson-style-guide.md) as model i
 Draft from materials calls the Vercel draft endpoint for signed-in instructors and admins.
 Generated articles use the Cat Photo App presentation in preview and the student player.
 Review notes stay in the dialog, and adding a module starts it unpublished.
-PPTX extraction runs in the browser, and only selected image previews go to the vision model.
+PPTX extraction runs in the browser, and only selected image previews go to the selected model.
+GPT-6.1 Terra is the default. Claude Opus 5.5 is available under High quality.
+Both use the same five-minute function runtime and a dedicated capped OpenRouter key.
 See the [README](../README.md#draft-curriculum-from-materials) for preview configuration.
+
+## Student preview
+
+Lesson and module previews reuse the renderer from the corresponding student player.
+Preview answers run only in the open preview.
+Hosted previews use the live response types, safe Markdown and slides support.
+The local preview can also run demo HTML activities and coding labs.
+
+## Read & check
+
+Choose **Read & check** when creating a course, or apply the template to any empty lesson.
+Each use creates independent article and quiz blocks with an editable HTML heading example.
 
 ## Coding labs and student demo
 
@@ -41,7 +57,24 @@ Source changes ship before hosted activation.
 Published snapshots, My blocks, and executable labs remain browser-local.
 Run `supabase/tests/student_curriculum_access.sql` against a migrated development database to check both access and grading.
 
+## Roster entry
+
+Class setup and existing classes share the same CSV and manual-entry controls.
+Both require confirmation before passing validated names to the existing save flow.
+The roster mapping endpoint checks the signed-in Supabase profile and calls Jev through OpenRouter when `OPENROUTER_API_KEY` is set. Otherwise it uses Vercel AI Gateway.
+Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
+
 ## Log
+
+- 2026-11-14, Ken: added optional OpenRouter support to the Jev roster mapping endpoint.
+
+- 2026-11-14, Ken: added CSV column previews and Jev suggestions, manual entry, and Enter-to-advance navigation.
+
+- 2026-11-14, Ken: added the Read & check template for new courses and empty lessons.
+
+- 2026-11-14, Ken: connected the draft preview to the student lesson renderer and added practice-only feedback.
+
+- 2026-11-14, Ken: added private live drafts and atomic module publishing.
 
 - 2026-11-14, Ken: connected the authenticated student curriculum flow to the existing server grading and unlock rules.
 

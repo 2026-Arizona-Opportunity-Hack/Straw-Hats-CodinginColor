@@ -81,6 +81,8 @@ With Supabase configured, the instructor workspace reads and writes live data (c
 
 For the live student curriculum, apply migration `1004_student_curriculum_access.sql` before setting `VITE_LIVE_STUDENT_CURRICULUM=true` and rebuilding. Students can then open published, unlocked modules in their enrolled courses and save attempts to Supabase. Live HTML is scriptless. The full Coding Lab runner is available in the local demo.
 
+Apply migration `2005_publish_curriculum.sql` before deploying the private-draft builder. **Save draft** keeps edits in the signed-in author's current browser. **Publish module** applies the selected module and course details to the shared course. Other unfinished modules stay in the draft.
+
 Before opening a PR: `npm run build && npm run lint`.
 
 ### Instructor workspace
@@ -89,6 +91,8 @@ Instructors and reviewers use the workspace in `src/instructor/` inside the main
 `src/instructor/InstructorRoute.tsx` mounts it and passes the signed-in role.
 Its page styles live in `src/instructor/styles.css` (`ic-*` classes); reuse them when connecting data so the layout stays consistent.
 Inside a class, tabs are Dashboard, Curriculum, Assignments, Grades and Roster (`#/classes/<id>/<tab>`).
+During class setup or in an existing roster, upload a CSV or enter names directly. Review the column previews and confirm the names before importing. During manual entry, Enter advances to the next name field or inserts a new row below.
+With Supabase staff sign-in and a Jev provider configured, **Suggest matches** sends only reviewed CSV header labels to Jev. The file and sample values stay in the browser during mapping. Column selection and manual entry also work without Jev. Set a server-side `OPENROUTER_API_KEY` to use OpenRouter. The Vercel AI Gateway path uses a server-side `AI_GATEWAY_API_KEY` or Vercel's runtime OIDC token.
 Assignments (`src/instructor/assignments/`) are built from blocks in any order: text, links and videos, interactive HTML pages, questions (multiple choice, select all, true/false, short answer, number), written responses and code exercises, so a video can be followed by questions about it.
 Instructors can create, edit, duplicate, publish, delete, export to a `.json` file, and import from that file, from another class, or from pasted quiz text in the Aiken format (`A.` choices plus an `ANSWER: B` line).
 It still uses fictional data saved in the browser; connecting it to `src/api/instructor/` and Supabase is the next step.
@@ -135,7 +139,9 @@ In an instructor's course builder, choose **Draft from materials**, paste a prop
 
 PowerPoint import extracts visible slide text and speaker notes in presentation order in the browser. Select up to six PNG or JPEG previews to ask for teaching suggestions about those images. Unselected images stay in the browser. Charts, slide shapes, and unsupported assets are flagged for instructor review. Export Google Slides to `.pptx` to use this flow.
 
-For a preview, configure the existing Supabase project variables and a dedicated, capped `OPENROUTER_API_KEY` in the Vercel server environment. Set the OpenRouter key's workspace privacy policy to **ZDR only**, excluding Safety Retention endpoints for Google and other providers. Use `vercel dev` to run the API locally alongside the app. Plain Vite in mock mode offers a local preview without calling OpenRouter. The two server model overrides in `.env.example` can be used to compare drafts.
+**Standard** uses GPT-6.1 Terra. **High quality** uses Claude Opus 5.5. Both use high reasoning and get up to 265 seconds for generation within a 300-second Vercel Function. Each generation uses the model chosen by the instructor.
+
+For a preview, configure the existing Supabase project variables and a dedicated, capped `OPENROUTER_CURRICULUM_API_KEY` in the Vercel server environment. Use a workspace with **ZDR only** and Safety Retention excluded. The API checks eligibility before sending lesson materials. Use `vercel dev` to run the API locally alongside the app. Plain Vite in mock mode offers a local preview without calling OpenRouter.
 
 ### Interactive HTML activities
 

@@ -2,7 +2,11 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { POST } from '../api/curriculum/draft.ts'
 import { generateDraft } from '../server/curriculum/generate.ts'
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
+  vi.restoreAllMocks()
+})
 
 const proposal = { kind: 'lesson_plan', text: 'Teach HTML headings', audience: 'Beginners' }
 const example = {
@@ -17,27 +21,114 @@ it('requires a session before attempting paid inference', async () => {
   expect(result.status).toBe(401)
 })
 
-it('validates references, retries on an unknown citation and limits provider routing', async () => {
+const endpointsUrl = 'https://openrouter.ai/api/v1/endpoints/zdr'
+const catalog = (opusRetains = false) => Response.json({ data: [
+  { model_id: 'openai/gpt-6.1-terra', tag: 'azure/us', safety_retention: false },
+  { model_id: 'anthropic/claude-opus-5.5', tag: 'google-vertex/global', safety_retention: opusRetains },
+] })
+const mdn = () => new Response('<main><h1>Headings</h1><p>Headings structure a webpage.</p></main>')
+
+it('defaults a proposal to Terra and validates approved citations', async () => {
   const calls = []
+  const timeout = vi.spyOn(AbortSignal, 'timeout')
   vi.stubGlobal('fetch', async (url, init) => {
-    if (url.startsWith('https://developer.mozilla.org')) return new Response('<main><h1>Headings</h1><p>Headings structure a webpage.</p></main>')
+    if (url.startsWith('https://developer.mozilla.org')) return mdn()
+    if (url === endpointsUrl) return catalog()
     calls.push(JSON.parse(init.body))
-    return completion(calls.length === 1 ? { ...example, lessons: [{ ...example.lessons[0], citationIds: ['invented'] }] } : example)
+    return completion(example)
   })
   const response = await generateDraft(proposal, '# Guide\n\nVersion 1.0', 'test', new AbortController().signal)
-  expect(calls).toHaveLength(2)
-  expect(calls[0].model).toBe('google/gemini-3.1-flash-lite')
-  expect(calls[1].model).toBe('google/gemini-3.6-flash')
-  expect(calls[0].provider).toMatchObject({ zdr: true, data_collection: 'deny', require_parameters: true })
+  expect(calls).toHaveLength(1)
+  expect(calls[0]).toMatchObject({
+    model: 'openai/gpt-6.1-terra', max_tokens: 13_000, reasoning: { effort: 'high', exclude: true },
+    provider: { only: ['azure/us'], allow_fallbacks: false, zdr: true, data_collection: 'deny', require_parameters: true },
+  })
+  expect(timeout).toHaveBeenCalledWith(265_000)
   expect(calls[0].messages[0].content).toContain('# Guide')
   expect(JSON.parse(calls[0].messages[1].content).source).toEqual(proposal)
   expect(response.references).toEqual([{ id: 'mdn-html', title: 'MDN · Structuring content with HTML',
     url: 'https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Structuring_content' }])
 })
 
+it('uses Opus for high quality and rejects invented citations in a single attempt', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', async (url, init) => {
+    if (url.startsWith('https://developer.mozilla.org')) return mdn()
+    if (url === endpointsUrl) return catalog()
+    calls.push(JSON.parse(init.body))
+    return completion({ ...example, lessons: [{ ...example.lessons[0], citationIds: ['invented'] }] })
+  })
+  await expect(generateDraft({ ...proposal, quality: 'high' }, '# Guide', 'test', new AbortController().signal))
+    .rejects.toMatchObject({ status: 502, message: expect.stringContaining('validation') })
+  expect(calls).toHaveLength(1)
+  expect(calls[0]).toMatchObject({
+    model: 'anthropic/claude-opus-5.5', max_tokens: 16_000,
+    provider: { only: ['google-vertex/global'], allow_fallbacks: false, zdr: true },
+  })
+  expect(JSON.parse(calls[0].messages[1].content).source).toEqual(proposal)
+})
+
+it('checks current privacy eligibility before sending the material', async () => {
+  const fetcher = vi.fn(async url => url === endpointsUrl ? catalog(true) : mdn())
+  vi.stubGlobal('fetch', fetcher)
+  await expect(generateDraft({ ...proposal, quality: 'high' }, '# Guide', 'test', new AbortController().signal))
+    .rejects.toMatchObject({ status: 503 })
+  expect(fetcher.mock.calls.every(([, init]) => init?.method !== 'POST')).toBe(true)
+})
+
+function signedInRequest(source) {
+  return new Request('https://example.org/api/curriculum/draft', {
+    method: 'POST', headers: { Authorization: 'Bearer instructor-token' }, body: JSON.stringify(source),
+  })
+}
+
+function configureApi() {
+  vi.stubEnv('OPENROUTER_CURRICULUM_API_KEY', 'curriculum-key')
+  vi.stubEnv('VITE_SUPABASE_URL', 'https://fake.supabase.co')
+  vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'public-key')
+}
+
+function instructorResponse(url) {
+  if (url.endsWith('/auth/v1/user')) return Response.json({ id: 'teacher' })
+  if (url.startsWith('https://fake.supabase.co/rest/v1/profiles')) return Response.json({ role: 'instructor' })
+}
+
+it('requires its own capped key and rejects invalid quality values before inference', async () => {
+  configureApi()
+  vi.stubEnv('OPENROUTER_API_KEY', 'roster-key')
+  vi.stubEnv('OPENROUTER_CURRICULUM_API_KEY', '')
+  const fetcher = vi.fn(async url => instructorResponse(url))
+  vi.stubGlobal('fetch', fetcher)
+  expect((await POST(signedInRequest(proposal))).status).toBe(503)
+  expect(fetcher).not.toHaveBeenCalled()
+  vi.stubEnv('OPENROUTER_CURRICULUM_API_KEY', 'curriculum-key')
+  const invalid = await POST(signedInRequest({ ...proposal, quality: 'invalid' }))
+  expect(invalid.status).toBe(400)
+  expect(fetcher.mock.calls.every(([url]) => url.startsWith('https://fake.supabase.co/'))).toBe(true)
+})
+
+it('returns a timeout from the draft API within the Vercel runtime', async () => {
+  configureApi()
+  const timeout = vi.spyOn(AbortSignal, 'timeout')
+  vi.stubGlobal('fetch', async url => {
+    const auth = instructorResponse(url)
+    if (auth) return auth
+    if (url.startsWith('https://developer.mozilla.org')) return mdn()
+    if (url === endpointsUrl) return catalog()
+    throw new DOMException('Model exceeded its time limit', 'TimeoutError')
+  })
+  const result = await POST(signedInRequest({ ...proposal, quality: 'high' }))
+  expect(result.status).toBe(504)
+  expect(timeout).toHaveBeenCalledWith(280_000)
+  expect(timeout).toHaveBeenCalledWith(265_000)
+})
+
 it('keeps missing source evidence in review notes', async () => {
-  vi.stubGlobal('fetch', async url => url.startsWith('https://developer.mozilla.org')
-    ? new Response(null, { status: 503 }) : completion({ ...example, lessons: [{ ...example.lessons[0], citationIds: [] }] }))
+  vi.stubGlobal('fetch', async url => {
+    if (url === endpointsUrl) return catalog()
+    return url.startsWith('https://developer.mozilla.org') ? new Response(null, { status: 503 })
+      : completion({ ...example, lessons: [{ ...example.lessons[0], citationIds: [] }] })
+  })
   const response = await generateDraft(proposal, '# Guide', 'test', new AbortController().signal)
   expect(response.references).toEqual([])
   expect(response.reviewNotes.join(' ')).toContain('Could not verify MDN')
@@ -53,31 +144,36 @@ it('accepts ordered deck text and embedded images and rejects external image URL
   const { parseSource } = await import('../server/curriculum/source.ts')
   const deck = { kind: 'slide_deck', audience: '', slides, images: [{ id: 'slide-1-image-1', slideNumber: 1, dataUrl: png }] }
   expect(parseSource(deck)).toEqual(deck)
+  expect(parseSource({ ...deck, quality: 'high' })).toEqual({ ...deck, quality: 'high' })
   expect(parseSource({ ...deck, slides: [...slides].reverse() })).toBeNull()
   expect(parseSource({ ...deck, images: [{ ...deck.images[0], dataUrl: 'https://example.org/picture.png' }] })).toBeNull()
 })
 
-it('uses the text route by default and sends only selected images to the vision model', async () => {
+it('sends only selected images to the chosen model and preserves slide order', async () => {
   const calls = []
   vi.stubGlobal('fetch', async (url, init) => {
-    if (url.startsWith('https://developer.mozilla.org')) return new Response('<main>Headings structure a webpage.</main>')
+    if (url.startsWith('https://developer.mozilla.org')) return mdn()
+    if (url === endpointsUrl) return catalog()
     calls.push(JSON.parse(init.body))
     return completion(example)
   })
   const deck = { kind: 'slide_deck', audience: '', slides, images: [] }
   const signal = new AbortController().signal
   await generateDraft(deck, '# Guide', 'test', signal)
-  const response = await generateDraft({ ...deck, images: [{ id: 'slide-1-image-1', slideNumber: 1, dataUrl: png }] }, '# Guide', 'test', signal)
-  expect(calls[0].model).toBe('google/gemini-3.1-flash-lite')
+  const selectedDeck = { ...deck, images: [{ id: 'slide-1-image-1', slideNumber: 1, dataUrl: png }] }
+  await generateDraft(selectedDeck, '# Guide', 'test', signal)
+  const response = await generateDraft({ ...selectedDeck, quality: 'high' }, '# Guide', 'test', signal)
+  expect(calls.map(call => call.model)).toEqual(['openai/gpt-6.1-terra', 'openai/gpt-6.1-terra', 'anthropic/claude-opus-5.5'])
   expect(JSON.parse(calls[0].messages[1].content).source.slides).toEqual(slides)
-  expect(calls[1].model).toBe('google/gemini-3.6-flash')
-  expect(calls[1].messages[1].content.filter(part => part.type === 'image_url')).toEqual([{ type: 'image_url', image_url: { url: png } }])
+  for (const call of calls.slice(1)) {
+    expect(call.messages[1].content.filter(part => part.type === 'image_url')).toEqual([{ type: 'image_url', image_url: { url: png } }])
+  }
   expect(response.reviewNotes).toContain('Slide 1: Review the diagram.')
   expect(JSON.stringify(response)).not.toContain(png)
 })
 
 it('rejects authenticated students and accepts an instructor without saving the result', async () => {
-  vi.stubEnv('OPENROUTER_API_KEY', 'unit-test-key')
+  vi.stubEnv('OPENROUTER_CURRICULUM_API_KEY', 'unit-test-key')
   vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co')
   vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'unit-test-anon')
   try {
@@ -87,7 +183,8 @@ it('rejects authenticated students and accepts an instructor without saving the 
       const url = String(input)
       if (url.includes('/auth/v1/user')) return Response.json({ id: 'local-test-user' })
       if (url.includes('/rest/v1/profiles')) return Response.json([{ role }])
-      if (url.startsWith('https://developer.mozilla.org')) return new Response('<main>Headings structure a webpage.</main>')
+      if (url.startsWith('https://developer.mozilla.org')) return mdn()
+      if (url === endpointsUrl) return catalog()
       modelCalls++
       return completion(example)
     })
