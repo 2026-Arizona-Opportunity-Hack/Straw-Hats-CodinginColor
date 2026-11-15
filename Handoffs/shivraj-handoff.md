@@ -132,6 +132,10 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 
 `response` shapes are documented above `submit_attempt` in `1001_student_progress.sql`.
 The reply never contains the right answer.
+Standard activity submissions send estimated foreground time in `time_on_task_ms`.
+The browser counts up to 60 seconds from focus or the last interaction and pauses while the tab is hidden or unfocused.
+Each successful save consumes its sample. Failed saves and activity during a pending save stay available for the next submission.
+The separate server-verified Cat Photo completion path still has no measured duration.
 
 ### Scoring rules other code must match
 
@@ -189,6 +193,7 @@ Put each sentence on its own line.
 - 2026-11-15, Codex: preserved initial reading order and added per-student/module browser bookmarks; verified first entry, return visits and clamped step links in the local demo, with navigation/storage regression tests.
 - 2026-11-15, Shivraj: student usernames + educator Google sign-in (1013), final-check lock, generated parallel warm-ups/final checks with an AI endpoint and checks fallback (1014). Touches Aryan's People & roles and Ken's `liveStore.ts` publish.
 - 2026-11-15, Shivraj: rebuilt Explore as course cards with a module preview and Add course (1012); course page back link goes to My courses. Touches Jacky's `StudentExplore.tsx` and `StudentCourse.tsx`.
+- 2026-11-15, Codex: replaced wall-clock submission time with an idle-aware activity clock and tested idle, focus, and successive saves.
 - 2026-11-15, Shivraj: added the module-complete banner on the course page (touches Jacky's `StudentCourse.tsx`).
 - 2026-11-15, Shivraj: added check explanations and right-answer reveal (1011) and merged the 1009 and 2006 versions of `_course_state` (2009).
 - 2026-11-14 7:30 PM, Ruthvik: confirmed with `migration list` that 1001 and 1002 are applied to the hosted DB. Items 4 (builder reads `activity_keys`) and 5 (scoring rules in instructor progress) are done on `ruthvik/class-tabs`.

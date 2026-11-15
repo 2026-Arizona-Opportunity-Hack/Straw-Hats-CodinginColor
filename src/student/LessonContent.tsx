@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { defaultUrlTransform } from 'react-markdown'
 import type { ActivityStatus, AttemptInput, recordAttempt } from '../api/student/index.ts'
 import { embedUrl, slidesUrl } from '../instructor/model.ts'
@@ -13,11 +13,13 @@ import type { Activity, Lesson } from '../shared/types/db.ts'
 import { InteractiveHtmlFrame } from '../shared/ui/InteractiveHtmlFrame.tsx'
 import { LessonMarkdown } from '../shared/ui/LessonMarkdown.tsx'
 import { Button, Card } from '../shared/ui/index.tsx'
+import { createActivityClock, type ActivityTimeSample } from './activityTime'
 import { DiscussionNotes } from './DiscussionNotes'
 import './lessonContent.css'
 
 export type SubmitActivity = (input: AttemptInput) => ReturnType<typeof recordAttempt>
 type LoadDiscussion = (activityId: string) => Promise<DiscussionState>
+const activityInputs = ['click', 'keydown', 'touchstart', 'scroll'] as const
 const exampleNotes = [
   { id: 'example-1', answers: { f0: 'A school club could track points in a trivia game.' } },
   { id: 'example-2', answers: { f0: 'I would use one to count goals at soccer practice.' } },
@@ -73,13 +75,33 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, onResult, 
   verifyLab?: VerifyWebLab; labStorageKey?: string
   loadDiscussion?: LoadDiscussion; studentId?: string; demoDiscussion?: boolean
 }) {
-  const [started, setStarted] = useState(() => performance.now())
+  const { activityId, clock } = useMemo(() => ({ activityId: activity.id, clock: createActivityClock() }), [activity.id])
+  useEffect(() => {
+    if (activity.type === 'content') return
+    const syncForeground = () => clock.setForeground(document.visibilityState === 'visible' && document.hasFocus())
+    const pause = () => clock.setForeground(false)
+    const observeInteraction = (event: Event) => {
+      if (event.isTrusted) clock.recordInteraction()
+    }
+
+    syncForeground()
+    document.addEventListener('visibilitychange', syncForeground)
+    window.addEventListener('focus', syncForeground)
+    window.addEventListener('blur', pause)
+    for (const input of activityInputs) window.addEventListener(input, observeInteraction, { capture: true, passive: true })
+    return () => {
+      pause()
+      document.removeEventListener('visibilitychange', syncForeground)
+      window.removeEventListener('focus', syncForeground)
+      window.removeEventListener('blur', pause)
+      for (const input of activityInputs) window.removeEventListener(input, observeInteraction, true)
+    }
+  }, [activity.type, clock])
   const formId = useId()
   const [selectedChoice, setSelectedChoice] = useState<string | undefined>(() =>
     typeof previousResponse?.choice_id === 'string' ? previousResponse.choice_id : undefined)
   /** What the student submitted, kept so a locked card can show it right after submitting too. */
   const [sentResponse, setSentResponse] = useState<Record<string, unknown> | null>(null)
-  const checkingChoice = useRef(false)
   const check = activity.type === 'check' ? (activity as Activity<'check'>).content : null
   const choices = check?.choices
   const queryClient = useQueryClient()
@@ -91,28 +113,31 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, onResult, 
   })
   const canShare = discussionEnabled && (demoDiscussion || discussion.data?.enabled)
   const attempt = useMutation({
-    mutationFn: ({ response, score }: { response: unknown; score?: number }) => onAttempt({
-      activity_id: activity.id, response, client_score: score, time_on_task_ms: Math.round(performance.now() - started),
-    }),
-    onSuccess: (result) => {
-      setStarted(performance.now())
+    mutationFn: ({ input }: { input: AttemptInput; sample: ActivityTimeSample }) => onAttempt(input),
+    onSuccess: (result, { sample }) => {
+      sample.finish(true)
       onResult?.(result)
       onSaved?.()
       if (canShare && loadDiscussion) void queryClient.invalidateQueries({ queryKey: discussionKey })
     },
+    onError: (_error, { sample }) => sample.finish(false),
   })
   const done = activity.type !== 'content' && (attempt.isSuccess || status?.submitted)
   /** Answered already and not allowed to answer again. */
   const locked = answerOnce && !!done && activity.type !== 'posttest'
   const score = attempt.data ? attempt.data.score : status?.best_score
-  const submit = (response: unknown = {}, score?: number) => attempt.mutate({ response, score })
-  function chooseAnswer(choiceId: string) {
-    if (locked || checkingChoice.current || (choiceId === selectedChoice && attempt.isSuccess)) return
-    checkingChoice.current = true
-    setSelectedChoice(choiceId)
-    attempt.mutate({ response: { choice_id: choiceId } }, {
-      onSettled: () => { checkingChoice.current = false },
+  function submit(response: unknown = {}, score?: number) {
+    const sample = clock.beginAttempt()
+    if (!sample) return false
+    attempt.mutate({
+      input: { activity_id: activityId, response, client_score: score, time_on_task_ms: sample.milliseconds },
+      sample,
     })
+    return true
+  }
+  function chooseAnswer(choiceId: string) {
+    if (locked || attempt.isPending || (choiceId === selectedChoice && attempt.isSuccess)) return
+    if (submit({ choice_id: choiceId })) setSelectedChoice(choiceId)
   }
 
   const complete = <Button type="button" disabled={attempt.isPending} onClick={() => submit()}>Mark as done</Button>
@@ -145,8 +170,7 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, onResult, 
       const data = new FormData(event.currentTarget)
       const answers = Object.fromEntries(fields.map(field => [field.id, String(data.get(formId + field.id) ?? '').trim()]))
       const response = key ? { [key]: answers, ...(canShare && key === 'fields' ? { share_discussion: true } : {}) } : answers
-      setSentResponse(response)
-      submit(response)
+      if (submit(response)) setSentResponse(response)
     }
     return <>
       <form className="space-y-3" onSubmit={send} onKeyDown={canShare ? event => {
