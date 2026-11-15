@@ -69,13 +69,13 @@ From `0001_core_schema.sql` (core contract):
 | `activity_attempts` | Student work on curriculum activities: score 0..1, time on task, attempt number |
 | `api_keys` | Hashed keys for the read API (service role only) |
 
-## Migration 3005: aggregate read API (not applied)
+## Migration 3005: aggregate read API (database applied; endpoint rebuild pending)
 
 `api/progress.ts` serves GET-only organization-wide aggregates using admin-issued `api_keys` and a server-only `SUPABASE_SERVICE_ROLE_KEY`.
 `read_api_progress(text)` is executable only by `service_role`, rechecks revocation, and uses `_course_state` for canonical module completion and paired pre/post gains.
 The response contains cohort/course metadata and counts, never student identities or individual work.
 See the [README API contract](../README.md#aggregate-read-api) for configuration, scoring definitions, and local tests.
-Migration 3005 is committed for review; no hosted database or deployment changes were made.
+Migration 3005 was applied to hosted on 2026-11-15. The production-only sensitive Vercel server credential is configured; a rebuild with the new setting is still blocked by the Vercel account owner’s identity-verification prompt. The public endpoint still returns 503 for a well-formed key until that rebuild is completed and checked.
 
 Shivraj's student-side migrations (`1001`, `1002`) are documented in [`Handoffs/shivraj-handoff.md`](shivraj-handoff.md): answer keys in `activity_keys`, `submit_attempt`, unlock rules, self-chosen courses.
 All of 0001, 1001, 1002, 2001, 2002 and 2003 are applied to the hosted project (checked with `migration list` on Nov 14, 7 PM).
@@ -135,7 +135,7 @@ Known gaps for the permissions pass:
 - Students cannot read assignments yet (no student policy).
 - Instructors cannot edit library courses owned by the admin; they import their own copy instead (migration 2004 below).
 
-## Migrations 2010, 2013 and 3009: staff role boundaries (not applied to hosted)
+## Migrations 2010, 2013 and 3009: staff role boundaries (applied to hosted)
 
 Ownership alone no longer authorizes curriculum or answer-key writes.
 Students and reviewers cannot create courses or edit legacy courses they own; demoting an instructor removes write access immediately.
@@ -178,7 +178,7 @@ Applied to the hosted project on 2026-11-15 with `npx supabase db push --linked 
 It was first numbered 2005, but Ken's `2005_publish_curriculum` already held that version on hosted, so the CLI would have skipped it; check `npx supabase migration list --linked` before numbering a migration.
 After applying: `program_settings` has its row and `class_module_settings` returned 29 rows.
 
-## Migration 3008: canonical staff progress (not applied)
+## Migration 3008: canonical staff progress (applied to hosted)
 
 `staff_progress_snapshot()` returns `{ modules: [...] }` from `_course_state` for report consumers.
 Active instructors see only classes they manage; active admins also see all classes and self-enrollments.
@@ -186,13 +186,28 @@ Students, reviewers, archived profiles and anonymous callers are denied.
 Rows contain authorized student/course/class/module IDs, state, test-out flag, required/done counts and canonical pre/post scores; they contain no answers or keys.
 This is the database prerequisite for the separate completion-reporting UI PR.
 Validate with `supabase/tests/staff_progress_snapshot.sql` on a migrated disposable database.
-Migration 3008 has not been applied to hosted.
+Migration 3008 was applied to hosted on 2026-11-15; real student-token checks and the live instructor dashboard agree with its canonical states.
 
-## Migration 3014: roster Auth metadata timing (not applied)
+## Migration 3014: roster Auth metadata timing (applied to hosted)
 
 Live card-login verification exposed a Supabase Auth ordering issue: `admin.createUser` inserts `auth.users` before applying its trusted `app_metadata` in the same transaction ([Auth source](https://github.com/supabase/auth/blob/master/internal/api/admin.go)). Migration 3014 retains the immediate email guard and permits only an existing roster's exact `@students.cic.invalid` address to await a deferred final-row check. That check still requires the server-owned roster marker; client metadata never authorizes an identity. Personal email signup and student email changes remain immediately rejected. This matters because [Auth signup](https://github.com/supabase/auth/blob/master/internal/api/signup.go) can send confirmation mail before transaction commit.
 
-Run `supabase/tests/roster_auth_metadata_timing.sql` plus the existing privacy suites against a disposable migrated database. They use the actual Auth worker session and force deferred validation before changing roles. Migration 3014 requires review and hosted application before the live card-login retry; this commit does not change hosted data.
+Run `supabase/tests/roster_auth_metadata_timing.sql` plus the existing privacy suites against a disposable migrated database. They use the actual Auth worker session and force deferred validation before changing roles. Migration 3014 was reviewed, merged in PR #86 and applied to hosted on 2026-11-15. First and repeat live card login and browser classroom access passed afterward.
+
+## Hosted review verification — 2026-11-15
+
+- Applied reviewed migrations `2010`, `2013`, `3005`–`3009`, and `3012` together in one transaction, with exact source recorded in the migration ledger. No seed/reset scripts were run.
+- Observed `3010`, `3011`, and `3013` being applied concurrently by separate work; the guarded follow-up batch stopped before changing anything. Those versions were then confirmed in hosted history.
+- Deployed `roster-login` from the reviewed source with legacy JWT verification off, as required by its own card validation. Its first live test found that Auth inserts a user before assigning trusted app metadata.
+- [PR #86](https://github.com/2026-Arizona-Opportunity-Hack/Straw-Hats-CodinginColor/pull/86) fixes that timing without deferring personal-email rejection. Applied `3014` after merge and verified the hosted source hash. First/repeat card login, real sessions, own-profile reads, enrollment and browser classroom access all passed. Invalid cards, anonymous privileged RPCs and spoofed signup were rejected.
+- Live username sign-in passed for three temporary fictional learners. Actual student tokens could not call the staff report or aggregate-report RPC. Students could not create courses or modify a legacy course they owned; an instructor could create a course and receive its row.
+- Hosted report checks passed in a rollback-only rehearsal, then a temporary persistent fixture. The live instructor dashboard/gradebook showed 2/3 complete, paired pre/post 0%→50% with two students and +50 points, loops mastery 100% and decisions 0%. Pretest placement and exhausted final attempts counted as complete; later practice stayed excluded.
+- Live activity details displayed the saved worksheet text/choice and distinguished latest practice answers from the counted score. A fresh student module visit opened introductory reading; a reachable activity’s Review link opened its selected step and restored answers. Existing prerequisite navigation limits remain in force.
+- Live image editing created a box using only keyboard controls, from (25%,25%) to (75%,75%), then undid it. No AI generation or publication was used.
+- Verification used temporary fictional accounts/classes, which were removed afterward; no existing learner work or profile roles were changed. The temporary browser draft/bookmark was removed. One non-identifying failed-login throttle hash remains eligible for the normal one-day cleanup.
+- Local verification of the final database fix: 19 SQL suites, 202 application tests, build/typecheck and lint pass (two pre-existing lint warnings).
+
+**Vercel follow-up:** production was READY at `214b343`, which includes the reviewed frontend fixes. This project uses manual deployments, with no Git integration. `SUPABASE_SERVICE_ROLE_KEY` was added as production-only and sensitive after that deployment. Rebuilding with the latest settings requires the account owner to complete Vercel’s identity verification or deploy current main from their authenticated CLI. No new deployment was created by the blocked rebuild attempt. After rebuilding, verify `/api/progress` with missing, invalid, active and revoked temporary keys, its aggregate-only response and `Cache-Control: no-store`, then remove the temporary key. Do not mark the public read API verified until those checks pass.
 
 ## Gotchas we already hit
 
@@ -208,6 +223,8 @@ Plan, not done yet.
 Delete demo auth users and rows (or create a fresh project), apply migrations without `--include-seed`, then create the real CIC admin account in Authentication and a matching `profiles` row with `role = 'admin'`.
 
 ## Log
+
+- 2026-11-15, Codex: applied the reviewed hosted migrations and 3014, deployed roster login, and verified live card/username access, teacher reporting, saved answers, activity navigation and keyboard annotations. See the hosted verification section above; the reporting API still awaits a Vercel identity-verified rebuild.
 
 - 2026-11-15, Codex: added the canonical staff progress RPC and authorization/state regression tests as the database prerequisite for accurate teacher/admin completion reports; no hosted changes.
 
