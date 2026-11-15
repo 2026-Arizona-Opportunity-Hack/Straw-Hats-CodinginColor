@@ -79,6 +79,8 @@ npx supabase db push --include-seed   # runs supabase/migrations/ in order, then
 
 With Supabase configured, the instructor workspace reads and writes live data (classes, rosters, assigned modules, assignments, course content); Row Level Security limits each instructor to their own classes.
 
+For the live student curriculum, apply migration `1004_student_curriculum_access.sql` before setting `VITE_LIVE_STUDENT_CURRICULUM=true` and rebuilding. Students can then open published, unlocked modules in their enrolled courses and save attempts to Supabase. Live HTML is scriptless. The full Coding Lab runner is available in the local demo.
+
 Before opening a PR: `npm run build && npm run lint`.
 
 ### Instructor workspace
