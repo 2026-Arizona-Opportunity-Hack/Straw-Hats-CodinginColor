@@ -1,5 +1,13 @@
-.cic-lesson-choice,
-.ic-app label.cic-lesson-choice {
+.cic-student-lessons,
+.cic-student-lesson {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.cic-student-lessons { gap: 1.5rem; }
+.cic-student-lesson { gap: 0.75rem; }
+
+.cic-lesson-choice {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -7,8 +15,7 @@
   font: inherit;
 }
 
-.cic-lesson-choice > input,
-.ic-app label.cic-lesson-choice > input {
+.cic-lesson-choice > input {
   flex: none;
   width: 1rem;
   height: 1rem;

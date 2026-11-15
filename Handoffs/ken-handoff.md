@@ -33,7 +33,8 @@ See the [README](../README.md#draft-curriculum-from-materials) for preview confi
 
 ## Student preview
 
-Lesson and module previews reuse the renderer from the corresponding student player.
+Lesson and module previews reuse the student player’s lesson layout and spacing.
+Keep editor element styles outside the student lesson so code and quiz options render consistently.
 Preview answers run only in the open preview.
 Selecting a multiple-choice knowledge check answer gives feedback in both the student player and teacher preview.
 Hosted previews use the live response types, safe Markdown and slides support.
@@ -84,6 +85,8 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 ## Log
 
 - 2026-11-15, Codex: streamed curriculum generation stages to instructor draft review.
+
+- 2026-11-15, Ken: matched builder previews to the published student lesson layout.
 
 - 2026-11-15, Ken: refreshed immediate knowledge check feedback against the current student player.
 
