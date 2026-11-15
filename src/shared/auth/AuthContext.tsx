@@ -19,7 +19,7 @@ interface AuthState {
 const AuthContext = createContext<AuthState | null>(null)
 
 const MOCK_PROFILES: Record<Role, Profile> = {
-  student: { id: 'mock-student', role: 'student', display_name: 'Maya (student)', school: 'Maryvale HS' },
+  student: { id: 'mock-student', role: 'student', display_name: 'Maya (student)', school: 'Maryvale HS', username: 'mstudent1' },
   instructor: { id: 'mock-instructor', role: 'instructor', display_name: 'Mr. Lopez (instructor)', school: 'Maryvale HS' },
   admin: { id: 'mock-admin', role: 'admin', display_name: 'CIC Admin', school: null },
   reviewer: { id: 'mock-reviewer', role: 'reviewer', display_name: 'District Reviewer', school: null },
@@ -61,7 +61,7 @@ async function loadProfile(userId: string): Promise<Profile | null> {
   if (!supabase) return null
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, role, display_name, school')
+    .select('id, role, display_name, school, username')
     .eq('id', userId)
     .single()
   if (error) {
