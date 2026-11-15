@@ -52,7 +52,15 @@ Source changes ship before hosted activation.
 Published snapshots, My blocks, and executable labs remain browser-local.
 Run `supabase/tests/student_curriculum_access.sql` against a migrated development database to check both access and grading.
 
+## Anonymous class notes
+
+Migration 1006 scopes opt-in worksheet notes to a class and reveals up to 15 after the student's own submission.
+Instructors can review and hide notes for classes they manage.
+The Cat Photo App demo activation script opts in Maryvale without sharing prior submissions.
+
 ## Log
+
+- 2026-11-15, Ken: added anonymous classmate notes and teacher moderation.
 
 - 2026-11-14, Ken: added the verified Cat Photo App lab and its local demo.
 

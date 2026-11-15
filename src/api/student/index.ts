@@ -4,6 +4,7 @@ import type { Activity, Course, Lesson, Module } from '../../shared/types/db.ts'
 import { MOCK_ACTIVITIES, MOCK_COURSES, MOCK_LESSONS, MOCK_MODULES, mockDelay } from '../fixtures.ts'
 import { supabase } from '../../shared/supabase.ts'
 import type { VerifyWebLab } from '../../shared/labs/CodeLab.tsx'
+import type { DiscussionState } from '../../shared/types/activities.ts'
 
 const curriculumBackend = import.meta.env.VITE_LIVE_STUDENT_CURRICULUM === 'true' ? supabase : null
 
@@ -91,6 +92,11 @@ export async function recordAttempt(input: AttemptInput): Promise<AttemptResult>
 export async function checkCatPhotoLab(activityId: string, source: string, signal: AbortSignal): ReturnType<VerifyWebLab> {
   if (curriculumBackend) return result(curriculumBackend.functions.invoke('cat-photo-check', { body: { activityId, source }, signal }))
   return (await import('../../shared/labs/catPhoto.ts')).previewCatPhotoChecks(source)
+}
+
+export async function getClassmateNotes(activityId: string): Promise<DiscussionState> {
+  if (!curriculumBackend) return { enabled: false, shared: false, notes: [] }
+  return result(curriculumBackend.rpc('my_discussion_notes', { p_activity_id: activityId }))
 }
 
 /** Where a student (including a late joiner) should start. */

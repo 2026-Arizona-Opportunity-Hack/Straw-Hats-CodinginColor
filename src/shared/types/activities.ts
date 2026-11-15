@@ -48,7 +48,11 @@ export type WorksheetField =
 export interface WorksheetPayload {
   title: string
   fields: WorksheetField[]
+  discussion_enabled?: boolean
 }
+
+export type DiscussionNote = { id: string; answers: Record<string, string> }
+export type DiscussionState = { enabled: boolean; shared: boolean; notes: DiscussionNote[] }
 
 export interface CodeTest {
   name: string
