@@ -3,9 +3,16 @@ import { listApplications, listIssues, loadOrgData } from './api.ts'
 
 export const ORG_KEY = ['admin', 'org'] as const
 
-/** One cached snapshot of org data shared by every admin page. */
-export function useOrg() {
-  return useQuery({ queryKey: ORG_KEY, queryFn: loadOrgData, refetchInterval: 60_000 })
+/** Admin edits invalidate this shared snapshot. Admins can also refresh it on demand. */
+export function useOrg(enabled = true) {
+  return useQuery({
+    queryKey: ORG_KEY,
+    queryFn: loadOrgData,
+    enabled,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
 }
 
 // Optional tables: no retry, so a missing table explains itself right away.

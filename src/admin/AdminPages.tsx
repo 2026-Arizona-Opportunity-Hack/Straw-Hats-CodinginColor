@@ -1,14 +1,16 @@
 // Owner: Aryan. Admin command center pages; routes in src/routes.tsx.
 // Lazy-loaded so students and instructors on Chromebooks never download the admin code or chart library.
 import { lazy, Suspense, type ComponentType } from 'react'
+import { OrgRefreshButton } from './common.tsx'
 
-/** Loads an admin page together with the ⌘K command bar shown above it. */
-function lazyPage(load: () => Promise<{ default: ComponentType }>) {
+/** Loads an admin page with its command palette and, when it uses org data, a refresh control. */
+function lazyPage(load: () => Promise<{ default: ComponentType }>, { orgData = true } = {}) {
   const Page = lazy(() =>
     Promise.all([load(), import('./CommandPalette.tsx')]).then(([page, { CommandPalette }]) => ({
       default: () => (
         <>
-          <div className="mb-6 flex justify-end">
+          <div className="mb-6 flex flex-wrap items-start justify-end gap-2">
+            {orgData && <OrgRefreshButton />}
             <CommandPalette />
           </div>
           <page.default />
@@ -29,4 +31,4 @@ export const AdminHome = lazyPage(() => import('./OverviewPage.tsx').then((m) =>
 export const AdminUsers = lazyPage(() => import('./PeoplePage.tsx').then((m) => ({ default: m.PeoplePage })))
 export const AdminClasses = lazyPage(() => import('./ClassesPage.tsx').then((m) => ({ default: m.ClassesPage })))
 export const AdminAnalytics = lazyPage(() => import('./AnalyticsPage.tsx').then((m) => ({ default: m.AnalyticsPage })))
-export const AdminSettings = lazyPage(() => import('./SettingsPage.tsx').then((m) => ({ default: m.SettingsPage })))
+export const AdminSettings = lazyPage(() => import('./SettingsPage.tsx').then((m) => ({ default: m.SettingsPage })), { orgData: false })

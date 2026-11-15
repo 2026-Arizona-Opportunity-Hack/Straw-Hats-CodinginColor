@@ -1,10 +1,10 @@
 // Owner: Aryan. Small pieces shared by the admin pages.
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Archive, ArchiveRestore, CheckCircle2, CircleDashed, PlayCircle, X } from 'lucide-react'
+import { AlertTriangle, Archive, ArchiveRestore, CheckCircle2, CircleDashed, PlayCircle, RefreshCw, X } from 'lucide-react'
 import type { ReactNode, RefObject } from 'react'
-import { Badge, Button, EmptyState } from '../shared/ui/index.tsx'
+import { Badge, Button, EmptyState, FormStatus } from '../shared/ui/index.tsx'
 import { setArchived } from './api.ts'
-import { ORG_KEY } from './hooks.ts'
+import { ORG_KEY, useOrg } from './hooks.ts'
 import type { Status } from './metrics.ts'
 
 const STATUS: Record<Status, { label: string; tone: 'danger' | 'warn' | 'success' | 'info'; Icon: typeof AlertTriangle }> = {
@@ -36,6 +36,19 @@ export function LoadState({ isLoading, error }: { isLoading: boolean; error: unk
       />
     )
   return null
+}
+
+export function OrgRefreshButton() {
+  const { isFetching, isRefetchError, refetch } = useOrg()
+  return (
+    <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
+      <Button variant="secondary" className="h-10" size="sm" disabled={isFetching} onClick={() => void refetch({ cancelRefetch: false })}>
+        <RefreshCw aria-hidden="true" />
+        {isFetching ? 'Refreshing…' : 'Refresh data'}
+      </Button>
+      <FormStatus error={isRefetchError && !isFetching ? 'Refresh failed. Showing the last loaded data.' : null} />
+    </div>
+  )
 }
 
 /** Archive / restore toggle for a person or class. Archiving keeps all data; it only leaves active lists. */
