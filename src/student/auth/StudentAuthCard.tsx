@@ -86,7 +86,9 @@ export function StudentAuthCard() {
       <div className="space-y-4">
         {mode === 'card' ? <>
           <p className="text-sm text-cic-muted">Use the login card from your teacher.</p>
-          <form onSubmit={handleSubmit} className="space-y-3">
+          {/* key: a fresh form per mode. Distinct ids/names let password managers tell sign-in
+            (fill saved password) from sign-up (suggest a strong one). */}
+        <form key={mode} onSubmit={handleSubmit} className="space-y-3">
             <Field id="roster-class-code" label="Class code">
               <Input id="roster-class-code" required maxLength={100} autoCapitalize="characters" autoComplete="username"
                 value={classCode} onChange={e => setClassCode(e.target.value.toUpperCase())} />
@@ -117,19 +119,20 @@ export function StudentAuthCard() {
             </div>
           ) : (
             <Field id="student-username" label="Username" hint="Like jsmith1. Existing email accounts can still use their email.">
-              <Input id="student-username" required autoComplete="username" autoCapitalize="none" spellCheck={false}
+              <Input id="student-username" name="username" required autoComplete="username" autoCapitalize="none" spellCheck={false}
                 aria-describedby="student-username-hint" value={username} onChange={(e) => setUsername(e.target.value)} />
             </Field>
           )}
-          <Field id="student-password" label="Password" hint={isSignUp ? 'At least 8 characters.' : undefined}>
+          <Field id={isSignUp ? 'new-student-password' : 'student-password'} label={isSignUp ? 'Choose a password' : 'Password'} hint={isSignUp ? 'At least 8 characters.' : undefined}>
             <Input
-              id="student-password"
+              id={isSignUp ? 'new-student-password' : 'student-password'}
+              name={isSignUp ? 'new-password' : 'password'}
               type="password"
               required
               minLength={isSignUp ? 8 : undefined}
               maxLength={72}
               autoComplete={isSignUp ? 'new-password' : 'current-password'}
-              aria-describedby={isSignUp ? 'student-password-hint' : undefined}
+              aria-describedby={isSignUp ? 'new-student-password-hint' : undefined}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />

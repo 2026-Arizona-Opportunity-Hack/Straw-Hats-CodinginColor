@@ -7,7 +7,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { enrollInCourse } from '../../api/student/index.ts'
 import {
   listPlacementItems, skipPlacement, submitPlacement,
-  type PlacementAnswer, type PlacementItem, type PlacementResult, type RecommendedCourse,
+  type MyPlacement, type PlacementAnswer, type PlacementItem, type PlacementResult, type RecommendedCourse,
 } from '../../api/student/placement.ts'
 import { useAuth } from '../../shared/auth/AuthContext.tsx'
 import { Button, FormStatus } from '../../shared/ui/index.tsx'
@@ -175,8 +175,18 @@ export function StarterQuiz() {
   // Move focus to each new question so screen readers announce it.
   useEffect(() => { if (step >= 0) heading.current?.focus() }, [step])
 
-  const done =() => qc.invalidateQueries({ queryKey: ['placement', profile?.id] })
-  const skip = useMutation({ mutationFn: skipPlacement, onSuccess: async () => { await done(); navigate('/student') } })
+  // Refetch now, even though Home isn't mounted: invalidating alone left the old "never taken"
+  // answer cached, so Home sent the student straight back here (skip needed two clicks).
+  const done = () => qc.refetchQueries({ queryKey: ['placement', profile?.id], type: 'all' })
+  // Write the skip into the cache before leaving, so Home sees it at once and never redirects back.
+  const skip = useMutation({
+    mutationFn: skipPlacement,
+    onSuccess: () => {
+      qc.setQueryData<MyPlacement | null>(['placement', profile?.id], (old) => old ?? { skipped: true, result: null, taken_at: new Date().toISOString() })
+      navigate('/student', { replace: true })
+      void done()
+    },
+  })
   const submit = useMutation({ mutationFn: () => submitPlacement(answers.current), onSuccess: done })
 
   function show(next: number) {

@@ -53,6 +53,8 @@ export interface MyPlacement {
   skipped: boolean
   result: PlacementResult | null
   taken_at: string
+  /** The student chose "Don't show again" on the home card (3013). */
+  card_hidden?: boolean
 }
 
 export async function listPlacementItems(): Promise<PlacementItem[]> {
@@ -78,6 +80,13 @@ export async function getMyPlacement(): Promise<MyPlacement | null> {
   const { data, error } = await backend.rpc('my_placement')
   if (error) throw new Error(error.message)
   return (data as MyPlacement | null) ?? null
+}
+
+/** Hides the starter-quiz card on Home until the student retakes the quiz (3013). */
+export async function hidePlacementCard(): Promise<void> {
+  if (!backend) return
+  const { error } = await backend.rpc('hide_placement_card')
+  if (error) throw new Error(error.message)
 }
 
 export async function skipPlacement(): Promise<void> {

@@ -142,7 +142,9 @@ function ModuleSteps({ mod, studentId, revision }: { mod: ModuleWithContent; stu
         <p className="text-xs font-semibold uppercase tracking-widest text-brand">{STEP_LABEL[activity.type] ?? 'Step'} · {lesson.title}</p>
         {testLocked && <p className="mt-3 rounded-xl bg-warn-soft px-4 py-2 text-sm font-semibold text-warn">🔒 Final check: finish and submit it before leaving this page.</p>}
         <h1 ref={heading} tabIndex={-1} className={ownTitle ? 'st-serif mb-5 mt-1 text-3xl focus:outline-none' : 'sr-only'}>{stepTitle(activity)}</h1>
-        {answeredBefore && savedLoading ? <p role="status">Loading your answer…</p> :
+        {/* Only cards answered on an earlier visit wait for the saved answer. A card answered just now
+            stays mounted, so its result appears in place instead of the card reloading. */}
+        {answeredBefore && !finishedHere.has(activity.id) && savedLoading ? <p role="status">Loading your answer…</p> :
         <ActivityBlock activity={activity} status={statuses.get(activity.id)} onAttempt={recordAttempt} hideTitle answerOnce
           previousResponse={savedAnswer} loadCheckAnswer={getCheckAnswer}
           onSaved={() => { setFinishedHere((s) => new Set(s).add(activity.id)); refreshProgress() }}
