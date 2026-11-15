@@ -252,7 +252,7 @@ export function RosterTab({ group, course, onSave, onImport, onCards }: {
         <label className="ic-inline-field">Add student<input value={name} maxLength={100} placeholder="Full name" onChange={event => setName(event.target.value)} /></label>
         <button type="submit" className="ic-button" disabled={!trimmed}><UserPlus size={16} /> Add</button>
       </form>
-      <button type="button" className="ic-button" onClick={onImport}><Upload size={16} /> Import CSV</button>
+      <button type="button" className="ic-button" onClick={onImport}><Upload size={16} /> Add multiple students</button>
       <button type="button" className="ic-button ic-primary" onClick={onCards}><Printer size={16} /> Login cards</button>
       {message && <p className="ic-note" role="status">{message}</p>}
     </section>
