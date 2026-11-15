@@ -91,12 +91,12 @@ function LibraryList({ courses, canEdit, heading = true }: { courses: Course[]; 
   </section>;
 }
 
-export function CourseReviewer({ course }: { course: Course }) {
+export function CourseReviewer({ course, back = { label: 'Reviewer library', to: '#/review' } }: { course: Course; back?: { label: string; to: string } }) {
   const modules = course.modules.filter(module => module.published);
   const [active, setActive] = useState(modules[0]?.lessons[0]?.id);
   const lesson = modules.flatMap(module => module.lessons).find(lesson => lesson.id === active);
   return <>
-    <PageHeader title={course.title} description={course.description} back={{ label: 'Reviewer library', to: '#/review' }} />
+    <PageHeader title={course.title} description={course.description} back={back} />
     <div className="ic-builder">
       <Panel title="Published lessons">
         {modules.map(module => <div className="ic-review-module" key={module.id}><h3>{module.title}</h3><ul>
