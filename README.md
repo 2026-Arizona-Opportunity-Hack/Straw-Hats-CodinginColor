@@ -89,6 +89,40 @@ Before opening a PR: `npm run build && npm run lint`.
 
 Multiple-choice knowledge checks show feedback when students select an answer. The teacher preview grades the same interaction as practice.
 
+### Aggregate read API
+
+`GET /api/progress` lets the organization's dashboard read cohort progress and assessment gains.
+Apply `supabase/migrations/3005_aggregate_read_api.sql` after the earlier migrations and set `SUPABASE_SERVICE_ROLE_KEY` in the Vercel server environment alongside `VITE_SUPABASE_URL`.
+Keep the service key server-only. Give consumers a read key created in **Admin → Settings & API**, shown once at creation.
+The route runs on Vercel (or `vercel dev`), not the plain Vite development server.
+
+```bash
+curl --fail-with-body "$CIC_BASE_URL/api/progress" -H "Authorization: Bearer $CIC_READ_KEY"
+```
+
+Keys grant organization-wide aggregate read access only. They are checked against their stored SHA-256 hash on every request and rechecked during aggregation.
+Revoking a key in Settings rejects subsequent requests. Responses use `Cache-Control: no-store`.
+No student identifiers, names, responses, or individual scores are returned. Keep keys in the consumer's server environment, never a public dashboard bundle or URL.
+
+The JSON envelope is `{ "version": 1, "generated_at": "<ISO timestamp>", "cohorts": [...] }`.
+Each cohort has `course_id`, `course_title`, `class_id`, `class_name`, and these numeric fields.
+
+| Field | Meaning |
+|---|---|
+| `enrolled_students` | Distinct students with a login enrolled in this course context. Unlinked roster entries are excluded. |
+| `module_opportunities`, `completed_modules`, `tested_out_modules` | Student/module counts from canonical `_course_state`, including release, unlock, required-work and test-out rules. |
+| `completion_pct` | Completed modules / module opportunities × 100. |
+| `assessment_pairs` | Student/module pairs with both a first pretest score and a counted post-test score. |
+| `paired_pretest_pct`, `paired_posttest_pct` | Means across those same pairs, on a 0–100 scale. |
+| `learning_gain_points` | Mean of each pair's post-test minus pretest, in percentage points. |
+
+Class post-tests count the best allowed try; self-paced post-tests count the best try overall.
+`class_id` and `class_name` are null for self-enrollment. Duplicate enrollments use the student's canonical class (earliest class enrollment for that course), matching the student player.
+Archived enrollment history remains included. Cohorts without enrollments are omitted; an empty installation returns `cohorts: []`.
+Percentages/gains are null when their denominator is zero. This is an authorized internal aggregate report, without small-cohort anonymization.
+Only GET is accepted, with no query parameters. Errors are `400` for query parameters, `401` for missing/invalid/revoked keys, `405` for other methods, and `503` for unavailable configuration/database.
+Tests: `npm test -- tests/progress-api.test.ts` and `psql "$LOCAL_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/aggregate_read_api.sql` against a migrated disposable local database.
+
 ### Instructor workspace
 
 Instructors and reviewers use the workspace in `src/instructor/` inside the main app, under the shared sidebar: `/instructor#/classes`, `/instructor#/curriculum`, `/instructor#/review`, and `/reviewer` for external reviewers.
