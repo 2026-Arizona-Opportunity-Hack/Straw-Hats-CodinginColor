@@ -7,7 +7,9 @@ import { RosterUpload } from './RosterUpload';
 import { PageHeader, Panel } from './ui';
 
 export function ClassSetup({ courses, classes, onCreate, onImport }: {
-  courses: Course[]; classes: ClassGroup[]; onCreate: (group: ClassGroup, imported?: Course) => void; onImport: (source: Course) => Promise<Course>;
+  courses: Course[]; classes: ClassGroup[];
+  onCreate: (group: ClassGroup, imported?: Course, attempted?: ClassGroup) => Promise<void>;
+  onImport: (source: Course) => Promise<Course>;
 }) {
   const library = publishedCourses(courses.filter(course => course.library));
   // Classes start from the CIC library; each class gets its own copy when it is created.
@@ -23,6 +25,7 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
   const [moduleIds, setModuleIds] = useState(available[0]?.modules.map(module => module.id) || []);
   const [error, setError] = useState('');
   const stepHeading = useRef<HTMLHeadingElement>(null);
+  const attempt = useRef<{ group: ClassGroup; written: ClassGroup; courseId: string; imported?: Course } | null>(null);
   const valid = rows.filter(row => !row.issue).map(row => row.name);
   const course = available.find(course => course.id === courseId);
   const selectedModules = course?.modules.filter(module => moduleIds.includes(module.id)) || [];
@@ -42,6 +45,7 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (busy) return;
     if (step === 0 && (!name.trim() || !school.trim())) {
       setError('Enter a class name and school.');
       return;
@@ -55,25 +59,40 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
       setError('Pick a course and at least one published module.');
       return;
     }
-    let target = course;
-    let targetModules = selectedModules.map(module => module.id);
-    if (course.library) {
-      setBusy(true);
-      try {
-        target = await onImport(course);
-        // The import keeps module order, so map the chosen modules by position.
-        targetModules = course.modules.flatMap((module, index) => moduleIds.includes(module.id) && target.modules[index] ? [target.modules[index].id] : []);
-      } catch (problem) {
-        setError(problem instanceof Error ? problem.message : 'Could not add that course. Try again.');
-        return;
-      } finally {
-        setBusy(false);
+    setBusy(true);
+    setError('');
+    try {
+      const previous = attempt.current;
+      let imported = previous?.courseId === course.id ? previous.imported : undefined;
+      if (course.library && !imported) imported = await onImport(course);
+      // The import keeps module order, so map the chosen modules by position.
+      const target = imported ?? course;
+      const targetModules = course.modules.flatMap((module, index) =>
+        moduleIds.includes(module.id) && target.modules[index] ? [target.modules[index].id] : []);
+      let joinCode = previous?.group.joinCode;
+      if (!joinCode) {
+        do { joinCode = id().slice(0, 6).toUpperCase(); } while (classes.some(group => group.joinCode === joinCode));
       }
+      const lastLearners = previous?.group.learners;
+      const learners = lastLearners?.length === valid.length && lastLearners.every((learner, index) => learner.name === valid[index])
+        ? lastLearners : makeLearners(valid);
+      const group = {
+        id: previous?.group.id ?? id(), name: name.trim(), school: school.trim(),
+        courseId: target.id, joinCode, moduleIds: targetModules, learners,
+      };
+      // Keep the same class on retry and remember rows that may have been written.
+      const written = {
+        ...group,
+        moduleIds: [...new Set([...(previous?.written.moduleIds ?? []), ...targetModules])],
+        learners: [...new Map([...(previous?.written.learners ?? []), ...learners].map(learner => [learner.id, learner])).values()],
+      };
+      attempt.current = { group, written, courseId: course.id, imported };
+      await onCreate(group, imported, previous?.written);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : 'Could not create the class. Try again.');
+    } finally {
+      setBusy(false);
     }
-    let joinCode: string;
-    do { joinCode = id().slice(0, 6).toUpperCase(); } while (classes.some(group => group.joinCode === joinCode));
-    onCreate({ id: id(), name: name.trim(), school: school.trim(), courseId: target.id, joinCode, moduleIds: targetModules, learners: makeLearners(valid) },
-      course.library ? target : undefined);
   }
 
   return <>
@@ -91,7 +110,7 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
           <label>School<input required maxLength={100} placeholder="e.g. Maryvale High School" value={school} onChange={event => setSchool(event.target.value)} /></label>
         </div>}
         <div hidden={step !== 1}><RosterUpload rows={rows} setRows={next => { setRows(next); setError(''); }} /></div>
-        {step === 2 && <div className="ic-stack ic-section-gap">
+        {step === 2 && <div className="ic-stack ic-section-gap" inert={busy}>
           {!available.length ? <p>Publish a module in <a href="#/curriculum">Curriculum</a> before assigning it.</p> : <>
             {[['CIC library', library, 'Ready-made by Coding in Color. This class gets its own version, which you can change from its Curriculum tab.'], ['My courses', own, '']].map(([label, group, hint]) => (group as Course[]).length > 0 &&
               <fieldset key={label as string} className="ic-course-pick"><legend>{label as string}</legend>
@@ -110,7 +129,7 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
         </div>}
         {error && <p className="ic-error" role="alert">{error}</p>}
         <div className="ic-form-footer">
-          {step > 0 && <button type="button" className="ic-button" onClick={() => move(step - 1)}>Back</button>}
+          {step > 0 && <button type="button" className="ic-button" disabled={busy} onClick={() => move(step - 1)}>Back</button>}
           <button className="ic-button ic-primary" type="submit" disabled={busy || (step === 1 && !valid.length)}>{busy ? 'Creating class…' : ['Continue to roster', 'Choose curriculum', 'Create class'][step]} <ArrowRight size={16} /></button>
         </div>
       </form></Panel>
