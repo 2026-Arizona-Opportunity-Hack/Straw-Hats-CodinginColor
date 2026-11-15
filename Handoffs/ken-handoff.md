@@ -120,6 +120,10 @@ The lab is worth one point after server verification and the reflection is worth
 Maryvale students open it under Class assignments. Teachers open its grade cell to see both checkpoints.
 The existing class course and Python assignments stay in place.
 
+## Sign-in and navigation accessibility
+
+The separate sign-in route has its own main landmark. The sidebar and mobile home link take their accessible name from the visible CIC Learn brand label.
+
 ## Roster entry
 
 Class setup and existing classes share the same CSV and manual-entry controls.
@@ -169,6 +173,8 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 - 2026-11-15, Ken: matched builder previews to the published student lesson layout.
 
 - 2026-11-15, Ken: refreshed immediate knowledge check feedback against the current student player.
+
+- 2026-11-15, Ken: fixed the sign-in landmark and home link name flagged by Lighthouse.
 
 - 2026-11-15, Ken: added anonymous classmate notes and teacher moderation.
 
