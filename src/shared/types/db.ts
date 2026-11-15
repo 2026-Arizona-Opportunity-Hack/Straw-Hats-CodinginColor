@@ -60,6 +60,16 @@ export interface Activity<T extends ActivityType = ActivityType> {
   content: ActivityContent<T>
 }
 
+export interface CurriculumBlockComment {
+  id: string
+  activity_id: string
+  class_id: string | null
+  author_id: string
+  author_name: string
+  body: string
+  created_at: string
+}
+
 export interface ClassRoom {
   id: string
   name: string
