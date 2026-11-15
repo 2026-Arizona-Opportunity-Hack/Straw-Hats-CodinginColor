@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { emptyHtml } from './htmlStarter'
 import {
   AlignLeft, BookOpen, CircleHelp, ClipboardList, Code2, FileText, ListChecks, MessageSquare, Monitor, Video,
 } from 'lucide-react';
@@ -12,6 +13,7 @@ const blocks = [
   { name: 'Code exercise', detail: 'Set a coding task with starter code', type: 'code', icon: Code2, keywords: 'python practice' },
   { name: 'Worksheet', detail: 'Collect responses to a series of prompts', type: 'worksheet', icon: ClipboardList, keywords: 'form practice' },
   { name: 'Video', detail: 'Embed a YouTube, Vimeo, or Drive video', type: 'video', icon: Video, keywords: 'embed media' },
+  { name: 'Custom HTML', detail: 'Build a self-contained page or interactive widget', type: 'interactive_html', icon: Code2, keywords: 'advanced html css javascript' },
   { name: 'Slides', detail: 'Embed a Google Slides or Drive presentation', type: 'slides', icon: Monitor, keywords: 'embed deck' },
   { name: 'Pretest', detail: 'Capture a baseline before instruction', type: 'pretest', icon: FileText, keywords: 'assessment quiz' },
   { name: 'Post-test', detail: 'Measure learning after instruction', type: 'posttest', icon: FileText, keywords: 'posttest assessment quiz' },
@@ -45,6 +47,7 @@ export function BlockPicker({ onPick, onClose, library }: {
   function pick(block: typeof options[number]) {
     if (block.saved) return onPick(copyBlock(block.saved));
     const activity = { ...newActivity(block.type), title: block.name };
+    if (block.type === 'interactive_html') activity.interactiveHtml = { ...emptyHtml };
     if (block.name === 'Open-ended question') activity.format = 'open-ended';
     if (gradedTypes.has(block.type)) activity.questions[0].choices = ['', '', ''];
     onPick(activity);

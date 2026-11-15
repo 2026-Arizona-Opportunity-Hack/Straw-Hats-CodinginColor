@@ -317,3 +317,10 @@ body:has(.ic-app) { margin: 0; }
 .ic-import-markdown { margin: 12px 0 0 10px; gap: 5px; font-size: 13px; }
 .ic-quiz-choice { display: flex; align-items: end; gap: 6px; }
 .ic-quiz-choice label { flex: 1; }
+
+.ic-html-editor { display: grid; gap: 16px; align-items: start; }
+.ic-html-editor > * { min-width: 0; }
+.ic-html-lesson .ic-article { max-width: none; }
+@media (min-width: 1200px) {
+  .ic-html-lesson .ic-html-editor { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
