@@ -87,7 +87,7 @@ function TodoPanel({ tasks, loading }: { tasks: Task[]; loading: boolean }) {
         <span className="text-xs font-semibold uppercase tracking-widest text-cic-muted">{tasks.filter((t) => t.tone !== 'done').length} open</span>
       </div>
       {loading && <p role="status" className="py-3 text-sm text-cic-muted">Loading…</p>}
-      {!loading && !tasks.length && <p className="py-3 text-sm text-cic-muted">Nothing due. Add a course in Explore to get started.</p>}
+      {!loading && !tasks.length && <p className="py-3 text-sm text-cic-muted">Nothing due right now.</p>}
       <ul className="divide-y divide-divider">
         {tasks.map((t) => {
           const body = (
@@ -205,7 +205,7 @@ export function StudentHome() {
 
       {state?.added && <p role="status" className="mt-6 rounded-xl bg-brand-tint px-4 py-3 font-semibold text-brand">{state.added} is now in your courses.</p>}
 
-      <div className="mt-12 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className={`mt-12 grid items-start gap-8 ${courses.length ? 'lg:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
         <section aria-label="My courses">
           <div className="mb-5 flex items-baseline justify-between gap-4 border-b border-divider pb-3">
             <h2 className="st-serif text-3xl">My courses</h2>
@@ -220,7 +220,7 @@ export function StudentHome() {
             {courses.map((c) => <CourseCard key={c.id} course={c} modules={modulesOf(c.id)} />)}
           </div>
         </section>
-        <TodoPanel tasks={tasks} loading={isLoading || progress.some((p) => p.isLoading)} />
+        {courses.length > 0 && <TodoPanel tasks={tasks} loading={progress.some((p) => p.isLoading)} />}
       </div>
 
       <Section title="My classroom" note="Classes you joined with a code">
