@@ -69,6 +69,14 @@ From `0001_core_schema.sql` (core contract):
 | `activity_attempts` | Student work on curriculum activities: score 0..1, time on task, attempt number |
 | `api_keys` | Hashed keys for the read API (service role only) |
 
+## Migration 3005: aggregate read API (not applied)
+
+`api/progress.ts` serves GET-only organization-wide aggregates using admin-issued `api_keys` and a server-only `SUPABASE_SERVICE_ROLE_KEY`.
+`read_api_progress(text)` is executable only by `service_role`, rechecks revocation, and uses `_course_state` for canonical module completion and paired pre/post gains.
+The response contains cohort/course metadata and counts, never student identities or individual work.
+See the [README API contract](../README.md#aggregate-read-api) for configuration, scoring definitions, and local tests.
+Migration 3005 is committed for review; no hosted database or deployment changes were made.
+
 Shivraj's student-side migrations (`1001`, `1002`) are documented in [`Handoffs/shivraj-handoff.md`](shivraj-handoff.md): answer keys in `activity_keys`, `submit_attempt`, unlock rules, self-chosen courses.
 All of 0001, 1001, 1002, 2001, 2002 and 2003 are applied to the hosted project (checked with `migration list` on Nov 14, 7 PM).
 
@@ -155,14 +163,6 @@ Applied to the hosted project on 2026-11-15 with `npx supabase db push --linked 
 It was first numbered 2005, but Ken's `2005_publish_curriculum` already held that version on hosted, so the CLI would have skipped it; check `npx supabase migration list --linked` before numbering a migration.
 After applying: `program_settings` has its row and `class_module_settings` returned 29 rows.
 
-## Migration 3005: aggregate read API (not applied)
-
-`api/progress.ts` serves GET-only organization-wide aggregates using admin-issued `api_keys` and a server-only `SUPABASE_SERVICE_ROLE_KEY`.
-`read_api_progress(text)` is executable only by `service_role`, rechecks revocation, and uses `_course_state` for canonical module completion and paired pre/post gains.
-The response contains cohort/course metadata and counts, never student identities or individual work.
-See the [README API contract](../README.md#aggregate-read-api) for configuration, scoring definitions, and local tests.
-Migration 3005 is committed for review; no hosted database or deployment changes were made.
-
 ## Gotchas we already hit
 
 - Supabase keeps `pgcrypto` in the `extensions` schema: call `extensions.crypt(...)` and `extensions.gen_salt(...)`, not the bare names.
@@ -178,11 +178,11 @@ Delete demo auth users and rows (or create a fresh project), apply migrations wi
 
 ## Log
 
-- 2026-11-15, Codex: added migration 3005 and the key-authenticated aggregate read endpoint, with HTTP authorization tests and rollback-only SQL tests on a disposable local database; hosted activation remains pending.
-
 - 2026-11-15 8:55 AM, Ruthvik: migration 2006 is applied on hosted (renumbered from 2005); every migration through 2008 is applied. `supabase/demo/assignment_modules_demo.sql` is still not run on hosted.
 
 - 2026-11-15 1:15 AM, Ruthvik: added migration 2006 (program settings, `class_module_settings`), its SQL test and `supabase/demo/assignment_modules_demo.sql`. Neither is applied to the hosted project yet.
+
+- 2026-11-15, Codex: added migration 3005 and the key-authenticated aggregate read endpoint, with HTTP authorization tests and rollback-only SQL tests on a disposable local database; hosted activation remains pending.
 
 - 2026-11-15 12:45 AM, Ruthvik: set `is_library = true` on the hosted "Web Development Foundations" course (owner Dana Whitfield, no classes) so it shows in the CIC library. Data-only change, not in a migration or seed.
 - 2026-11-14 9:00 PM, Ruthvik: added and applied migration 2004 `copy_library_course`. Also loaded `supabase/curriculum/ai-academy.sql` (AI Academy library courses).
