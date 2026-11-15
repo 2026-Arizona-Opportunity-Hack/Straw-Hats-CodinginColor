@@ -77,28 +77,36 @@ function toActivity(row: Row): Activity {
     markdown: str(content.markdown) || (type === 'code' ? str(content.prompt) : ''),
     url: str(content.url), questions,
   };
-  if (type === 'code') activity.code = { starter: str(content.starter_code), tests, solution: str(content.solution) };
+  if (type === 'content' && content.presentation === 'cic-article') activity.presentation = 'cic-article';
+  if (type === 'code') {
+    const lab = content.lab as Json | undefined;
+    activity.code = { starter: str(content.starter_code), tests, solution: str(content.solution) };
+    if (lab?.verifier === 'cat-photo-v1') activity.code.lab = {
+      language: 'web', verifier: 'cat-photo-v1', starterCss: str(lab.starterCss), checks: [],
+    };
+  }
   if (type === 'interactive_html') activity.interactiveHtml = {
     html: str(content.html), instructions: str(content.instructions), reports_score: Boolean(content.reports_score),
   };
   if (content.format === 'open-ended') activity.format = 'open-ended';
+  if (type === 'worksheet') activity.discussionEnabled = content.discussion_enabled === true;
   return activity;
 }
 
 /** Writes the shared contract fields (what the student app reads) plus the builder's full question list. */
-function activityContent(activity: Activity): Json {
+export function activityContent(activity: Activity): Json {
   const choices = (q: Question): Choice[] => q.choices.filter(c => c.trim()).map((label, i) => ({ id: choiceId(i), label }));
   const answerId = (q: Question) => (q.answer === null ? undefined : choiceId(q.choices.slice(0, q.answer).filter(c => c.trim()).length));
   const first = activity.questions[0];
   const base: Json = { title: activity.title, questions: activity.questions };
   switch (activity.type) {
-    case 'content': return { ...base, markdown: activity.markdown };
+    case 'content': return { ...base, markdown: activity.markdown, ...(activity.presentation ? { presentation: activity.presentation } : {}) };
     case 'video':
     case 'slides': return { ...base, url: activity.url, caption: activity.title, markdown: activity.markdown };
     case 'check': return { ...base, prompt: first?.prompt ?? '', choices: first ? choices(first) : [], answer: first ? answerId(first) : undefined, markdown: activity.markdown };
     case 'exit': return { ...base, prompt: first?.prompt ?? '', choices: first ? choices(first) : [], markdown: activity.markdown };
     case 'worksheet': return {
-      ...base, markdown: activity.markdown, format: activity.format,
+      ...base, markdown: activity.markdown, format: activity.format, discussion_enabled: !!activity.discussionEnabled,
       fields: activity.questions.map((q, i) => q.choices.some(c => c.trim())
         ? { id: 'f' + i, kind: 'multiple_choice', prompt: q.prompt, choices: choices(q) }
         : { id: 'f' + i, kind: activity.format === 'open-ended' ? 'long_answer' : 'short_answer', prompt: q.prompt }),
@@ -113,6 +121,7 @@ function activityContent(activity: Activity): Json {
       ...base, prompt: activity.markdown, markdown: activity.markdown, starter_code: activity.code?.starter ?? '',
       tests: (activity.code?.tests ?? '').split('\n').filter(line => line.trim()).map((assertion, i) => ({ name: 'Test ' + (i + 1), assertion })),
       solution: activity.code?.solution ?? '',
+      ...(activity.code?.lab?.verifier === 'cat-photo-v1' ? { lab: activity.code.lab } : {}),
     };
   }
 }
@@ -216,7 +225,7 @@ async function selectAll(supabase: SupabaseClient, table: string, columns: strin
 
 export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, displayName: string): Promise<InstructorData> {
   const [courses, classes, attempts, rules] = await Promise.all([
-    supabase.from('courses').select('id, title, description, level, owner_id, created_at, modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))').order('created_at'),
+    supabase.from('courses').select('*, modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))').order('created_at'),
     supabase.from('classes').select('id, name, school, course_id, join_code, created_at, class_modules (module_id), class_students (id, display_name, passcode, profile_id, created_at), assignments (*), assignment_submissions (*)').order('created_at'),
     selectAll(supabase, 'activity_attempts', 'id, student_id, activity_id, class_id, score, submitted_at, time_on_task_ms, attempt_no, response'),
     supabase.from('module_rules').select('class_id, module_id, max_posttest_tries'),
@@ -227,6 +236,7 @@ export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, di
 
   const courseList: Course[] = (courses.data as Row[]).map(c => ({
     id: String(c.id), title: str(c.title), description: str(c.description), level: titleCase(str(c.level) || 'beginner'),
+    publicationRevision: Number(c.publication_revision ?? 0),
     modules: (arr(c.modules) as Row[]).sort(byPosition).map(m => ({
       id: String(m.id), title: str(m.title), published: Boolean(m.published),
       lessons: (arr(m.lessons) as Row[]).sort(byPosition).map(l => ({
@@ -288,6 +298,24 @@ function courseRows(course: Course) {
 function changedRows<T extends { id: string }>(before: T[], after: T[]) {
   const old = new Map(before.map(row => [row.id, row]));
   return after.filter(row => !same(old.get(row.id), row));
+}
+
+export async function publishLiveCourse(supabase: SupabaseClient, course: Course, previous: Course | undefined, moduleId: string, expectedRevision: number | undefined) {
+  const before = previous ? courseRows(previous) : { modules: [], lessons: [], activities: [] };
+  const next = courseRows(course);
+  const level = course.level.toLowerCase();
+  const { data, error } = await supabase.rpc('publish_curriculum', {
+    p_course: { id: course.id, title: course.title.trim(), description: course.description, level: levels.includes(level) ? level : 'beginner' },
+    p_module_id: moduleId,
+    p_expected_revision: expectedRevision ?? null,
+    p_modules: changedRows(before.modules, next.modules),
+    p_lessons: changedRows(before.lessons, next.lessons),
+    p_activities: changedRows(before.activities, next.activities),
+    p_removed_lessons: before.lessons.filter(row => !next.lessons.some(item => item.id === row.id)).map(row => row.id),
+    p_removed_activities: before.activities.filter(row => !next.activities.some(item => item.id === row.id)).map(row => row.id),
+  });
+  fail('publish the module', error);
+  return Number(data);
 }
 
 async function syncCourse(supabase: SupabaseClient, userId: string, course: Course, prev: Course | undefined) {

@@ -48,7 +48,12 @@ const Web: Course = {
   description: 'Create a simple webpage with HTML.',
   modules: [{ id: 'html', title: 'HTML foundations', published: true, lessons: [{
     id: 'html-lesson', title: 'Headings and paragraphs',
-    activities: [{ ...article, id: 'html-article', title: 'Give your page structure', markdown: 'Use an **h1** element for the page title and a **p** element for a paragraph.\n\n```html\n<h1>My first page</h1>\n<p>Welcome!</p>\n```' }],
+    activities: [{ ...article, id: 'html-article', title: 'Give your page structure', markdown: 'Use an **h1** element for the page title and a **p** element for a paragraph.\n\n```html\n<h1>My first page</h1>\n<p>Welcome!</p>\n```' }, {
+      ...article, id: 'cat-photo-lab', type: 'code', title: 'Build your Cat Photo App',
+      markdown: 'Change the heading to Cat Photo App, introduce your cat in a paragraph, and add an alt description to the photo.',
+      code: { starter: '<h1>My cat page</h1>\n<p></p>\n<img src="cat.jpg" alt="">', tests: '', solution: '',
+        lab: { language: 'web', verifier: 'cat-photo-v1', starterCss: 'body { padding: 1rem; } img { max-width: 100%; }', checks: [] } },
+    }],
   }] }],
 };
 export const BuilderDemo: Course = {
@@ -58,7 +63,7 @@ export const BuilderDemo: Course = {
     lessons: [{
       id: 'builder-demo-lesson', title: 'From a variable to a web page', activities: [
         { ...check, id: 'builder-quiz', title: 'Quick quiz' },
-        { ...check, id: 'builder-reflection', type: 'worksheet', title: 'In your own words', format: 'open-ended',
+        { ...check, id: 'builder-reflection', type: 'worksheet', title: 'In your own words', format: 'open-ended', discussionEnabled: true,
           questions: [{ prompt: 'Where could a scoreboard be useful?', choices: [], answer: null, concept: 'Variables' }] },
         { ...article, id: 'builder-widget', type: 'interactive_html', title: 'Try the score widget', markdown: '', interactiveHtml: {
           reports_score: true,

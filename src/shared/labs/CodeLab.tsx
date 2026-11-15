@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type { CodePayload, CodingLabSettings } from '../types/activities.ts'
 import { InteractiveHtmlFrame } from '../ui/InteractiveHtmlFrame.tsx'
 import { checkPython, checkWeb, type CheckResult } from './checks.ts'
+import { catPhotoPreview } from './catPhoto.ts'
 import { runPython, type PythonResult } from './pythonRunner.ts'
 import './lab.css'
 
@@ -20,8 +21,10 @@ function loadWork(key: string | undefined, starter: LabFiles): LabWork {
   return { files: starter }
 }
 
-export function CodeLab({ payload, storageKey, enabled = true }: {
-  payload: CodePayload; storageKey?: string; enabled?: boolean
+export type VerifyWebLab = (source: string, signal: AbortSignal) => Promise<{ checks: CheckResult[]; completed: boolean }>
+
+export function CodeLab({ payload, storageKey, enabled = true, allowSubmit = !!storageKey, verifyWeb, completed = false }: {
+  payload: CodePayload; storageKey?: string; enabled?: boolean; allowSubmit?: boolean; verifyWeb?: VerifyWebLab; completed?: boolean
 }) {
   const lab: CodingLabSettings = payload.lab ?? { language: 'python', checks: [] }
   const web = lab.language === 'web'
@@ -34,6 +37,7 @@ export function CodeLab({ payload, storageKey, enabled = true }: {
   const [busy, setBusy] = useState('')
   const [status, setStatus] = useState('')
   const [storageError, setStorageError] = useState('')
+  const [verified, setVerified] = useState(false)
   const controller = useRef<AbortController | null>(null)
   const reset = useRef<HTMLDialogElement>(null)
 
@@ -41,7 +45,10 @@ export function CodeLab({ payload, storageKey, enabled = true }: {
 
   function save(next: LabWork, isSubmission = false) {
     if (!isSubmission) setWork(next)
-    if (!storageKey) return true
+    if (!storageKey) {
+      if (isSubmission) setWork(next)
+      return true
+    }
     try {
       localStorage.setItem(storageKey, JSON.stringify(next))
       if (isSubmission) setWork(next)
@@ -62,13 +69,13 @@ export function CodeLab({ payload, storageKey, enabled = true }: {
   async function execute(action: 'run' | 'check' | 'submit') {
     if (!enabled || controller.current) return
     const files = work.files
-    if (files.source.length > 48_000 || files.css.length > 48_000) {
+    if (new TextEncoder().encode(files.source).length > 48_000 || files.css.length > 48_000) {
       setStatus('Keep each source file within 48,000 characters.')
       return
     }
     const running = new AbortController()
     controller.current = running
-    setBusy(web ? 'Updating preview…' : 'Loading Python…')
+    setBusy(verifyWeb && action === 'check' ? 'Checking your work…' : web ? 'Updating preview…' : 'Loading Python…')
     setStatus('')
     setOutput(null)
     setChecks(null)
@@ -76,7 +83,15 @@ export function CodeLab({ payload, storageKey, enabled = true }: {
       let results: CheckResult[] = []
       let successful = true
       if (web) {
-        setRendered(files)
+        setRendered(verifyWeb ? { ...files, source: catPhotoPreview(files.source) } : files)
+        if (verifyWeb && action === 'check') {
+          const result = await verifyWeb(files.source, running.signal)
+          if (running.signal.aborted) return
+          setChecks(result.checks)
+          if (result.completed) setVerified(true)
+          else setStatus('Review the checks and try again.')
+          return
+        }
         if (action !== 'run') results = checkWeb(lab, files.source)
       } else {
         const result = await runPython(files.source, running.signal, () => setBusy('Running Python…'))
@@ -93,7 +108,7 @@ export function CodeLab({ payload, storageKey, enabled = true }: {
         setStatus('There are no practice checks for this lab.')
       }
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') setStatus('Execution stopped.')
+      if (running.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) setStatus('Execution stopped.')
       else setStatus('The lab could not run. Try again.')
     } finally {
       if (controller.current === running) controller.current = null
@@ -122,14 +137,15 @@ export function CodeLab({ payload, storageKey, enabled = true }: {
     </div>
     <div className="cic-lab-actions">
       <button type="button" disabled={!enabled || !!busy} onClick={() => void execute('run')}>Run</button>
-      <button type="button" disabled={!enabled || !!busy} onClick={() => void execute('check')}>Check</button>
-      {storageKey && <button type="button" className="cic-lab-primary" disabled={!enabled || !!busy} onClick={() => void execute('submit')}>Submit</button>}
+      <button type="button" className={verifyWeb ? 'cic-lab-primary' : undefined} disabled={!enabled || !!busy} onClick={() => void execute('check')}>{verifyWeb ? 'Check your work' : 'Check'}</button>
+      {allowSubmit && !verifyWeb && <button type="button" className="cic-lab-primary" disabled={!enabled || !!busy} onClick={() => void execute('submit')}>Submit</button>}
       {busy && <button type="button" onClick={() => controller.current?.abort()}>Stop</button>}
       <button type="button" disabled={!!busy} onClick={() => reset.current?.showModal()}>Reset to starter</button>
     </div>
     {!enabled && <p>Runtime available in the local demo.</p>}
     {busy && <p role="status">{busy}</p>}
     {status && <p role="status">{status}</p>}
+    {verifyWeb && (verified || completed) && <p role="status">Lab complete.</p>}
     {storageError && <p role="alert">{storageError}</p>}
     {checks && checks.length > 0 && <ul aria-label="Practice check results">
       {checks.map((result, index) => <li key={index}><strong>{result.passed ? 'Passed' : 'Needs work'}</strong> · {result.name}{result.detail && <p>{result.detail}</p>}</li>)}
