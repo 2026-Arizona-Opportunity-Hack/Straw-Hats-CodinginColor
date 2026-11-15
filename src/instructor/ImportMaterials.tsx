@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { defaultDraftQuality, draftQualities, isDraftQuality, maxDraftRequest, maxSelectedImages, maxSourceText, type DraftSource } from '../shared/curriculum/draft'
+import type { GenerationStage } from '../shared/curriculum/progress'
+import { GenerationStatus } from './GenerationStatus'
 import { LessonPreview } from './LessonPreview'
 import { requestMaterialsDraft, type MaterialDraft } from './materialsDraft'
 import type { readPptx } from './pptx'
@@ -18,6 +20,7 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
   const [draft, setDraft] = useState<MaterialDraft | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [stage, setStage] = useState<GenerationStage>('preparing')
   const [reading, setReading] = useState(false)
   const [deck, setDeck] = useState<(Awaited<ReturnType<typeof readPptx>> & { name: string }) | null>(null)
   const [selected, setSelected] = useState<string[]>([])
@@ -46,6 +49,7 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
       if (!converter) return onMarkdown(text.trim())
       const request = new AbortController()
       pending.current = request
+      setStage('preparing')
       setBusy(true)
       setError('')
       try {
@@ -57,7 +61,7 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
           }
           : { kind: 'lesson_plan', text: text.trim(), audience: audience.trim(), quality }
         if (new Blob([JSON.stringify(source)]).size > maxDraftRequest) throw new Error('Choose fewer images or split the source.')
-        const result = await requestMaterialsDraft(source, request.signal)
+        const result = await requestMaterialsDraft(source, request.signal, setStage)
         if (!request.signal.aborted) setDraft(result)
       } catch (problem) {
         if (!request.signal.aborted) setError(problem instanceof Error ? problem.message : 'Could not generate a draft.')
@@ -137,7 +141,7 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
         {Object.entries(draftQualities).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </select></label>}
       {error && <p className="ic-error" role="alert">{error}</p>}
-      {busy && <p role="status">Generating your draft… This can take a few minutes.</p>}
+      {busy && <GenerationStatus stage={stage} title="Generating your draft" />}
       <div className="ic-form-footer"><button type="submit" className="ic-button ic-primary" disabled={busy || reading || !ready}>
         {converter ? 'Generate draft' : 'Add article'}
       </button></div>

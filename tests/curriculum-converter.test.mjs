@@ -202,3 +202,32 @@ it('rejects authenticated students and accepts an instructor without saving the 
     vi.unstubAllEnvs()
   }
 })
+
+it('reports actual generation stages before returning the validated draft', async () => {
+  configureApi()
+  const { promise, resolve } = Promise.withResolvers()
+  vi.stubGlobal('fetch', async url => {
+    const auth = instructorResponse(url)
+    if (auth) return auth
+    if (url.startsWith('https://developer.mozilla.org')) return mdn()
+    if (url === endpointsUrl) return catalog()
+    return promise
+  })
+  const request = signedInRequest(proposal)
+  request.headers.set('Accept', 'application/x-ndjson')
+  const response = await POST(request)
+  expect(response.headers.get('Content-Type')).toContain('application/x-ndjson')
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
+  try {
+    for (const stage of ['preparing', 'references', 'model']) {
+      expect(JSON.parse((await reader.read()).value)).toEqual({ type: 'progress', stage })
+    }
+    resolve(completion(example))
+    expect(JSON.parse((await reader.read()).value)).toEqual({ type: 'progress', stage: 'validating' })
+    expect(JSON.parse((await reader.read()).value)).toMatchObject({ type: 'result', data: { moduleTitle: example.moduleTitle } })
+    expect((await reader.read()).done).toBe(true)
+  } finally {
+    resolve(completion(example))
+    await reader.cancel()
+  }
+})

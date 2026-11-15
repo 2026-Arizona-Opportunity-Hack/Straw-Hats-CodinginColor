@@ -1,12 +1,12 @@
 import { readFile } from 'node:fs/promises'
 import { createClient } from '@supabase/supabase-js'
 import { isDraftQuality, maxDraftRequest } from '../../src/shared/curriculum/draft.ts'
-import { DraftError, draftTimeoutMs } from '../../server/curriculum/completion.ts'
+import { draftTimeoutMs } from '../../server/curriculum/completion.ts'
 import { parseSource } from '../../server/curriculum/source.ts'
+import { draftFailure, draftJson as reply, draftResponse } from '../../server/curriculum/response.ts'
 import { generateDraft } from '../../server/curriculum/generate.ts'
 
 export async function POST(request: Request) {
-  const reply = (status: number, data: unknown) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store' } })
   const key = process.env.OPENROUTER_CURRICULUM_API_KEY
   const url = process.env.VITE_SUPABASE_URL
   const anonKey = process.env.VITE_SUPABASE_ANON_KEY
@@ -33,14 +33,9 @@ export async function POST(request: Request) {
     const source = parseSource(body)
     if (!source) return reply(400, { error: 'Check the materials. Use up to 80,000 characters, 60 slides, and six embedded images.' })
     const guide = await readFile(new URL('../../docs/lesson-style-guide.md', import.meta.url), 'utf8')
-    const draft = await generateDraft(source, guide, key, signal)
-    return reply(200, draft)
+    return draftResponse(request, signal, (workSignal, report) => generateDraft(source, guide, key, workSignal, report))
   } catch (error) {
-    if (error instanceof DraftError) return reply(error.status, { error: error.message })
-    if (signal.aborted || (error instanceof Error && error.name === 'TimeoutError')) {
-      return reply(504, { error: 'Drafting took too long. Try a shorter source.' })
-    }
-    console.error('Curriculum draft failed', { errorType: error instanceof Error ? error.name : 'unknown' })
-    return reply(502, { error: 'Could not generate a draft. Try again.' })
+    const failure = draftFailure(error, signal)
+    return reply(failure.status, { error: failure.error })
   }
 }
