@@ -178,7 +178,7 @@ export function InstructorWorkspace({
         released={course} localAuthoring={draftsLocal} onSave={saveDraft} onRelease={release} assigned={assigned} draftModule={draftModule}
         library={library} onSaveLibrary={saveLibrary} />;
       if (!item) return <CurriculumList courses={data.courses.map(item => data.courseDrafts?.[draftKey(item.id)] ?? item)} onCreate={createCourse}
-        onImport={async source => { window.location.hash = '/curriculum/' + (await importCourse(source)).id; }} />;
+        canEditLibrary={profile.role === 'admin'} />;
     }
     if (section === 'review') {
       if (course?.modules.some(module => module.published)) return <CourseReviewer key={course.id} course={course} />;
