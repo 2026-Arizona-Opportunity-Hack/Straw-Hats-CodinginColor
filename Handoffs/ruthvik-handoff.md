@@ -23,7 +23,7 @@ The team plan is in [`plan.md`](../plan.md); the nonprofit brief is linked from 
 | Branch | State | Notes |
 |---|---|---|
 | `main` | Has everything through PR #14 (tabs, assignments, live data), Shivraj's #16 and #17 (migrations 1001, 1002) | Source of truth |
-| `ruthvik/class-tabs` | Ahead of `main` (PR #18 merged) | Review fixes below; needs a PR. |
+| `ruthvik/class-tabs` | PR #20 into `main`, open | Review fixes (stale course saves, 1000-row cap, totals, tests). |
 | `jacky/student-join-and-player` | Pushed, no PR | Student module player with a renderer per activity type (`src/student/activities.tsx`). |
 | `Shivraj` | 2 commits ahead of `main` | Supabase CLI config (`supabase/config.toml`). Already merged into `ruthvik/class-tabs`. |
 | `Aryan`, `Ken`, `Jacky` | Nothing new beyond `main` | |
