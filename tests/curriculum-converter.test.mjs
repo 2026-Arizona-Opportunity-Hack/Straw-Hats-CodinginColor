@@ -23,6 +23,7 @@ it('requires a session before attempting paid inference', async () => {
 
 const endpointsUrl = 'https://openrouter.ai/api/v1/endpoints/zdr'
 const catalog = (opusRetains = false) => Response.json({ data: [
+  { model_id: 'openai/gpt-6.1-sol', tag: 'azure/us', safety_retention: false },
   { model_id: 'openai/gpt-6.1-terra', tag: 'azure/us', safety_retention: false },
   { model_id: 'anthropic/claude-opus-5.5', tag: 'google-vertex/global', safety_retention: opusRetains },
 ] })
@@ -230,4 +231,41 @@ it('reports actual generation stages before returning the validated draft', asyn
     resolve(completion(example))
     await reader.cancel()
   }
+})
+
+it('uses the authenticated, retention-checked Sol route for a lab and rejects active HTML', async () => {
+  configureApi()
+  const starter = { html: '<main><h1>Menu</h1><span aria-hidden="true">•</span></main>', css: 'main { background: #ddd }' }
+  const solution = { html: '<head><link rel="stylesheet" href="styles.css"></head>' + starter.html, css: 'main { padding: 20px }' }
+  const lab = { title: 'Build a menu', instructions: 'Link the CSS and add padding.', starter, solution,
+    checks: [
+      { kind: 'stylesheet', name: 'Link the style', hint: 'Use styles.css.' },
+      { kind: 'padding', name: 'Add space', selector: 'main', expected: '20px', hint: 'Pad the main element.' },
+    ],
+  }
+  const input = { kind: 'coding_lab', moduleTitle: example.moduleTitle, lessonTitle: example.lessons[0].title,
+    audience: 'Beginners', material: 'Create an HTML menu with a CSS file.', lessons: example.lessons }
+  let returned = lab
+  const calls = []
+  vi.stubGlobal('fetch', async (url, init) => {
+    const auth = instructorResponse(url)
+    if (auth) return auth
+    if (url === endpointsUrl) return catalog()
+    calls.push(JSON.parse(init.body))
+    return completion({ lab: returned, reviewNotes: ['Confirm the lab timing.'] })
+  })
+  const request = signedInRequest(input)
+  request.headers.set('Accept', 'application/x-ndjson')
+  const response = await POST(request)
+  expect(response.status).toBe(200)
+  const events = (await response.text()).trim().split('\n').map(JSON.parse)
+  expect(events.map(event => event.stage ?? event.type)).toEqual(['preparing', 'model', 'validating', 'result'])
+  expect(events.at(-1).data).toMatchObject({ lab: { starter, solution } })
+  expect(calls[0]).toMatchObject({
+    model: 'openai/gpt-6.1-sol',
+    provider: { only: ['azure/us'], zdr: true, data_collection: 'deny', require_parameters: true },
+  })
+  expect(JSON.parse(calls[0].messages[1].content)).toEqual({ ...input, lessons: [{ title: input.lessonTitle, article: example.lessons[0].article }] })
+  returned = { ...lab, starter: { ...starter, html: starter.html + '<script>console.log("active")</script>' } }
+  expect((await POST(signedInRequest(input))).status).toBe(502)
 })

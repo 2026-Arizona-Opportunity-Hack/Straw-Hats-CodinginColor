@@ -619,3 +619,5 @@ body:has(.ic-app) { margin: 0; }
 
 .ic-generation progress { width: 100%; max-width: 18rem; height: .6rem; accent-color: var(--ic-green); }
 .ic-generation span { font-variant-numeric: tabular-nums; }
+
+.ic-draft-lab .ic-button[aria-pressed="true"] { background: var(--ic-tint); color: var(--ic-green); }

@@ -7,6 +7,7 @@ const completionTimeoutMs = 265_000
 const openRouterUrl = 'https://openrouter.ai/api/v1'
 
 const routes = {
+  codingLab: { model: 'openai/gpt-6.1-sol', endpoint: 'azure/us', maxTokens: 10_000, promptPrice: 2.2, completionPrice: 11 },
   standard: { model: 'openai/gpt-6.1-terra', endpoint: 'azure/us', maxTokens: 13_000, promptPrice: 1.1, completionPrice: 5.5 },
   high: { model: 'anthropic/claude-opus-5.5', endpoint: 'google-vertex/global', maxTokens: 16_000, promptPrice: 4, completionPrice: 20 },
 }
@@ -41,7 +42,7 @@ async function verifyEndpoint(route: (typeof routes)[DraftQuality], signal: Abor
 type MessagePart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }
 
 export async function completeDraft({ quality, key, signal, guideVersion, instructions, source, schema, report }: {
-  quality: DraftQuality; key: string; signal: AbortSignal; guideVersion: string | undefined
+  quality: DraftQuality | 'codingLab'; key: string; signal: AbortSignal; guideVersion: string | undefined
   instructions: string; source: string | MessagePart[]; schema: object; report?: ReportProgress
 }) {
   const route = routes[quality]

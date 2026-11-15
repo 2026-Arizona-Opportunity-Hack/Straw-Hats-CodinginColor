@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { defaultDraftQuality, draftQualities, isDraftQuality, maxDraftRequest, maxSelectedImages, maxSourceText, type DraftSource } from '../shared/curriculum/draft'
 import type { GenerationStage } from '../shared/curriculum/progress'
+import { DraftLabReview } from './DraftLabReview'
+import { includeDraftLab, type DraftLab } from './draftLab'
 import { GenerationStatus } from './GenerationStatus'
 import { LessonPreview } from './LessonPreview'
 import { requestMaterialsDraft, type MaterialDraft } from './materialsDraft'
@@ -18,6 +20,8 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
   const [audience, setAudience] = useState('')
   const [quality, setQuality] = useState(defaultDraftQuality)
   const [draft, setDraft] = useState<MaterialDraft | null>(null)
+  const [lab, setLab] = useState<DraftLab | null>(null)
+  const [labBusy, setLabBusy] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [stage, setStage] = useState<GenerationStage>('preparing')
@@ -28,6 +32,7 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
   const pending = useRef<AbortController | null>(null)
   useEffect(() => () => pending.current?.abort(), [])
   const converter = mode === 'converter'
+  const labMaterial = deck ? deck.slides.map(slide => `Slide ${slide.number}\n${slide.text}\n${slide.notes}`).join('\n\n') : text.trim()
 
   return <Dialog title={draft ? 'Review module draft' : converter ? 'Draft a module from materials' : 'Import Markdown'} wide={!!draft} onClose={close}>
     {draft ? <div className="ic-stack">
@@ -39,9 +44,11 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
         {draft.references.map(ref => <li key={ref.id}><a href={ref.url} target="_blank" rel="noreferrer">{ref.title}</a></li>)}
       </ul></section>}
       {draft.module.lessons.map(lesson => <details key={lesson.id}><summary>{lesson.title}</summary><LessonPreview lesson={lesson} /></details>)}
+      <DraftLabReview module={draft.module} material={labMaterial} audience={audience.trim()}
+        selected={lab} onChange={setLab} onBusy={setLabBusy} />
       <div className="ic-form-footer">
-        <button type="button" className="ic-button" onClick={() => setDraft(null)}>Back to materials</button>
-        <button type="button" className="ic-button ic-primary" onClick={() => onDraft(draft.module)}>Add as draft</button>
+        <button type="button" className="ic-button" onClick={() => { setDraft(null); setLab(null); setLabBusy(false) }}>Back to materials</button>
+        <button type="button" className="ic-button ic-primary" disabled={labBusy} onClick={() => onDraft(includeDraftLab(draft.module, lab))}>Add as draft</button>
       </div>
     </div> : <form className="ic-stack" onSubmit={async event => {
       event.preventDefault()
