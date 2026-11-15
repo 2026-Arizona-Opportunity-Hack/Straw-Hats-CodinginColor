@@ -42,13 +42,17 @@ export type Course = {
   /** The library course this one was copied from. */
   copiedFrom?: string;
 };
+export type SavedAnswer = { prompt: string; value: string; code?: boolean };
 export type Attempt = {
   activityId: string;
   score: number | null;
   minutes: number;
   count: number;
   submitted: boolean;
-  response?: string;
+  response?: string | SavedAnswer[];
+  /** Latest saved response can be a practice try, distinct from the counted score. */
+  responseAttempt?: number;
+  scoreAttempt?: number;
   conceptScores?: Record<string, number>;
 };
 export type Learner = {

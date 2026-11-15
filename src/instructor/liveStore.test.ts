@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { newAssignment } from './assignments/model';
 import { importLibraryCourse, loadLiveData, saveLiveClass, saveLiveData } from './liveStore';
 import type { ClassGroup, Course, InstructorData } from './model';
+import { classProgress } from './progress';
 
 type Call = { table: string; op: string; payload?: unknown; filters: [string, ...unknown[]][] };
 type Reply = { data: unknown; error: null | { message: string; code?: string } };
@@ -98,6 +99,70 @@ describe('saveLiveData', () => {
     const written = calls.filter(c => c.op === 'upsert');
     expect(written.map(c => c.table)).toEqual(['activities']);
     expect((written[0].payload as { id: string }[]).map(row => row.id)).toEqual(['a2']);
+  });
+});
+
+describe('saved curriculum responses', () => {
+  const items = [{ id: 'custom-q', prompt: 'What repeats?', concept: 'loops', choices: [{ id: 'repeat', label: 'A loop' }] },
+    { id: 'next-q', prompt: 'What comes next?', concept: 'sequence', choices: [{ id: 'step', label: 'The next step' }] }];
+  const activities = [
+    { id: 'pre', type: 'pretest', content: { items } }, { id: 'post', type: 'posttest', content: { items } },
+    { id: 'worksheet', type: 'worksheet', content: { fields: [{ id: 'reflection', prompt: 'Explain your plan' },
+      { id: 'plan', kind: 'multiple_choice', prompt: 'Choose a plan', choices: [{ id: 'repeat', label: 'Repeat the steps' }] }] } },
+    { id: 'code', type: 'code', content: { prompt: 'Write code', solution: 'hidden reference' } },
+  ];
+  const row = (activity_id: string, attempt_no: number, score: number | null, response: unknown) => ({
+    activity_id, attempt_no, score, response, student_id: 'student', class_id: 'class', submitted_at: '2026-11-15T12:00:00Z',
+  });
+  async function load(attempts: unknown[], maxTries: number | null = 2) {
+    const { client } = fakeSupabase(withSettings(call => ({ data: {
+      courses: [{ id: 'course', modules: [{ id: 'module', published: true, lessons: [{ id: 'lesson', activities }] }] }],
+      classes: [{ id: 'class', course_id: 'course', class_modules: [{ module_id: 'module' }], class_students: [{ id: 'roster', profile_id: 'student' }] }],
+      activity_attempts: attempts,
+      class_module_settings: maxTries === null ? [] : [{ class_id: 'class', module_id: 'module', max_posttest_tries: maxTries, pass_mark: 0.7 }],
+    }[call.table] ?? [], error: null })));
+    return loadLiveData(client, 'instructor', 'Teacher');
+  }
+
+  it('retains labeled worksheet/code responses and mastery from counted tests, apart from the latest practice response', async () => {
+    const loaded = await load([
+      row('pre', 1, 0.25, { concept_scores: { loops: 0, sequence: 0.5 } }),
+      row('pre', 2, 1, { concept_scores: { loops: 1, sequence: 1 } }),
+      row('post', 1, 0.25, { concept_scores: { loops: 0, sequence: 0.5 } }),
+      row('post', 2, 0.75, { concept_scores: { loops: 1, sequence: 0.5, hidden: 1 } }),
+      row('post', 3, 1, { answers: { 'custom-q': 'repeat', 'next-q': 'step', hidden: 'not a question' }, concept_scores: { loops: 1, sequence: 1 }, solution: 'secret' }),
+      row('worksheet', 1, null, { fields: { reflection: 'Repeat until done.\nThen stop.', plan: 'repeat', hidden: 'private' }, share_discussion: true }),
+      row('code', 1, 1, { code: '<h1>Hello</h1>', solution: 'never display' }),
+    ]);
+    const group = loaded.classes[0];
+    const attempts = group.learners[0].attempts;
+    expect(attempts.find(a => a.activityId === 'pre')).toMatchObject({ score: 25, scoreAttempt: 1, conceptScores: { loops: 0, sequence: 50 } });
+    expect(attempts.find(a => a.activityId === 'post')).toMatchObject({ score: 75, scoreAttempt: 2, responseAttempt: 3,
+      conceptScores: { loops: 100, sequence: 50 }, response: [{ prompt: 'What repeats?', value: 'A loop' }, { prompt: 'What comes next?', value: 'The next step' }] });
+    expect(attempts.find(a => a.activityId === 'worksheet')?.response).toEqual([
+      { prompt: 'Explain your plan', value: 'Repeat until done.\nThen stop.' }, { prompt: 'Choose a plan', value: 'Repeat the steps' },
+    ]);
+    expect(attempts.find(a => a.activityId === 'code')?.response).toEqual([{ prompt: 'Submitted code', value: '<h1>Hello</h1>', code: true }]);
+    expect(JSON.stringify(attempts)).not.toMatch(/hidden|secret|private|never display/);
+    expect(classProgress(group, loaded.courses[0]).mastery.map(({ concept, score, mastered }) => ({ concept, score, mastered })))
+      .toEqual([{ concept: 'loops', score: 100, mastered: 1 }, { concept: 'sequence', score: 50, mastered: 0 }]);
+  });
+
+  it('uses the earliest tied best try and never substitutes a later pretest for an unscored first try', async () => {
+    const loaded = await load([row('post', 2, 0.5, { concept_scores: { loops: 0 } }), row('post', 1, 0.5, { concept_scores: { loops: 1 } }),
+      row('pre', 1, null, { concept_scores: { loops: 1 } }), row('pre', 2, 1, { concept_scores: { loops: 1 } })]);
+    const [post, pre] = loaded.classes[0].learners[0].attempts;
+    expect(post).toMatchObject({ score: 50, scoreAttempt: 1, conceptScores: { loops: 100 } });
+    expect(pre.score).toBeNull();
+    expect(pre.conceptScores).toBeUndefined();
+  });
+
+  it('withholds score and concept mastery when the counted post-test rule is unavailable', async () => {
+    const loaded = await load([row('post', 1, 1, { answers: { 'custom-q': 'repeat' }, concept_scores: { loops: 1 } })], null);
+    const attempt = loaded.classes[0].learners[0].attempts[0];
+    expect(attempt.score).toBeNull();
+    expect(attempt.conceptScores).toBeUndefined();
+    expect(attempt.response).toContainEqual({ prompt: 'What repeats?', value: 'A loop' });
   });
 });
 

@@ -1,6 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { ArrowRight, BookOpen, Clipboard, GraduationCap, Plus, Printer, Search, Users } from 'lucide-react';
 import { RosterUpload } from './RosterUpload';
+import { AttemptResponse } from './AttemptResponse';
 import { makeLearners, type ClassGroup, type Course, type Learner } from './model';
 import { attemptFor, classProgress, percent, points } from './progress';
 import {
@@ -101,7 +102,7 @@ export function ClassDashboard({ group, course, onSave, onAddStudents, justCreat
         const attempt = attemptFor(details.learner, activity.id);
         return <li key={activity.id}><div><strong>{activity.title}</strong>
           <p className="ic-note">{attempt?.submitted ? `${attempt.count} attempt(s) · ${attempt.minutes} min · Score ${percent(attempt.score)}` : 'Not submitted'}</p>
-          {attempt?.response && <pre><code>{attempt.response}</code></pre>}
+          <AttemptResponse attempt={attempt} />
         </div></li>;
       })}</ul>
       <h3>Hint log</h3>
