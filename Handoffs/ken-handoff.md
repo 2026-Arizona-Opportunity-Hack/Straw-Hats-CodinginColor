@@ -18,6 +18,13 @@ Authored scripts run only in the loopback mock demo, in a frame with an opaque o
 Keep real student data out of the demo while outbound navigation is under review.
 Use the [CIC Learn lesson style guide](../docs/lesson-style-guide.md) as model instructions for future lesson-plan or slide-deck conversion.
 
+## Student preview
+
+Lesson and module previews reuse the renderer from the corresponding student player.
+Preview answers run only in the open preview.
+Hosted previews use the live response types, safe Markdown and slides support.
+The local preview can also run demo HTML activities and coding labs.
+
 ## Coding labs and student demo
 
 PR #15 adds instructor starter files and practice checks for Python and HTML/CSS.
@@ -36,6 +43,8 @@ Published snapshots, My blocks, and executable labs remain browser-local.
 Run `supabase/tests/student_curriculum_access.sql` against a migrated development database to check both access and grading.
 
 ## Log
+
+- 2026-11-14, Ken: connected the draft preview to the student lesson renderer and added practice-only feedback.
 
 - 2026-11-14, Ken: added private live drafts and atomic module publishing.
 

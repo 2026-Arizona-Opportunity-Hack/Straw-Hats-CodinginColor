@@ -86,7 +86,7 @@ function toActivity(row: Row): Activity {
 }
 
 /** Writes the shared contract fields (what the student app reads) plus the builder's full question list. */
-function activityContent(activity: Activity): Json {
+export function activityContent(activity: Activity): Json {
   const choices = (q: Question): Choice[] => q.choices.filter(c => c.trim()).map((label, i) => ({ id: choiceId(i), label }));
   const answerId = (q: Question) => (q.answer === null ? undefined : choiceId(q.choices.slice(0, q.answer).filter(c => c.trim()).length));
   const first = activity.questions[0];
