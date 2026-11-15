@@ -16,6 +16,7 @@ const STEP: Record<ActivityType, { label: string; icon: string }> = {
   pretest: { label: 'Warm-up', icon: 'M5 21V4h11l-2 4 2 4H5' },
   video: { label: 'Video', icon: 'M8 5v14l11-7z' },
   content: { label: 'Reading', icon: 'M4 5h7v14H4zM13 5h7v14h-7z' },
+  slides: { label: 'Slides', icon: 'M4 5h16v11H4zM12 16v4M8 20h8' },
   check: { label: 'Quick question', icon: 'M9 9a3 3 0 1 1 4 2.8c-.8.4-1 1-1 1.7M12 17h.01' },
   worksheet: { label: 'Worksheet', icon: 'M4 20h4L19 9l-4-4L4 16z' },
   code: { label: 'Coding', icon: 'm8 8-4 4 4 4M16 8l4 4-4 4' },
