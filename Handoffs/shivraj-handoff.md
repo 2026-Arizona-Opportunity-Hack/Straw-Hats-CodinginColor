@@ -51,7 +51,7 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 ### Student sign-up and sign-in (1003)
 
 - Login page has a Student / Teacher-or-staff switch. New students use roster cards; existing email/Google accounts have a separate sign-in option (`src/student/auth/StudentAuthCard.tsx`).
-- After migration3006, `student_sign_up(email, password, display_name, school, class_code)` is private to authorized staff provisioning. Previously it was callable signed out. It creates a confirmed account, a student profile and, with a code, a class enrollment, all in one transaction. Errors: `BAD_EMAIL`, `BAD_PASSWORD`, `BAD_NAME`, `BAD_CLASS_CODE`, `EMAIL_TAKEN`.
+- After migration 3006, `student_sign_up(email, password, display_name, school, class_code)` is private to authorized staff provisioning. Previously it was callable signed out. It creates a confirmed account, a student profile and, with a code, a class enrollment, all in one transaction. Errors: `BAD_EMAIL`, `BAD_PASSWORD`, `BAD_NAME`, `BAD_CLASS_CODE`, `EMAIL_TAKEN`.
 - A trigger on `auth.users` gives **every** new account a student profile (Google included). Staff are promoted by an admin.
 - `join_class(code)` joins later. Progress from a self-chosen copy of the same course moves into the class.
 - Google needs setup in Google Cloud and the Supabase dashboard (redirect URI `https://aeatfaxavfppeauncbts.supabase.co/auth/v1/callback`). The client secret goes in the dashboard only.
@@ -59,8 +59,8 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 ### Student data minimization (3006, pending deployment)
 
 - New students enter through the class roster; Add person is staff-only and now supports reviewers.
-- Migration3006 closes the old public signup RPC and direct personal-email Auth signup/email-change paths.
-- Deploy roster login3007 first, then enable this UI; also disable hosted public signup (local config already does).
+- Migration 3006 closes the old public signup RPC and direct personal-email Auth signup/email-change paths.
+- Deploy roster login 3007 first, then enable this UI; also disable hosted public signup (local config already does).
 - Existing accounts and stored addresses are preserved; no production data cleanup or hosted settings were performed.
 - SQL regression covers direct Auth creation, spoofed roster identities, client RPC access, staff provisioning and legacy account preservation.
 
