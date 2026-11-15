@@ -1,0 +1,8 @@
+# Never upload local secrets or personal notes when deploying with the Vercel CLI.
+.env
+.env.*
+!.env.example
+shivraj-docs/
+node_modules/
+dist/
+supabase/.temp/
