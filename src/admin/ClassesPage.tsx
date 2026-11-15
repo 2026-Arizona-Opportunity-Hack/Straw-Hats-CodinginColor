@@ -1,14 +1,14 @@
 // Owner: Aryan. Every class across partner schools, who teaches it, and how it's doing.
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, School as SchoolIcon, Search } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Check, Copy, Plus, School as SchoolIcon, Search } from 'lucide-react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import {
   Badge, Button, Card, DataTable, EmptyState, Field, FormStatus, Input, Meter, PageHeader, Select, Td, Th,
 } from '../shared/ui/index.tsx'
 import { addInstructor, createClass, removeInstructor } from './api.ts'
-import { ArchiveButton, LoadState } from './common.tsx'
+import { AdminDialog, ArchiveButton, LoadState } from './common.tsx'
 import { ORG_KEY, useOrg } from './hooks.ts'
 import { analyze, archivedReason, fmtGain, termOf, type OrgData } from './metrics.ts'
 
@@ -43,7 +43,7 @@ export function ClassesPage() {
       <PageHeader
         title="Schools & classes"
         subtitle="Partner schools, their classes, and who teaches them."
-        actions={<a href="#new-class" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 font-semibold text-white hover:bg-brand-dark"><Plus aria-hidden="true" className="size-4" /> New class</a>}
+        actions={<NewClassDialog data={data} schools={a.schoolOptions} />}
       />
 
       <section aria-labelledby="classes-heading" className="mb-10">
@@ -132,27 +132,22 @@ export function ClassesPage() {
         )}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <Card id="new-class" className="lg:col-span-3" title="Create a class" description="The instructor then imports the roster and releases modules from their dashboard.">
-          <NewClassForm data={data} schools={a.schoolOptions} />
-        </Card>
-        <Card className="lg:col-span-2" title="Schools" description={`${a.schoolOptions.length} partner schools`}>
-          <ul className="divide-y divide-divider">
-            {a.schoolOptions.map((s) => {
-              const n = data.classes.filter((c) => c.school === s).length
-              return (
-                <li key={s} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                  <span className="font-semibold">{s}</span>
-                  <Link to={`/admin/classes?school=${encodeURIComponent(s)}`} className="shrink-0 text-brand hover:underline">
-                    {n} {n === 1 ? 'class' : 'classes'}
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-          <p className="mt-4 text-xs text-cic-muted">A school appears here once it has a class. Type a new school name when creating a class.</p>
-        </Card>
-      </div>
+      <Card className="max-w-xl" title="Schools" description={`${a.schoolOptions.length} partner schools`}>
+        <ul className="divide-y divide-divider">
+          {a.schoolOptions.map((s) => {
+            const n = data.classes.filter((c) => c.school === s).length
+            return (
+              <li key={s} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                <span className="font-semibold">{s}</span>
+                <Link to={`/admin/classes?school=${encodeURIComponent(s)}`} className="shrink-0 text-brand hover:underline">
+                  {n} {n === 1 ? 'class' : 'classes'}
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+        <p className="mt-4 text-xs text-cic-muted">A school appears here once it has a class.</p>
+      </Card>
     </>
   )
 }
@@ -226,65 +221,104 @@ function InstructorCell({ classId, className, assigned, available }: {
   )
 }
 
-function NewClassForm({ data, schools }: { data: OrgData; schools: string[] }) {
+function NewClassDialog({ data, schools }: { data: OrgData; schools: string[] }) {
   const qc = useQueryClient()
   const { profile } = useAuth()
+  const { hash } = useLocation()
+  const dialog = useRef<HTMLDialogElement>(null)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const [done, setDone] = useState<{ name: string; join_code: string } | null>(null)
+  const [copied, setCopied] = useState(false)
   const create = useMutation({
     mutationFn: (input: Parameters<typeof createClass>[0]) => createClass(input, profile!.id),
     onSuccess: ({ join_code }, input) => {
-      setError(null)
-      setSuccess(`Created ${input.name}. Join code: ${join_code}`)
+      setDone({ name: input.name, join_code })
       return qc.invalidateQueries({ queryKey: ORG_KEY })
     },
-    onError: (e) => { setSuccess(null); setError(e.message) },
+    onError: (e) => setError(e.message),
   })
+
+  // The command bar's "Create a class" links to #new-class.
+  useEffect(() => {
+    if (hash === '#new-class' && !dialog.current?.open) dialog.current?.showModal()
+  }, [hash])
+
+  function reset() {
+    setDone(null)
+    setError(null)
+    setCopied(false)
+  }
 
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const form = e.currentTarget
-    const f = new FormData(form)
+    const f = new FormData(e.currentTarget)
     const name = String(f.get('name') ?? '').trim()
     const school = String(f.get('school') ?? '').trim()
     const join_code = String(f.get('join_code') ?? '').trim().toUpperCase()
-    setSuccess(null)
+    setError(null)
     if (name.length < 2) return setError('Class name needs at least 2 characters.')
     if (school.length < 2) return setError('Enter the school name.')
     if (join_code && !/^[A-Z0-9-]{3,20}$/.test(join_code)) return setError('Join code: 3–20 letters, numbers or dashes.')
-    create.mutate(
-      { name, school, course_id: String(f.get('course_id')), join_code, instructor_id: String(f.get('instructor_id') ?? '') || undefined },
-      { onSuccess: () => form.reset() },
-    )
+    create.mutate({ name, school, course_id: String(f.get('course_id')), join_code, instructor_id: String(f.get('instructor_id') ?? '') || undefined })
+  }
+
+  async function copy(code: string) {
+    await navigator.clipboard.writeText(code)
+    setCopied(true)
   }
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field id="class-name" label="Class name">
-          <Input id="class-name" name="name" required minLength={2} placeholder="e.g. Maryvale Period 3" />
-        </Field>
-        <Field id="class-school" label="School" hint="Pick from the list or type a new school.">
-          <Input id="class-school" name="school" required list="school-options" aria-describedby="class-school-hint" placeholder="e.g. Maryvale High School" />
-          <datalist id="school-options">{schools.map((s) => <option key={s} value={s} />)}</datalist>
-        </Field>
-        <Field id="class-course" label="Course">
-          <Select id="class-course" name="course_id" required>
-            {data.courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
-          </Select>
-        </Field>
-        <Field id="class-instructor" label="Instructor" optional>
-          <Select id="class-instructor" name="instructor_id" defaultValue="">
-            <option value="">Assign later</option>
-            {data.people.filter((p) => p.role === 'instructor' && !p.archived_at).map((p) => <option key={p.id} value={p.id}>{p.display_name}</option>)}
-          </Select>
-        </Field>
-        <Field id="class-code" label="Join code" optional hint="Students type this to join. Leave blank to generate one.">
-          <Input id="class-code" name="join_code" aria-describedby="class-code-hint" className="uppercase placeholder:normal-case sm:max-w-xs" placeholder="e.g. MARY-P3" />
-        </Field>
-      </div>
-      <div><Button type="submit" disabled={create.isPending}>{create.isPending ? 'Creating…' : 'Create class'}</Button></div>
-      <FormStatus error={error} success={success} />
-    </form>
+    <>
+      <Button onClick={() => dialog.current?.showModal()}>
+        <Plus aria-hidden="true" /> New class
+      </Button>
+      <AdminDialog dialogRef={dialog} id="new-class-title" title={done ? 'Class created' : 'New class'} onClose={reset}>
+        {done ? (
+          <div className="flex flex-col gap-5 p-6">
+            <div className="rounded-2xl bg-gradient-to-br from-brand to-brand-accent p-px">
+              <div className="rounded-[15px] bg-white p-5 text-center">
+                <p className="text-lg font-bold">{done.name}</p>
+                <p className="mt-4 text-sm text-cic-muted">Students join with</p>
+                <p className="font-mono text-3xl font-bold tracking-widest text-brand">{done.join_code}</p>
+              </div>
+            </div>
+            <Button variant="secondary" onClick={() => void copy(done.join_code)}>
+              {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />} {copied ? 'Copied' : 'Copy join code'}
+            </Button>
+            <button type="button" onClick={reset} className="self-center text-sm font-semibold text-brand hover:underline">Create another class</button>
+          </div>
+        ) : (
+          <form onSubmit={submit} noValidate className="flex flex-col gap-4 p-6">
+            <Field id="class-name" label="Class name">
+              <Input id="class-name" name="name" required minLength={2} placeholder="e.g. Maryvale Period 3" />
+            </Field>
+            <Field id="class-school" label="School">
+              <Input id="class-school" name="school" required list="school-options" placeholder="Pick or type a school" />
+              <datalist id="school-options">{schools.map((s) => <option key={s} value={s} />)}</datalist>
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="class-course" label="Course">
+                <Select id="class-course" name="course_id" required>
+                  {data.courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+                </Select>
+              </Field>
+              <Field id="class-instructor" label="Instructor" optional>
+                <Select id="class-instructor" name="instructor_id" defaultValue="">
+                  <option value="">Assign later</option>
+                  {data.people.filter((p) => p.role === 'instructor' && !p.archived_at).map((p) => <option key={p.id} value={p.id}>{p.display_name}</option>)}
+                </Select>
+              </Field>
+            </div>
+            <Field id="class-code" label="Join code" optional>
+              <Input id="class-code" name="join_code" className="font-mono uppercase tracking-wider placeholder:font-sans placeholder:normal-case placeholder:tracking-normal" placeholder="Leave blank to generate one" />
+            </Field>
+            <FormStatus error={error} />
+            <Button type="submit" disabled={create.isPending} className="min-h-12 w-full">
+              {create.isPending ? 'Creating…' : 'Create class'}
+            </Button>
+          </form>
+        )}
+      </AdminDialog>
+    </>
   )
 }

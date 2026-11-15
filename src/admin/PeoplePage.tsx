@@ -1,13 +1,13 @@
 // Owner: Aryan. Everyone with an account, role filters and changes, adding people, and adding students to classes.
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Backpack, Check, Copy, GraduationCap, Mail, RefreshCw, Search, ShieldCheck, UserPlus, Users, X } from 'lucide-react'
+import { Backpack, Check, Copy, GraduationCap, Mail, RefreshCw, Search, ShieldCheck, UserPlus, Users } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import type { Role } from '../shared/types/db.ts'
 import { Button, DataTable, EmptyState, Field, FormStatus, Input, PageHeader, Select, Td, Th } from '../shared/ui/index.tsx'
 import { addPerson, changeRole, enrollStudent, type NewPerson } from './api.ts'
-import { ArchiveButton, LoadState } from './common.tsx'
+import { AdminDialog, ArchiveButton, LoadState } from './common.tsx'
 import { ORG_KEY, useOrg } from './hooks.ts'
 import { archivedReason } from './metrics.ts'
 
@@ -191,19 +191,7 @@ function AddPersonDialog({ classes }: { classes: { id: string; name: string }[] 
       <Button onClick={() => dialog.current?.showModal()}>
         <UserPlus aria-hidden="true" /> Add person
       </Button>
-      <dialog
-        ref={dialog}
-        aria-labelledby="add-person-title"
-        onClose={reset}
-        className="m-auto w-[min(34rem,calc(100%-2rem))] overflow-hidden rounded-3xl bg-white p-0 shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-sm"
-      >
-        <div className="brand-panel flex items-center justify-between px-6 py-5 text-white">
-          <h2 id="add-person-title" className="text-xl" style={{ color: '#fff' }}>{done ? 'Ready to sign in' : 'Add a person'}</h2>
-          <button type="button" onClick={() => dialog.current?.close()} className="grid size-9 place-items-center rounded-full hover:bg-white/15" aria-label="Close">
-            <X aria-hidden="true" className="size-5" />
-          </button>
-        </div>
-
+      <AdminDialog dialogRef={dialog} id="add-person-title" title={done ? 'Ready to sign in' : 'Add a person'} onClose={reset}>
         {done ? (
           <div className="flex flex-col gap-5 p-6">
             <div className="rounded-2xl bg-gradient-to-br from-brand to-brand-accent p-px">
@@ -278,7 +266,7 @@ function AddPersonDialog({ classes }: { classes: { id: string; name: string }[] 
             </Button>
           </form>
         )}
-      </dialog>
+      </AdminDialog>
     </>
   )
 }

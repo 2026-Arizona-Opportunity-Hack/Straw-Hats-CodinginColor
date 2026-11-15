@@ -1,6 +1,7 @@
 // Owner: Aryan. Small pieces shared by the admin pages.
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Archive, ArchiveRestore, CheckCircle2, CircleDashed, PlayCircle } from 'lucide-react'
+import { AlertTriangle, Archive, ArchiveRestore, CheckCircle2, CircleDashed, PlayCircle, X } from 'lucide-react'
+import type { ReactNode, RefObject } from 'react'
 import { Badge, Button, EmptyState } from '../shared/ui/index.tsx'
 import { setArchived } from './api.ts'
 import { ORG_KEY } from './hooks.ts'
@@ -57,5 +58,32 @@ export function ArchiveButton({ table, id, name, archived }: { table: 'classes' 
       {archived ? <ArchiveRestore aria-hidden="true" /> : <Archive aria-hidden="true" />}
       {archived ? 'Restore' : 'Archive'}<span className="sr-only"> {name}</span>
     </Button>
+  )
+}
+
+/** Modal used by the admin "Add person" and "New class" buttons. Esc and the ✕ close it. */
+export function AdminDialog({ dialogRef, id, title, onClose, children }: {
+  dialogRef: RefObject<HTMLDialogElement | null>
+  id: string
+  title: string
+  onClose: () => void
+  children: ReactNode
+}) {
+  return (
+    <dialog
+      ref={dialogRef}
+      aria-labelledby={id}
+      onClose={onClose}
+      className="m-auto w-[min(34rem,calc(100%-2rem))] overflow-hidden rounded-3xl bg-white p-0 shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-sm"
+    >
+      <div className="brand-panel flex items-center justify-between px-6 py-5">
+        {/* Inline color: the global h2 rule (index.css) would otherwise make it green on green. */}
+        <h2 id={id} className="text-xl" style={{ color: '#fff' }}>{title}</h2>
+        <button type="button" onClick={() => dialogRef.current?.close()} className="grid size-9 place-items-center rounded-full text-white hover:bg-white/15" aria-label="Close">
+          <X aria-hidden="true" className="size-5" />
+        </button>
+      </div>
+      {children}
+    </dialog>
   )
 }
