@@ -69,7 +69,15 @@ npm run dev            # http://localhost:5173
 ```
 
 With the Supabase values in `.env` left empty, the app runs on **mock data** and the login page shows a role picker (student, instructor, admin, reviewer).
-Fill them in to use a real Supabase project, then apply `supabase/migrations/` in order.
+Fill them in to use a real Supabase project, then apply the migrations and demo data with the Supabase CLI:
+
+```bash
+npx supabase login
+npx supabase link --project-ref <your-project-ref>
+npx supabase db push --include-seed   # runs supabase/migrations/ in order, then supabase/seed.sql
+```
+
+With Supabase configured, the instructor workspace reads and writes live data (classes, rosters, assigned modules, assignments, course content); Row Level Security limits each instructor to their own classes.
 
 Before opening a PR: `npm run build && npm run lint`.
 
@@ -78,6 +86,9 @@ Before opening a PR: `npm run build && npm run lint`.
 Instructors and reviewers use the workspace in `src/instructor/` inside the main app, under the shared sidebar: `/instructor#/classes`, `/instructor#/curriculum`, `/instructor#/review`, and `/reviewer` for external reviewers.
 `src/instructor/InstructorRoute.tsx` mounts it and passes the signed-in role.
 Its page styles live in `src/instructor/styles.css` (`ic-*` classes); reuse them when connecting data so the layout stays consistent.
+Inside a class, tabs are Dashboard, Curriculum, Assignments, Grades and Roster (`#/classes/<id>/<tab>`).
+Assignments (`src/instructor/assignments/`) are built from blocks in any order: text, links and videos, interactive HTML pages, questions (multiple choice, select all, true/false, short answer, number), written responses and code exercises, so a video can be followed by questions about it.
+Instructors can create, edit, duplicate, publish, delete, export to a `.json` file, and import from that file, from another class, or from pasted quiz text in the Aiken format (`A.` choices plus an `ANSWER: B` line).
 It still uses fictional data saved in the browser; connecting it to `src/api/instructor/` and Supabase is the next step.
 
 `npm run dev:instructor` (port 5176) still runs it standalone with its own sidebar and profile picker.

@@ -1,13 +1,15 @@
 import { useId, type ReactNode } from 'react';
 import { ArrowLeft, X } from 'lucide-react';
 
-export function PageHeader({ title, description, back, children }: {
-  title: string; description?: string; back?: { label: string; to: string }; children?: ReactNode;
+export function PageHeader({ title, description, back, children, level = 1 }: {
+  title: string; description?: ReactNode; back?: { label: string; to: string }; children?: ReactNode;
+  /** 2 for a header nested under another page header (only one h1 per page). */
+  level?: 1 | 2;
 }) {
-  return <header className="ic-page-header">
+  return <header className={'ic-page-header' + (level === 2 ? ' ic-subpage-header' : '')}>
     <div>
       {back && <a className="ic-back" href={back.to}><ArrowLeft size={15} /> {back.label}</a>}
-      <h1 tabIndex={-1} id="ic-page-title">{title}</h1>
+      {level === 1 ? <h1 tabIndex={-1} id="ic-page-title">{title}</h1> : <h2>{title}</h2>}
       {description && <p>{description}</p>}
     </div>
     {children && <div className="ic-page-actions">{children}</div>}

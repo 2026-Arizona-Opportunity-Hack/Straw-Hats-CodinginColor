@@ -1,12 +1,10 @@
 // Owner: Aryan. Add routes here; page components live in each owner's folder.
 import { createBrowserRouter, Navigate } from 'react-router-dom'
-import { AdminAnalytics, AdminClasses, AdminHome, AdminSettings, AdminUsers } from './admin/AdminPages.tsx'
-import { InstructorRoute } from './instructor/InstructorRoute.tsx'
+import {
+  AdminAnalytics, AdminClasses, AdminHome, AdminSettings, AdminUsers, InstructorRoute, ModulePlayer, RolePage, StudentHome,
+} from './lazyPages.tsx'
 import { LoginPage } from './LoginPage.tsx'
-import { RequireRole } from './shared/auth/RequireRole.tsx'
 import { AppLayout } from './shared/ui/AppLayout.tsx'
-import { ModulePlayer } from './student/ModulePlayer.tsx'
-import { StudentHome } from './student/StudentHome.tsx'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -16,39 +14,39 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/login" replace /> },
       {
         path: 'student',
-        element: <RequireRole roles={['student']}><StudentHome /></RequireRole>,
+        element: <RolePage roles={['student']} page={StudentHome} />,
       },
       {
         path: 'student/module/:moduleId',
-        element: <RequireRole roles={['student']}><ModulePlayer /></RequireRole>,
+        element: <RolePage roles={['student']} page={ModulePlayer} />,
       },
       {
         path: 'instructor',
-        element: <RequireRole roles={['instructor', 'admin']}><InstructorRoute /></RequireRole>,
+        element: <RolePage roles={['instructor', 'admin']} page={InstructorRoute} />,
       },
       {
         path: 'admin',
-        element: <RequireRole roles={['admin']}><AdminHome /></RequireRole>,
+        element: <RolePage roles={['admin']} page={AdminHome} />,
       },
       {
         path: 'admin/users',
-        element: <RequireRole roles={['admin']}><AdminUsers /></RequireRole>,
+        element: <RolePage roles={['admin']} page={AdminUsers} />,
       },
       {
         path: 'admin/classes',
-        element: <RequireRole roles={['admin']}><AdminClasses /></RequireRole>,
+        element: <RolePage roles={['admin']} page={AdminClasses} />,
       },
       {
         path: 'admin/analytics',
-        element: <RequireRole roles={['admin']}><AdminAnalytics /></RequireRole>,
+        element: <RolePage roles={['admin']} page={AdminAnalytics} />,
       },
       {
         path: 'admin/settings',
-        element: <RequireRole roles={['admin']}><AdminSettings /></RequireRole>,
+        element: <RolePage roles={['admin']} page={AdminSettings} />,
       },
       {
         path: 'reviewer',
-        element: <RequireRole roles={['reviewer', 'admin']}><InstructorRoute /></RequireRole>,
+        element: <RolePage roles={['reviewer', 'admin']} page={InstructorRoute} />,
       },
       { path: '*', element: <p>Page not found.</p> },
     ],

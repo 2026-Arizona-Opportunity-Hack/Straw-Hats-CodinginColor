@@ -58,8 +58,8 @@ const ROLE_LABEL: Record<Role, string> = {
 function Brand({ to, onClick }: { to: string; onClick?: () => void }) {
   return (
     <Link to={to} onClick={onClick} aria-label="CIC Learn home" className="dot-hover -m-1.5 flex items-center gap-2.5 rounded-lg p-1.5 text-white [--dot:rgb(255_255_255/0.22)]">
-      <span aria-hidden="true" className="grid size-9 place-items-center rounded-lg bg-white text-sm font-bold text-brand">
-        {'</>'}
+      <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-lg bg-white p-1">
+        <img src="/cic-logo.png" alt="" width={32} height={32} className="size-8 object-contain" />
       </span>
       <span className="flex flex-col leading-tight">
         <span className="text-lg font-bold">CIC Learn</span>
