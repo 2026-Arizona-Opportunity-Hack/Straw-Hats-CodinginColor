@@ -216,7 +216,7 @@ async function selectAll(supabase: SupabaseClient, table: string, columns: strin
 
 export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, displayName: string): Promise<InstructorData> {
   const [courses, classes, attempts, rules] = await Promise.all([
-    supabase.from('courses').select('id, title, description, level, owner_id, created_at, modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))').order('created_at'),
+    supabase.from('courses').select('*, modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))').order('created_at'),
     supabase.from('classes').select('id, name, school, course_id, join_code, created_at, class_modules (module_id), class_students (id, display_name, passcode, profile_id, created_at), assignments (*), assignment_submissions (*)').order('created_at'),
     selectAll(supabase, 'activity_attempts', 'id, student_id, activity_id, class_id, score, submitted_at, time_on_task_ms, attempt_no, response'),
     supabase.from('module_rules').select('class_id, module_id, max_posttest_tries'),
@@ -227,6 +227,7 @@ export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, di
 
   const courseList: Course[] = (courses.data as Row[]).map(c => ({
     id: String(c.id), title: str(c.title), description: str(c.description), level: titleCase(str(c.level) || 'beginner'),
+    publicationRevision: Number(c.publication_revision ?? 0),
     modules: (arr(c.modules) as Row[]).sort(byPosition).map(m => ({
       id: String(m.id), title: str(m.title), published: Boolean(m.published),
       lessons: (arr(m.lessons) as Row[]).sort(byPosition).map(l => ({
@@ -288,6 +289,24 @@ function courseRows(course: Course) {
 function changedRows<T extends { id: string }>(before: T[], after: T[]) {
   const old = new Map(before.map(row => [row.id, row]));
   return after.filter(row => !same(old.get(row.id), row));
+}
+
+export async function publishLiveCourse(supabase: SupabaseClient, course: Course, previous: Course | undefined, moduleId: string, expectedRevision: number | undefined) {
+  const before = previous ? courseRows(previous) : { modules: [], lessons: [], activities: [] };
+  const next = courseRows(course);
+  const level = course.level.toLowerCase();
+  const { data, error } = await supabase.rpc('publish_curriculum', {
+    p_course: { id: course.id, title: course.title.trim(), description: course.description, level: levels.includes(level) ? level : 'beginner' },
+    p_module_id: moduleId,
+    p_expected_revision: expectedRevision ?? null,
+    p_modules: changedRows(before.modules, next.modules),
+    p_lessons: changedRows(before.lessons, next.lessons),
+    p_activities: changedRows(before.activities, next.activities),
+    p_removed_lessons: before.lessons.filter(row => !next.lessons.some(item => item.id === row.id)).map(row => row.id),
+    p_removed_activities: before.activities.filter(row => !next.activities.some(item => item.id === row.id)).map(row => row.id),
+  });
+  fail('publish the module', error);
+  return Number(data);
 }
 
 async function syncCourse(supabase: SupabaseClient, userId: string, course: Course, prev: Course | undefined) {

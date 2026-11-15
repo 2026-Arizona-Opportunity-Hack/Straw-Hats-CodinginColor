@@ -81,6 +81,8 @@ With Supabase configured, the instructor workspace reads and writes live data (c
 
 For the live student curriculum, apply migration `1004_student_curriculum_access.sql` before setting `VITE_LIVE_STUDENT_CURRICULUM=true` and rebuilding. Students can then open published, unlocked modules in their enrolled courses and save attempts to Supabase. Live HTML is scriptless. The full Coding Lab runner is available in the local demo.
 
+Apply migration `2005_publish_curriculum.sql` before deploying the private-draft builder. **Save draft** keeps edits in the signed-in author's current browser. **Publish module** applies the selected module and course details to the shared course. Other unfinished modules stay in the draft.
+
 Before opening a PR: `npm run build && npm run lint`.
 
 ### Instructor workspace

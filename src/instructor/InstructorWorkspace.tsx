@@ -6,7 +6,7 @@ import { isClassTab } from './classTabIds';
 import { CourseBuilder, CourseReviewer, CurriculumList, demoDraftModule } from './Curriculum';
 import { publishModule, type Activity, type ClassGroup, type Course, type Module, type StaffRole } from './model';
 import { AccessSettings, ProgramOverview } from './Operations';
-import { browserInstructorStore, type InstructorStore } from './store';
+import { browserInstructorStore, loadCourseDrafts, saveCourseDraft, type InstructorStore } from './store';
 import { PageHeader } from './ui';
 import logo from './cic-logo.png';
 import './styles.css';
@@ -52,6 +52,7 @@ export function InstructorWorkspace({
   const profileId = role ?? pickedProfileId;
   const profile = data.staff.find(person => person.id === profileId) || data.staff[0];
   const author = authorId ?? profile.id;
+  const [liveDrafts, setLiveDrafts] = useState(() => draftsLocal ? {} : loadCourseDrafts(author));
   const draftKey = (courseId: string) => author + ':' + courseId;
   const library = data.savedBlocks?.[author] ?? [];
   const homeSection = profile.role === 'reviewer' ? 'review' : 'classes';
@@ -114,14 +115,23 @@ export function InstructorWorkspace({
   }
 
   function saveDraft(course: Course) {
-    if (!draftsLocal) return save({ ...data, courses: data.courses.map(item => item.id === course.id ? course : item) });
+    if (!draftsLocal) {
+      try { saveCourseDraft(author, course); }
+      catch {
+        showError('Could not save this draft in your browser. Free up storage and try again.');
+        return false;
+      }
+      setLiveDrafts(current => ({ ...current, [course.id]: course }));
+      setError('');
+      return true;
+    }
     const current = store.load();
     return save({ ...current, courseDrafts: { ...current.courseDrafts, [draftKey(course.id)]: course } });
   }
 
   function createCourse(course: Course) {
     if (!draftsLocal) {
-      if (save({ ...data, courses: [...data.courses, course] })) window.location.hash = '/curriculum/' + course.id;
+      if (saveDraft(course)) window.location.hash = '/curriculum/' + course.id;
       return;
     }
     const current = store.load();
@@ -132,8 +142,21 @@ export function InstructorWorkspace({
     })) window.location.hash = '/curriculum/' + course.id;
   }
 
-  function release(draft: Course, moduleId: string, selected: Module | null) {
-    if (!draftsLocal) return saveDraft(draft);
+  async function release(draft: Course, moduleId: string, selected: Module | null): Promise<Course | false> {
+    if (!draftsLocal) {
+      const catalog = data.courses.find(course => course.id === draft.id);
+      if (!store.publishCourse) throw new Error('Publishing is unavailable.');
+      const snapshot = publishModule(catalog ?? { ...draft, modules: [] }, draft, selected, moduleId);
+      const publicationRevision = await store.publishCourse(snapshot, catalog, moduleId, draft.publicationRevision);
+      const published = { ...snapshot, publicationRevision };
+      setData(current => ({
+        ...current,
+        courses: catalog ? current.courses.map(course => course.id === draft.id ? published : course) : [...current.courses, published],
+      }));
+      const next = { ...draft, publicationRevision };
+      saveDraft(next);
+      return next;
+    }
     const current = store.load();
     const catalog = current.courses.find(course => course.id === draft.id);
     if (!catalog || (!selected && current.classes.some(group => group.moduleIds.includes(moduleId)))) return false;
@@ -141,7 +164,7 @@ export function InstructorWorkspace({
       ...current,
       courses: current.courses.map(course => course.id === draft.id ? publishModule(catalog, draft, selected, moduleId) : course),
       courseDrafts: { ...current.courseDrafts, [draftKey(draft.id)]: draft },
-    });
+    }) ? draft : false;
   }
 
   function saveLibrary(blocks: Activity[]) {
@@ -151,6 +174,7 @@ export function InstructorWorkspace({
 
   const group = section === 'classes' ? visibleClasses.find(group => group.id === item) : undefined;
   const course = data.courses.find(course => course.id === (group?.courseId ?? item));
+  const draftCourse = draftsLocal ? (item ? data.courseDrafts?.[draftKey(item)] : undefined) : (item ? liveDrafts[item] : undefined);
   const assigned = new Set(data.classes.filter(group => group.courseId === course?.id).flatMap(group => group.moduleIds));
   const content = (() => {
     if (!navigation.some(({ path }) => path === section)) return <PageHeader title="Page unavailable for this role" back={{ label: 'Back to workspace', to: home }} />;
@@ -160,10 +184,15 @@ export function InstructorWorkspace({
       if (!item) return <ClassList groups={visibleClasses} courses={data.courses} />;
     }
     if (section === 'curriculum') {
-      if (course) return <CourseBuilder key={author + ':' + course.id} initial={data.courseDrafts?.[draftKey(course.id)] ?? course}
-        released={course} localAuthoring={draftsLocal} onSave={saveDraft} onRelease={release} assigned={assigned} draftModule={draftModule}
+      const editable = draftCourse ?? course;
+      if (editable) return <CourseBuilder key={draftKey(editable.id)} initial={editable}
+        released={course ?? { ...editable, modules: [] }} localAuthoring={draftsLocal} onSave={saveDraft} onRelease={release} assigned={assigned} draftModule={draftModule}
         library={library} onSaveLibrary={saveLibrary} />;
-      if (!item) return <CurriculumList courses={data.courses.map(item => data.courseDrafts?.[draftKey(item.id)] ?? item)} onCreate={createCourse} />;
+      if (!item) {
+        const courses = data.courses.map(item => draftsLocal ? data.courseDrafts?.[draftKey(item.id)] ?? item : liveDrafts[item.id] ?? item);
+        const privateCourses = Object.values(liveDrafts).filter(draft => !data.courses.some(item => item.id === draft.id));
+        return <CurriculumList courses={[...courses, ...privateCourses]} onCreate={createCourse} />;
+      }
     }
     if (section === 'review') {
       if (course?.modules.some(module => module.published)) return <CourseReviewer key={course.id} course={course} />;
