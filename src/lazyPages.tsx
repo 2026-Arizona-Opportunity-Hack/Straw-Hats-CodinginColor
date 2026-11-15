@@ -12,6 +12,7 @@ export const AdminAnalytics = lazy(() => admin().then(m => ({ default: m.AdminAn
 export const AdminSettings = lazy(() => admin().then(m => ({ default: m.AdminSettings })))
 export const InstructorRoute = lazy(() => import('./instructor/InstructorRoute.tsx').then(m => ({ default: m.InstructorRoute })))
 export const StudentHome = lazy(() => import('./student/StudentHome.tsx').then(m => ({ default: m.StudentHome })))
+export const PublishedDemo = lazy(() => import('./student/PublishedDemo.tsx').then(m => ({ default: m.PublishedDemo })))
 export const ModulePlayer = lazy(() => import('./student/ModulePlayer.tsx').then(m => ({ default: m.ModulePlayer })))
 
 /** A page for these roles, with a loading message while its code downloads. */

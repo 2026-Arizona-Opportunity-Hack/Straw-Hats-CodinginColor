@@ -1,4 +1,4 @@
-import type { InteractiveHtmlPayload } from '../shared/types/activities.ts';
+import type { CodingLabSettings, InteractiveHtmlPayload } from '../shared/types/activities.ts';
 import type { Submission } from './assignments/grading';
 import type { Assignment } from './assignments/model';
 
@@ -24,7 +24,7 @@ export type Activity = {
   markdown: string;
   url: string;
   questions: Question[];
-  code?: { starter: string; tests: string; solution: string };
+  code?: { starter: string; tests: string; solution: string; lab?: CodingLabSettings };
   format?: 'open-ended';
   interactiveHtml?: InteractiveHtmlPayload;
 };
@@ -137,6 +137,13 @@ export function unresolvedModuleContent(module: Module): string | null {
       if (gradedTypes.has(activity.type)) {
         if (activity.questions.some(q => q.choices.filter(choice => choice.trim()).length < 2 || q.answer === null || !q.choices[q.answer]?.trim())) {
           return 'Give assessment questions at least two choices and mark a correct answer.';
+        }
+      }
+      if (activity.type === 'code' && activity.code?.lab) {
+        const { starter, lab } = activity.code;
+        if (starter.length > 48_000 || (lab.starterCss?.length ?? 0) > 48_000) return 'Starter files must be at most 48,000 characters.';
+        if (lab.checks.some(check => !check.name.trim() || (lab.language === 'web' && !check.selector?.trim()))) {
+          return 'Name each lab check and provide a selector for each HTML/CSS check.';
         }
       }
       if ((activity.type === 'content' || activity.type === 'code') && !activity.markdown.trim()) return 'Fill in each article and coding exercise.';

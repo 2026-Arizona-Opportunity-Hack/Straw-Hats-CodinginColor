@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { listModuleStatus, listMyCourses } from '../api/student/index.ts'
+import { PublishedDemoList } from './PublishedDemo'
 import { Card, PageHeader, TodoPanel } from '../shared/ui/index.tsx'
 
 function CourseModules({ courseId }: { courseId: string }) {
@@ -39,6 +40,7 @@ export function StudentHome() {
           </Card>
         ))}
       </div>
+      <PublishedDemoList />
       <div className="mt-6">
         <TodoPanel
           owner="Jacky"
