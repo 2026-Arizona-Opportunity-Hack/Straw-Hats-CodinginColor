@@ -6,7 +6,7 @@ import { setUserRole } from '../api/instructor/index.ts'
 import { isMockMode, supabase } from '../shared/supabase.ts'
 import type { Role } from '../shared/types/db.ts'
 import type { OrgData } from './metrics.ts'
-import { buildMockOrg } from './mocks.ts'
+import { buildMockOrg, MOCK_APPLICATIONS, MOCK_ISSUES } from './mocks.ts'
 
 let mockOrg: OrgData | null = null
 const mock = () => (mockOrg ??= buildMockOrg())
@@ -18,6 +18,8 @@ interface ApiKeyRow {
   revoked_at: string | null
 }
 let mockKeys: ApiKeyRow[] = []
+let mockIssues = MOCK_ISSUES
+let mockApplications = MOCK_APPLICATIONS
 
 const db = () => {
   if (!supabase) throw new Error('Supabase is not configured.')
@@ -29,14 +31,24 @@ function friendly(err: { code?: string; message: string }, what: string): Error 
   if (err.code === '42501' || /row-level security|permission denied/i.test(err.message))
     return new Error(`The database didn't allow ${what}. An admin access policy is missing (see README: Admin pages).`)
   if (err.code === '23505') return new Error(`That ${what.replace(/^(creating|adding) /, '')} already exists.`)
+  if (['42P01', '42703', 'PGRST204', 'PGRST205'].includes(err.code ?? ''))
+    return new Error(`This isn't set up in the database yet, so ${what} isn't available (see README: Admin pages).`)
   return new Error(err.message)
+}
+
+/** Updates one row and fails loudly if RLS silently matched nothing. */
+async function updateOne(table: string, id: string, values: Record<string, unknown>, what: string) {
+  const { data, error } = await db().from(table).update(values).eq('id', id).select('id')
+  if (error) throw friendly(error, what)
+  if (!data.length) throw new Error(`The database didn't allow ${what}. An admin access policy is missing (see README: Admin pages).`)
 }
 
 export async function loadOrgData(): Promise<OrgData> {
   if (isMockMode) return structuredClone(mock())
   const c = db()
   const [classes, courses, ci, enr, cm, mods, acts, att, people] = await Promise.all([
-    c.from('classes').select('id, name, school, course_id, join_code, created_at').order('name'),
+    // '*' so pages keep working before archived_at exists (see README: Admin pages).
+    c.from('classes').select('*').order('name'),
     c.from('courses').select('id, title, delivery_mode'),
     c.from('class_instructors').select('class_id, instructor_id'),
     c.from('enrollments').select('class_id, student_id'),
@@ -44,7 +56,7 @@ export async function loadOrgData(): Promise<OrgData> {
     c.from('modules').select('id, course_id, title, position, concept, published'),
     c.from('activities').select('id, type, concept, counts_toward_unlock, lesson:lessons!inner(module_id)'),
     c.from('activity_attempts').select('student_id, activity_id, class_id, attempt_no, score, is_correct, submitted_at, time_on_task_ms'),
-    c.from('profiles').select('id, role, display_name, school').order('display_name'),
+    c.from('profiles').select('*').order('display_name'),
   ])
   const failed = [classes, courses, ci, enr, cm, mods, acts, att, people].find((r) => r.error)
   if (failed?.error) throw friendly(failed.error, 'reading organization data')
@@ -186,4 +198,74 @@ export async function revokeApiKey(id: string): Promise<void> {
   }
   const { error } = await db().from('api_keys').update({ revoked_at: new Date().toISOString() }).eq('id', id).is('revoked_at', null)
   if (error) throw friendly(error, 'revoking the API key')
+}
+
+// ---- Archiving -----------------------------------------------------------
+// Archived rows are kept (history and reports still use them); they just leave the active lists.
+
+export async function setArchived(table: 'classes' | 'profiles', id: string, archived: boolean): Promise<void> {
+  const archived_at = archived ? new Date().toISOString() : null
+  if (isMockMode) {
+    const rows: { id: string; archived_at?: string | null }[] = table === 'classes' ? mock().classes : mock().people
+    const row = rows.find((r) => r.id === id)
+    if (row) row.archived_at = archived_at
+    return
+  }
+  await updateOne(table, id, { archived_at }, archived ? 'archiving' : 'restoring')
+}
+
+// ---- Instructor issues and hiring ----------------------------------------
+
+export interface Issue {
+  id: string
+  instructor_name: string
+  contact_email: string
+  class_name: string | null
+  subject: string
+  message: string
+  status: 'open' | 'resolved'
+  created_at: string
+}
+
+export type ApplicationStatus = 'new' | 'interviewing' | 'offer' | 'hired' | 'not_selected'
+export interface Application {
+  id: string
+  name: string
+  email: string
+  role: string
+  school: string | null
+  status: ApplicationStatus
+  applied_at: string
+  updated_at: string
+}
+
+export async function listIssues(): Promise<Issue[]> {
+  if (isMockMode) return structuredClone(mockIssues)
+  const { data, error } = await db().from('instructor_issues').select('*').order('created_at', { ascending: false })
+  if (error) throw friendly(error, 'reading instructor issues')
+  return data
+}
+
+export async function resolveIssue(id: string): Promise<void> {
+  if (isMockMode) {
+    mockIssues = mockIssues.map((i) => (i.id === id ? { ...i, status: 'resolved' } : i))
+    return
+  }
+  await updateOne('instructor_issues', id, { status: 'resolved', resolved_at: new Date().toISOString() }, 'resolving the issue')
+}
+
+export async function listApplications(): Promise<Application[]> {
+  if (isMockMode) return structuredClone(mockApplications)
+  const { data, error } = await db().from('job_applications').select('*').order('updated_at', { ascending: false })
+  if (error) throw friendly(error, 'reading applications')
+  return data
+}
+
+export async function setApplicationStatus(id: string, status: ApplicationStatus): Promise<void> {
+  const updated_at = new Date().toISOString()
+  if (isMockMode) {
+    mockApplications = mockApplications.map((a) => (a.id === id ? { ...a, status, updated_at } : a))
+    return
+  }
+  await updateOne('job_applications', id, { status, updated_at }, 'updating the application')
 }

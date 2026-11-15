@@ -113,14 +113,43 @@ export function Badge({ tone = 'neutral', children }: { tone?: Tone; children: R
 }
 
 /** One headline number. `hint` explains the metric in plain words. */
-export function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
+export function StatTile({ label, value, hint, trend, change }: {
+  label: string
+  value: string
+  hint?: string
+  /** Oldest → newest values for a sparkline. */
+  trend?: number[]
+  /** Difference vs the previous week; the sign is shown as text, not only color. */
+  change?: number | null
+}) {
   return (
-    <div className="dot-hover soft-card relative flex flex-col gap-1 overflow-hidden rounded-2xl border border-divider bg-white p-5 transition-transform hover:-translate-y-0.5 hover:border-brand">
+    <div className="soft-card relative flex flex-col gap-1 overflow-hidden rounded-2xl border border-divider bg-white p-5">
       <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand to-brand-accent" />
       <p className="text-sm font-semibold text-cic-muted">{label}</p>
-      <p className="text-3xl font-bold tracking-tight">{value}</p>
+      <div className="flex items-end justify-between gap-2">
+        <p className="text-3xl font-bold tracking-tight">{value}</p>
+        {trend && <Sparkline values={trend} label={`${label}, last ${trend.length} weeks`} />}
+      </div>
+      {change != null && (
+        <p className={`text-xs font-bold ${change >= 0 ? 'text-brand' : 'text-danger'}`}>
+          {change >= 0 ? '▲' : '▼'} {Math.abs(change)} <span className="font-normal text-cic-muted">{change >= 0 ? 'more' : 'fewer'} than last week</span>
+        </p>
+      )}
       {hint && <p className="text-xs text-cic-muted">{hint}</p>}
     </div>
+  )
+}
+
+/** Tiny trend line. Values are announced to screen readers. */
+function Sparkline({ values, label }: { values: number[]; label: string }) {
+  const max = Math.max(1, ...values)
+  const pts = values.map((v, i) => `${(i / Math.max(1, values.length - 1)) * 76 + 2},${30 - (v / max) * 26}`)
+  return (
+    <svg viewBox="0 0 80 32" className="h-8 w-20 shrink-0" role="img" aria-label={`${label}: ${values.join(', ')}`}>
+      <polygon points={`2,32 ${pts.join(' ')} 78,32`} fill="#e6f4ed" />
+      <polyline points={pts.join(' ')} fill="none" stroke="#007a3d" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={pts.at(-1)!.split(',')[0]} cy={pts.at(-1)!.split(',')[1]} r="2.5" fill="#00a850" />
+    </svg>
   )
 }
 
@@ -172,7 +201,8 @@ export function Td({ className = '', ...p }: TdHTMLAttributes<HTMLTableCellEleme
 
 // ---- Forms -----------------------------------------------------------------
 
-const control = 'h-11 w-full rounded-lg border border-input bg-white px-3 text-sm placeholder:text-cic-muted'
+// No fixed width: controls stretch inside Field (flex column) and take the width a page sets elsewhere.
+const control = 'h-11 rounded-lg border border-input bg-white px-3 text-sm placeholder:text-cic-muted'
 
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${control} ${props.className ?? ''}`} />

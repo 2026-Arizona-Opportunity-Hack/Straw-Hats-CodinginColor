@@ -1,6 +1,9 @@
 // Owner: Aryan. Small pieces shared by the admin pages.
-import { AlertTriangle, CheckCircle2, CircleDashed, PlayCircle } from 'lucide-react'
-import { Badge, EmptyState } from '../shared/ui/index.tsx'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { AlertTriangle, Archive, ArchiveRestore, CheckCircle2, CircleDashed, PlayCircle } from 'lucide-react'
+import { Badge, Button, EmptyState } from '../shared/ui/index.tsx'
+import { setArchived } from './api.ts'
+import { ORG_KEY } from './hooks.ts'
 import type { Status } from './metrics.ts'
 
 const STATUS: Record<Status, { label: string; tone: 'danger' | 'warn' | 'success' | 'info'; Icon: typeof AlertTriangle }> = {
@@ -27,9 +30,32 @@ export function LoadState({ isLoading, error }: { isLoading: boolean; error: unk
     return (
       <EmptyState
         icon={<AlertTriangle />}
-        title="Couldn't load this page"
+        title="Couldn't load this"
         description={error instanceof Error ? error.message : 'Something went wrong. Try reloading.'}
       />
     )
   return null
+}
+
+/** Archive / restore toggle for a person or class. Archiving keeps all data; it only leaves active lists. */
+export function ArchiveButton({ table, id, name, archived }: { table: 'classes' | 'profiles'; id: string; name: string; archived: boolean }) {
+  const qc = useQueryClient()
+  const run = useMutation({
+    mutationFn: () => setArchived(table, id, !archived),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ORG_KEY }),
+    onError: (e) => window.alert(e.message),
+  })
+  return (
+    <Button
+      size="sm"
+      variant={archived ? 'secondary' : 'ghost'}
+      disabled={run.isPending}
+      onClick={() => {
+        if (archived || window.confirm(`Archive ${name}? Their records stay in reports and history, and you can restore them anytime.`)) run.mutate()
+      }}
+    >
+      {archived ? <ArchiveRestore aria-hidden="true" /> : <Archive aria-hidden="true" />}
+      {archived ? 'Restore' : 'Archive'}<span className="sr-only"> {name}</span>
+    </Button>
+  )
 }
