@@ -1,8 +1,7 @@
 import type { CodingLabRequest, CodingLabResponse, DraftCodingLab } from '../shared/curriculum/codingLab'
 import type { ReportProgress } from '../shared/curriculum/progress'
-import { supabase } from '../shared/supabase'
 import { newActivity, type Module } from './model'
-import { requestCurriculum } from './requestCurriculum'
+import { requestCurriculum, sampleCurriculum } from './requestCurriculum'
 
 export type DraftLab = { lessonId: string; lab: DraftCodingLab; reviewNotes: string[] }
 
@@ -26,7 +25,7 @@ export function includeDraftLab(module: Module, selected: DraftLab | null): Modu
 }
 
 export function requestCodingLab(input: CodingLabRequest, signal: AbortSignal, report: ReportProgress) {
-  if (supabase) return requestCurriculum<CodingLabResponse>(input, signal, report)
+  if (!sampleCurriculum) return requestCurriculum<CodingLabResponse>(input, signal, report)
   const starter = { html: '<!doctype html><html lang="en"><head><title>Cafe Menu</title></head><body><main><h1>Cafe Menu</h1></main></body></html>',
     css: 'main { background: #eaf0e6; }' }
   const solution = { html: starter.html.replace('</head>', '<link rel="stylesheet" href="styles.css"></head>'),

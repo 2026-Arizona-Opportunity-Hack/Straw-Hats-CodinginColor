@@ -33,6 +33,7 @@ Instructors can describe the learners and supply additional instructions indepen
 Requests for W3Schools prioritize matching approved tutorials using reviewed summaries and canonical links.
 **Add a coding lab** gives Sol the source text and article draft for an optional HTML/CSS practice block.
 The reference solution and review notes stay in the draft review. Adding the module keeps only the starter and checks.
+Local Vite can opt in to the real converter while keeping demo course data and browser drafts. Sample imports are labeled in the form.
 See the [README](../README.md#draft-curriculum-from-materials) for preview configuration.
 
 ## Student preview
@@ -100,6 +101,8 @@ The roster mapping endpoint checks the signed-in Supabase profile and calls Jev 
 Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
 
 ## Log
+
+- 2026-11-15, Codex: enabled optional AI curriculum generation in the local instructor preview.
 
 - 2026-11-15, Codex: clarified the learner field and added instructor directions with optional W3Schools references.
 

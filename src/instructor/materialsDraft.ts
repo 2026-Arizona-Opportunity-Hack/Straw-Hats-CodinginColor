@@ -1,13 +1,12 @@
 import type { DraftReference, DraftResponse, DraftSource } from '../shared/curriculum/draft'
 import type { ReportProgress } from '../shared/curriculum/progress'
-import { requestCurriculum } from './requestCurriculum'
-import { supabase } from '../shared/supabase'
+import { requestCurriculum, sampleCurriculum } from './requestCurriculum'
 import { blankQuestion, id, newActivity, newLesson, type Module } from './model'
 
 export type MaterialDraft = { module: Module; reviewNotes: string[]; references: DraftReference[] }
 
 export async function requestMaterialsDraft(source: DraftSource, signal: AbortSignal, report: ReportProgress): Promise<MaterialDraft> {
-  if (!supabase) {
+  if (sampleCurriculum) {
     const text = source.kind === 'lesson_plan' ? source.text : source.slides.filter(slide => slide.text.trim())
       .map(slide => '## Slide ' + slide.number + '\n\n' + slide.text).join('\n\n')
     if (!text) throw new Error('The local preview needs visible text in your materials.')
@@ -15,7 +14,7 @@ export async function requestMaterialsDraft(source: DraftSource, signal: AbortSi
     const titleSource = source.kind === 'slide_deck' ? source.slides.find(slide => slide.text.trim())?.text || text : text
     const title = titleSource.split('\n').find(line => line.trim())?.replace(/^#+\s*/, '').trim().slice(0, 100) || 'Imported lesson'
     return materialDraft({
-      moduleTitle: title, references: [], reviewNotes: ['Local preview. Connect the converter to generate a lesson from this material.', ...flags],
+      moduleTitle: title, references: [], reviewNotes: ['Sample draft. Use AI generation to build a lesson and look up references.', ...flags],
       lessons: [{ title, article: text, citationIds: [],
         practice: ['Try one example from the reading. What did you change?'], exitPrompt: 'What did you learn, and what would you try next?' }],
     })

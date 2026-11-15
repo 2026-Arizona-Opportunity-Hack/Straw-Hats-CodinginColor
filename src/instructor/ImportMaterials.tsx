@@ -5,6 +5,7 @@ import { DraftLabReview } from './DraftLabReview'
 import { includeDraftLab, type DraftLab } from './draftLab'
 import { GenerationStatus } from './GenerationStatus'
 import { LessonPreview } from './LessonPreview'
+import { sampleCurriculum } from './requestCurriculum'
 import { requestMaterialsDraft, type MaterialDraft } from './materialsDraft'
 import type { readPptx } from './pptx'
 import type { Module } from './model'
@@ -81,7 +82,9 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
         if (!request.signal.aborted) setBusy(false)
       }
     }}>
-      {converter && <p className="ic-note">Use curriculum materials approved for processing. Leave out student names and records.</p>}
+      {converter && (sampleCurriculum
+        ? <p className="ic-note">Sample mode copies your materials into a draft. Enable AI generation to build a lesson and look up references.</p>
+        : <p className="ic-note">Use curriculum materials approved for processing. Leave out student names and records.</p>)}
       {!deck && <label>{converter ? 'Lesson plan proposal' : 'Markdown'}<textarea rows={7} value={text} maxLength={converter ? maxSourceText : undefined}
         onChange={event => setText(event.target.value)} disabled={busy || reading} /></label>}
       <label>{converter ? 'Text, Markdown, or PowerPoint file' : 'Text or Markdown file'}
@@ -166,7 +169,7 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
       {error && <p className="ic-error" role="alert">{error}</p>}
       {busy && <GenerationStatus stage={stage} title="Generating your draft" />}
       <div className="ic-form-footer"><button type="submit" className="ic-button ic-primary" disabled={busy || reading || !ready}>
-        {converter ? 'Generate draft' : 'Add article'}
+        {converter ? (sampleCurriculum ? 'Preview sample draft' : 'Generate draft') : 'Add article'}
       </button></div>
     </form>}
   </Dialog>

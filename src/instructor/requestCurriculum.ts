@@ -1,12 +1,19 @@
 import { draftStreamType, generationStages, type GenerationStage, type ReportProgress } from '../shared/curriculum/progress'
-import { supabase } from '../shared/supabase'
+import { isLocalDemo, supabase } from '../shared/supabase'
+
+const localAI = import.meta.env.DEV && import.meta.env.VITE_LOCAL_CURRICULUM_ENABLED && isLocalDemo
+export const sampleCurriculum = !supabase && !localAI
 
 export async function requestCurriculum<T>(request: object, signal: AbortSignal, report: ReportProgress): Promise<T> {
-  if (!supabase) throw new Error('Curriculum generation requires an instructor session.')
-  const { data } = await supabase.auth.getSession()
-  if (!data.session) throw new Error('Sign in as an instructor to generate a draft.')
+  const headers = new Headers({ 'Content-Type': 'application/json', Accept: draftStreamType })
+  if (localAI) headers.set('X-CIC-Local-Curriculum', '1')
+  else {
+    const session = (await supabase?.auth.getSession())?.data.session
+    if (!session) throw new Error('Sign in as an instructor to generate a draft.')
+    headers.set('Authorization', 'Bearer ' + session.access_token)
+  }
   const response = await fetch('/api/curriculum/draft', {
-    method: 'POST', headers: { Authorization: 'Bearer ' + data.session.access_token, 'Content-Type': 'application/json', Accept: draftStreamType },
+    method: 'POST', headers,
     body: JSON.stringify(request), signal,
   })
   if (!response.ok || !response.body || !response.headers.get('Content-Type')?.startsWith(draftStreamType)) {
