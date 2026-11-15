@@ -303,3 +303,20 @@ export function timeAgoOrDate(iso: string, now = Date.now()) {
   const days = (now - new Date(iso).getTime()) / 86_400_000
   return days < 30 ? timeAgo(iso, now) : new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
+
+const WEEK = 7 * 86_400_000
+
+/** Submissions and distinct active learners per week, oldest first, ending now. */
+export function weeklyActivity(attempts: OrgData['attempts'], weeks = 6, now = Date.now()) {
+  return Array.from({ length: weeks }, (_, i) => {
+    const end = now - (weeks - 1 - i) * WEEK
+    const inWeek = attempts.filter((a) => a.submitted_at && +new Date(a.submitted_at) > end - WEEK && +new Date(a.submitted_at) <= end)
+    return { submissions: inWeek.length, learners: new Set(inWeek.map((a) => a.student_id)).size }
+  })
+}
+
+
+export function greeting(now = new Date()) {
+  const h = now.getHours()
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
+}

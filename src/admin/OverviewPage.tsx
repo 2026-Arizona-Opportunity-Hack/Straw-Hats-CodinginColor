@@ -1,12 +1,14 @@
 // Owner: Aryan. Admin home: headline numbers, instructor issues to act on, and hiring.
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, Mail } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { useState } from 'react'
-import { Badge, Button, Card, EmptyState, PageHeader, Select, StatTile } from '../shared/ui/index.tsx'
-import { listApplications, listIssues, resolveIssue, setApplicationStatus, type ApplicationStatus } from './api.ts'
+import { Badge, Button, Card, EmptyState, Select, StatTile } from '../shared/ui/index.tsx'
+import { resolveIssue, setApplicationStatus, type ApplicationStatus } from './api.ts'
 import { LoadState } from './common.tsx'
-import { useOrg } from './hooks.ts'
-import { analyze, fmtGain, fmtPct, timeAgo } from './metrics.ts'
+import { useApplications, useIssues, useOrg } from './hooks.ts'
+import { analyze, fmtGain, fmtPct, greeting, timeAgo, weeklyActivity } from './metrics.ts'
 
 const STAGES: { value: ApplicationStatus; label: string }[] = [
   { value: 'new', label: 'New' },
@@ -17,18 +19,56 @@ const STAGES: { value: ApplicationStatus; label: string }[] = [
 ]
 
 export function OverviewPage() {
-  const { data, isLoading, error } = useOrg()
+  const { data, isLoading, error, dataUpdatedAt } = useOrg()
+  const { profile } = useAuth()
+  const issues = useIssues()
+  const apps = useApplications()
   const a = data && analyze(data)
+  const keep = new Set(a?.classes.map((c) => c.id))
+  const weeks = data ? weeklyActivity(data.attempts.filter((x) => keep.has(x.class_id))) : []
+  const [prev, cur] = weeks.slice(-2)
+  const schools = new Set(a?.classes.map((c) => c.school)).size
+  const openIssues = issues.data?.filter((i) => i.status === 'open').length
+  const toReview = apps.data?.filter((x) => x.status === 'new').length
+
+  const chips = [
+    openIssues != null && { to: '#issues', text: `${openIssues} open ${openIssues === 1 ? 'issue' : 'issues'}`, urgent: openIssues > 0 },
+    toReview != null && { to: '#hiring', text: `${toReview} new ${toReview === 1 ? 'application' : 'applications'}`, urgent: toReview > 0 },
+    a && { to: '/admin/analytics#attention', text: `${a.overall.stuck + a.overall.notStarted} students need help`, urgent: a.overall.stuck > 0 },
+  ].filter(Boolean) as { to: string; text: string; urgent: boolean }[]
 
   return (
     <>
-      <PageHeader title="Overview" subtitle="How Coding in Color's classes are doing right now." />
+      <header className="mb-8">
+        <p className="text-sm font-semibold text-cic-muted">
+          {new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(dataUpdatedAt || undefined)}
+        </p>
+        <h1 className="text-3xl tracking-tight sm:text-4xl">{greeting()}, {profile?.display_name}</h1>
+        <p className="mt-1 text-base text-cic-muted">
+          {a ? `Here's Coding in Color today across ${schools} ${schools === 1 ? 'school' : 'schools'} and ${a.classes.length} classes.` : 'Loading today…'}
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {chips.map((c) => {
+            const cls = `rounded-full border px-3.5 py-1.5 text-sm font-semibold hover:border-brand ${c.urgent ? 'border-warn bg-warn-soft text-warn' : 'border-divider bg-white text-brand'}`
+            // In-page anchors need a plain link so the browser scrolls to them.
+            return c.to.startsWith('#')
+              ? <a key={c.to} href={c.to} className={cls}>{c.text}</a>
+              : <Link key={c.to} to={c.to} className={cls}>{c.text}</Link>
+          })}
+          {dataUpdatedAt > 0 && (
+            <span className="flex items-center gap-1.5 text-xs text-cic-muted">
+              <span aria-hidden="true" className="size-2 rounded-full bg-brand-accent motion-safe:animate-pulse" />
+              Live · updated {timeAgo(new Date(dataUpdatedAt).toISOString())}
+            </span>
+          )}
+        </div>
+      </header>
       {a ? (
         <section aria-labelledby="kpis" className="mb-8">
           <h2 id="kpis" className="sr-only">Key numbers</h2>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-            <StatTile label="Schools" value={String(new Set(a.classes.map((c) => c.school)).size)} hint={`${a.classes.length} active ${a.classes.length === 1 ? 'class' : 'classes'}`} />
-            <StatTile label="Students" value={String(a.overall.students)} hint="Enrolled in a class" />
+            <StatTile label="Activity this week" value={`${cur.submissions}`} hint="Lessons and activities submitted" trend={weeks.map((w) => w.submissions)} change={cur.submissions - prev.submissions} />
+            <StatTile label="Active learners" value={`${cur.learners}`} hint={`of ${a.overall.students} enrolled students`} trend={weeks.map((w) => w.learners)} change={cur.learners - prev.learners} />
             <StatTile label="Module completion" value={fmtPct(a.overall.completionPct)} hint="Of modules in progress" />
             <StatTile label="Avg learning gain" value={fmtGain(a.overall.avgGain)} hint="Post-test minus pretest" />
             <StatTile label="Need attention" value={String(a.overall.stuck + a.overall.notStarted)} hint={`${a.overall.stuck} stuck · ${a.overall.notStarted} not started`} />
@@ -47,7 +87,7 @@ export function OverviewPage() {
 
 function IssuesCard() {
   const qc = useQueryClient()
-  const issues = useQuery({ queryKey: ['admin', 'issues'], queryFn: listIssues, retry: false })
+  const issues = useIssues()
   const [showResolved, setShowResolved] = useState(false)
   const resolve = useMutation({ mutationFn: resolveIssue, onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'issues'] }) })
   const open = issues.data?.filter((i) => i.status === 'open') ?? []
@@ -55,6 +95,7 @@ function IssuesCard() {
 
   return (
     <Card
+      id="issues"
       className="lg:col-span-3"
       title={`Issues from instructors${issues.data ? ` (${open.length} open)` : ''}`}
       description="Problems instructors have raised. Reply or mark them resolved."
@@ -102,7 +143,7 @@ function IssuesCard() {
 
 function HiringCard() {
   const qc = useQueryClient()
-  const apps = useQuery({ queryKey: ['admin', 'applications'], queryFn: listApplications, retry: false })
+  const apps = useApplications()
   const [tab, setTab] = useState<'applications' | 'hires'>('applications')
   const update = useMutation({
     mutationFn: ({ id, status }: { id: string; status: ApplicationStatus }) => setApplicationStatus(id, status),
@@ -112,7 +153,7 @@ function HiringCard() {
   const hires = apps.data?.filter((x) => x.status === 'hired') ?? []
 
   return (
-    <Card className="lg:col-span-2" title="Hiring" description="Applications for open roles and recent hires.">
+    <Card id="hiring" className="lg:col-span-2" title="Hiring" description="Applications for open roles and recent hires.">
       {apps.data && <div role="group" aria-label="Show" className="mb-3 flex gap-1 rounded-lg bg-brand-tint p-1">
         {([['applications', `Applications (${pending.length})`], ['hires', `Recent hires (${hires.length})`]] as const).map(([id, label]) => (
           <button
