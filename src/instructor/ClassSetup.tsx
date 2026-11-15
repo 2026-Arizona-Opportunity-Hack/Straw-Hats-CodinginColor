@@ -14,7 +14,7 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
   const library = publishedCourses(courses.filter(course => course.library));
   // Classes start from the CIC library; each class gets its own copy when it is created.
   // Without library courses (for example a fresh database), fall back to the instructor's own courses.
-  const own = library.length ? [] : assignableCourses(courses);
+  const own = library.length ? [] : assignableCourses(courses.filter(course => !classes.some(group => group.courseId === course.id)));
   const available = [...library, ...own];
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState(0);
@@ -112,7 +112,7 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
         <div hidden={step !== 1}><RosterUpload rows={rows} setRows={next => { setRows(next); setError(''); }} /></div>
         {step === 2 && <div className="ic-stack ic-section-gap" inert={busy}>
           {!available.length ? <p>Publish a module in <a href="#/curriculum">Curriculum</a> before assigning it.</p> : <>
-            {[['CIC library', library, 'Ready-made by Coding in Color. This class gets its own version, which you can change from its Curriculum tab.'], ['My courses', own, '']].map(([label, group, hint]) => (group as Course[]).length > 0 &&
+            {[['Global templates', library, 'This class gets its own copy, which you can edit from its Curriculum tab.'], ['Available class courses', own, '']].map(([label, group, hint]) => (group as Course[]).length > 0 &&
               <fieldset key={label as string} className="ic-course-pick"><legend>{label as string}</legend>
                 {hint && <p className="ic-note">{hint as string}</p>}
                 {(group as Course[]).map(option => <label key={option.id} className="ic-pick-card">

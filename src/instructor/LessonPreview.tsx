@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import { isLocalDemo } from '../shared/supabase.ts';
 import { LessonFigure } from '../shared/curriculum/LessonFigure';
 import { CicArticle } from '../shared/curriculum/CicArticle';
@@ -68,7 +68,11 @@ export function ActivityPreview({ activity, interactive = false, step, total }: 
   </ActivityCard>;
 }
 
-export function LessonPreview({ lesson, interactive = false }: { lesson: Lesson; interactive?: boolean }) {
+export function LessonPreview({ lesson, interactive = false, blockActions }: {
+  lesson: Lesson;
+  interactive?: boolean;
+  blockActions?: (activity: Activity) => ReactNode;
+}) {
   const headingId = useId();
   const total = lesson.activities.length;
   return <article className="cic-lesson" aria-labelledby={headingId}>
@@ -76,7 +80,10 @@ export function LessonPreview({ lesson, interactive = false }: { lesson: Lesson;
       <h2 className="cic-lesson-title" id={headingId}>{lesson.title || 'Untitled lesson'}</h2>
       {total > 0 && <p className="cic-lesson-meta">{lessonSummary(lesson.activities)}</p>}
     </header>
-    {total ? lesson.activities.map((activity, index) => <ActivityPreview key={activity.id} activity={activity} interactive={interactive} step={index + 1} total={total} />)
+    {total ? lesson.activities.map((activity, index) => {
+      const preview = <ActivityPreview key={activity.id} activity={activity} interactive={interactive} step={index + 1} total={total} />;
+      return blockActions ? <div className="ic-stack" key={activity.id}>{preview}{blockActions(activity)}</div> : preview;
+    })
       : <p className="cic-note">This lesson has no activities yet.</p>}
   </article>;
 }

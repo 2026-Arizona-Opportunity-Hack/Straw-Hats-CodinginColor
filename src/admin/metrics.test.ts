@@ -86,3 +86,27 @@ describe('fmtGain', () => {
     expect([fmtGain(12.4), fmtGain(-3.2), fmtGain(-0.4), fmtGain(0), fmtGain(null)]).toEqual(['+12 pts', '−3 pts', '0 pts', '0 pts', '—'])
   })
 })
+
+describe('matched assessment averages', () => {
+  it('uses the same pairs for before, after and gain in every grouping', () => {
+    const data = org({ attempts: [attempt('ana', 'pre', 1, 0.2), attempt('ana', 'post', 1, 0.6), attempt('ben', 'pre', 1, 1)] })
+    const result = analyze(data)
+    for (const group of [result.overall, ...result.byClass, ...result.bySchool, ...result.byModule]) {
+      expect(group).toMatchObject({ assessmentPairs: 1, avgPre: 20, avgPost: 60, avgGain: 40 })
+      expect(group.avgPost! - group.avgPre!).toBeCloseTo(group.avgGain!)
+    }
+    expect(result.overall.students).toBe(2)
+  })
+
+  it('does not invent growth by pairing different students', () => {
+    const result = analyze(org({ attempts: [attempt('ana', 'pre', 1, 0.2), attempt('ben', 'post', 1, 0.8)] }))
+    expect(result.overall).toMatchObject({ assessmentPairs: 0, avgPre: null, avgPost: null, avgGain: null })
+    expect(result.studentModules.find(row => row.studentId === 'ana')?.pre).toBe(20)
+  })
+
+  it('counts each student/module pair and preserves negative gains', () => {
+    const data = org({ attempts: [attempt('ana', 'pre', 1, 0.8), attempt('ana', 'post', 1, 0.3), attempt('ben', 'pre', 1, 0.6), attempt('ben', 'post', 1, 0.5)] })
+    expect(analyze(data, { classId: 'k' }).overall).toMatchObject({ assessmentPairs: 2, avgPre: 70, avgPost: 40, avgGain: -30 })
+    expect(analyze(data, { school: 'other' }).overall).toMatchObject({ assessmentPairs: 0, avgPre: null, avgPost: null, avgGain: null })
+  })
+})
