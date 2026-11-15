@@ -148,7 +148,16 @@ Admin overview, classes, people, and analytics share one cached organization sna
 Successful edits refresh it, and **Refresh data** reloads it on demand.
 The command palette requests organization data only when open.
 
+## Selected-class progress
+
+The instructor workspace loads progress on the selected class's Dashboard, Grades, and Roster tabs.
+Class-filtered admin analytics use the same scoped RPC and share their query with the toolbar.
+The partner CSV still requests program-wide data when needed.
+Apply migration 3017 before deploying the frontend change so the scoped reports can load.
+
 ## Log
+
+- 2026-11-15, Codex: scoped canonical progress to the selected class and preserved the existing staff access checks.
 
 - 2026-11-15, Codex: replaced minute-by-minute admin polling with refresh after edits and on demand.
 

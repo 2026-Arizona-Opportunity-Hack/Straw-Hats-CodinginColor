@@ -38,8 +38,7 @@ describe('assessment readiness after publication', () => {
 const settingsRow = { inactive_days: 3, low_score_pct: 60 };
 /** Answers program_settings like the database; everything else from `respond`. */
 const withSettings = (respond: (call: Call) => Reply) => (call: Call): Reply =>
-  call.table === 'program_settings' ? { data: [settingsRow], error: null }
-    : call.table === 'staff_progress_snapshot' ? { data: { modules: [] }, error: null } : respond(call);
+  call.table === 'program_settings' ? { data: [settingsRow], error: null } : respond(call);
 
 /** Records every query; `respond` decides what each one returns. */
 function fakeSupabase(respond: (call: Call) => Reply = () => ({ data: [{ id: 'x' }], error: null })) {
@@ -332,24 +331,20 @@ describe('loadLiveData', () => {
   });
 
   it('refuses to load without the program_settings row', async () => {
-    const { client } = fakeSupabase(call => ({ data: call.table === 'staff_progress_snapshot' ? { modules: [] } : [], error: null }));
+    const { client } = fakeSupabase(() => ({ data: [], error: null }));
     await expect(loadLiveData(client, 'instructor', 'T')).rejects.toThrow(/program_settings has no row/);
   });
 
-  it('requires the live snapshot and maps profile IDs to roster learners', async () => {
-    const canonical = { student_id: 'p1', class_id: 'class-1', course_id: 'course-1', module_id: 'm1', state: 'completed',
-      tested_out: true, required_count: 2, done_count: 1, pretest_score: 0.9, posttest_best: null };
-    const { client } = fakeSupabase(call => ({ data: {
+  it('loads roster profile IDs and released modules without requesting progress', async () => {
+    const { client, calls } = fakeSupabase(call => ({ data: {
       courses: [posttestCourse], classes: [{ ...classRow, class_modules: [
         { module_id: 'm1', released_at: '2000-01-01' }, { module_id: 'm2', released_at: '2999-01-01' },
-      ] }], program_settings: [settingsRow], staff_progress_snapshot: { modules: [canonical] },
+      ] }], program_settings: [settingsRow],
     }[call.table] ?? [], error: null }));
     const loaded = await loadLiveData(client, 'instructor', 'T');
     expect(loaded.classes[0].progressModuleIds).toEqual(['m1']);
-    expect(loaded.classes[0].learners[0].moduleProgress).toEqual([canonical]);
-    const missing = fakeSupabase(call => call.table === 'staff_progress_snapshot'
-      ? { data: null, error: { code: 'PGRST202', message: 'Missing function' } }
-      : { data: call.table === 'program_settings' ? [settingsRow] : [], error: null });
-    await expect(loadLiveData(missing.client, 'instructor', 'T')).rejects.toThrow(/3008_staff_progress_snapshot/);
+    expect(loaded.classes[0].learners[0]).toMatchObject({ id: 'cs1', profileId: 'p1' });
+    expect(loaded.classes[0].learners[0].moduleProgress).toBeUndefined();
+    expect(calls.filter(call => call.op === 'rpc')).toEqual([]);
   });
 });

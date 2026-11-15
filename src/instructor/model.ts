@@ -65,8 +65,10 @@ export type Attempt = {
   conceptScores?: Record<string, number>;
 };
 export type Learner = {
-  /** Canonical live state. Undefined only for browser-created/mock learners. */
+  /** Canonical state attached for reporting after the selected class loads. */
   moduleProgress?: StaffModuleProgress[];
+  /** Auth profile linked to the roster row, which has its own ID. */
+  profileId?: string;
   id: string;
   name: string;
   passcode: string;
