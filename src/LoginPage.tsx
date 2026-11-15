@@ -62,7 +62,7 @@ export function LoginPage() {
               audience === a ? 'bg-white text-brand shadow-sm' : 'text-cic-muted hover:text-brand'
             }`}
           >
-            {a === 'student' ? 'Student' : 'Teacher or staff'}
+            {a === 'student' ? 'Student' : 'Teacher or admin'}
           </button>
         ))}
       </div>
@@ -76,7 +76,7 @@ export function LoginPage() {
           <StudentAuthCard />
         )
       ) : (
-        <Card title="Staff sign in">
+        <Card title="Teacher and admin sign in">
           <form onSubmit={handleStaffLogin} className="space-y-3">
             <Field id="staff-login" label="Email or username">
               <Input

@@ -31,9 +31,15 @@ function friendly(err: { code?: string; message: string }, what: string): Error 
   if (err.code === '42501' || /row-level security|permission denied/i.test(err.message))
     return new Error(`The database didn't allow ${what}. An admin access policy is missing (see README: Admin pages).`)
   if (err.code === '23505') return new Error(`That ${what.replace(/^(creating|adding) /, '')} already exists.`)
-  if (['42P01', '42703', 'PGRST204', 'PGRST205'].includes(err.code ?? ''))
+  if (['42P01', '42703', 'PGRST202', 'PGRST204', 'PGRST205'].includes(err.code ?? ''))
     return new Error(`This isn't set up in the database yet, so ${what} isn't available (see README: Admin pages).`)
   return new Error(err.message)
+}
+
+/** Database functions raise codes like EMAIL_TAKEN; show the matching sentence, else a generic one. */
+function rpcError(err: { code?: string; message: string }, messages: Record<string, string>, what: string): Error {
+  const code = Object.keys(messages).find((c) => err.message.includes(c))
+  return code ? new Error(messages[code]) : friendly(err, what)
 }
 
 /** Updates one row and fails loudly if RLS silently matched nothing. */
@@ -159,6 +165,62 @@ export async function changeRole(userId: string, role: Role, adminId: string): P
   const { data, error } = await db().from('profiles').update({ role }).eq('id', userId).select('id')
   if (error) throw friendly(error, 'changing the role')
   if (!data?.length) throw new Error("The database didn't allow changing the role (no rows updated).")
+}
+
+export interface NewPerson {
+  display_name: string
+  email: string
+  password: string
+  role: 'student' | 'instructor' | 'admin'
+  school: string
+  class_id: string
+}
+
+const ADD_ERRORS: Record<string, string> = {
+  EMAIL_TAKEN: 'Someone already has an account with that email.',
+  BAD_EMAIL: "That email address doesn't look right.",
+  BAD_PASSWORD: 'The password needs 8 to 72 characters.',
+  BAD_NAME: 'Enter a name (up to 100 characters).',
+  BAD_SCHOOL: 'The school name is too long (up to 120 characters).',
+}
+
+/** Creates a sign-in account (migrations 3002, 3003); students are enrolled in the class, instructors teach it. */
+export async function addPerson(p: NewPerson): Promise<void> {
+  if (isMockMode) {
+    const o = mock()
+    const id = `person-${Date.now()}`
+    o.people.push({ id, role: p.role, display_name: p.display_name, school: p.school || null })
+    if (p.class_id && p.role === 'student') o.enrollments.push({ class_id: p.class_id, student_id: id })
+    if (p.class_id && p.role === 'instructor') o.classInstructors.push({ class_id: p.class_id, instructor_id: id })
+    return
+  }
+  const { error } = await db().rpc('admin_create_user', {
+    p_email: p.email,
+    p_password: p.password,
+    p_display_name: p.display_name,
+    p_role: p.role,
+    p_school: p.school || null,
+    p_class_id: p.class_id || null,
+  })
+  if (error) throw rpcError(error, ADD_ERRORS, 'adding the person')
+}
+
+const ENROLL_ERRORS: Record<string, string> = {
+  ALREADY_IN_CLASS: 'They are already in that class.',
+  COURSE_ALREADY_IN_ANOTHER_CLASS: "They're already taking that course in another class.",
+  STUDENTS_ONLY: 'Only students can be added to a class this way.',
+}
+
+/** Enrolls an existing student (migration 3004), with the same rules as joining by class code. */
+export async function enrollStudent(studentId: string, classId: string): Promise<void> {
+  if (isMockMode) {
+    const o = mock()
+    if (o.enrollments.some((e) => e.class_id === classId && e.student_id === studentId)) throw new Error(ENROLL_ERRORS.ALREADY_IN_CLASS)
+    o.enrollments.push({ class_id: classId, student_id: studentId })
+    return
+  }
+  const { error } = await db().rpc('admin_enroll_student', { p_student: studentId, p_class: classId })
+  if (error) throw rpcError(error, ENROLL_ERRORS, 'adding them to the class')
 }
 
 // ---- API keys ------------------------------------------------------------
