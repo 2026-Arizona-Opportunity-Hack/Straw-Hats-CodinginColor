@@ -11,7 +11,7 @@ insert into profiles (id, role, display_name) values
   ('82000000-0000-0000-0000-000000000002', 'instructor', 'Test instructor'),
   ('82000000-0000-0000-0000-000000000003', 'reviewer', 'Test reviewer'),
   ('82000000-0000-0000-0000-000000000004', 'student', 'Test student')
-on conflict (id) do update set role = excluded.role;
+on conflict (id) do update set role = excluded.role, display_name = excluded.display_name;
 
 insert into courses (id, title, owner_id, is_library, published) values
   ('82000000-0000-0000-0000-000000000011', 'Test library', '82000000-0000-0000-0000-000000000001', true, true),
@@ -41,7 +41,12 @@ begin
          or exists (select 1 from profiles where id = actor.id) = archived
          or exists (select 1 from modules where course_id = library_id)
               <> (not archived and actor.role <> 'student')
-         or exists (select 1 from catalog_modules() where course_id = library_id) = archived then
+         or (archived and (
+           exists (select 1 from catalog_modules() where course_id = library_id)
+           or exists (select 1 from catalog_courses() where id = library_id)))
+         or (not archived and actor.role <> 'reviewer' and (
+           not exists (select 1 from catalog_modules() where course_id = library_id)
+           or not exists (select 1 from catalog_courses() where id = library_id))) then
         raise exception 'Archive visibility mismatch for % (archived: %)', actor.role, archived;
       end if;
       if can_manage_class(fixture_class_id) <> (not archived and actor.role in ('instructor', 'admin'))

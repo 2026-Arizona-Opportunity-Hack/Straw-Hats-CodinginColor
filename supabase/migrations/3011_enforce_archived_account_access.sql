@@ -97,6 +97,20 @@ $$;
 revoke all on function public.catalog_modules() from public, anon;
 grant execute on function public.catalog_modules() to authenticated;
 
+-- The course catalog has the same security-definer boundary as its module list.
+alter function public.catalog_courses() set schema curriculum_private;
+revoke all on function curriculum_private.catalog_courses() from public, anon, authenticated;
+
+create function public.catalog_courses()
+returns table (id uuid, title text, description text, level public.course_level, delivery_mode public.delivery_mode)
+language sql stable security definer set search_path = '' as $$
+  select * from curriculum_private.catalog_courses()
+  where (select curriculum_private.active_profile())
+  order by title, id
+$$;
+revoke all on function public.catalog_courses() from public, anon;
+grant execute on function public.catalog_courses() to authenticated;
+
 -- Reuse the active-role check in the user-facing RPCs that read or write as
 -- their owner. Other student writes already call current_role_is.
 alter function public.my_courses() set schema curriculum_private;
