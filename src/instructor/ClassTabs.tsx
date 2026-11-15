@@ -5,6 +5,7 @@ import { ArrowRight, BookOpen, Printer, Search, Trash2, Upload, UserPlus } from 
 import { makeLearners, type ClassGroup, type Course } from './model';
 import { assignedModules, classProgress, percent, points, statuses } from './progress';
 import { classTabs, type ClassTabId } from './classTabIds';
+import { Gradebook } from './assignments/Gradebook';
 import { Empty } from './ui';
 
 export function ClassTabBar({ groupId, active }: { groupId: string; active: ClassTabId }) {
@@ -129,7 +130,20 @@ export function DashboardTab({ group, course }: { group: ClassGroup; course?: Co
   </div>;
 }
 
-export function GradesTab({ group, course, onSelect }: { group: ClassGroup; course?: Course; onSelect: (learnerId: string) => void }) {
+export function GradesTab({ group, course, onSelect, onSave }: {
+  group: ClassGroup; course?: Course; onSelect: (learnerId: string) => void; onSave: (group: ClassGroup) => boolean;
+}) {
+  const [view, setView] = useState<'assignments' | 'progress'>('assignments');
+  return <div className="ic-tab-page">
+    <div className="ic-mode ic-view-switch" role="group" aria-label="Grades view">
+      <button type="button" aria-pressed={view === 'assignments'} onClick={() => setView('assignments')}>Assignment grades</button>
+      <button type="button" aria-pressed={view === 'progress'} onClick={() => setView('progress')}>Curriculum progress</button>
+    </div>
+    {view === 'assignments' ? <Gradebook group={group} onSave={onSave} /> : <CurriculumProgress group={group} course={course} onSelect={onSelect} />}
+  </div>;
+}
+
+function CurriculumProgress({ group, course, onSelect }: { group: ClassGroup; course?: Course; onSelect: (learnerId: string) => void }) {
   const [moduleId, setModuleId] = useState('');
   const [filter, setFilter] = useState('All students');
   const [search, setSearch] = useState('');

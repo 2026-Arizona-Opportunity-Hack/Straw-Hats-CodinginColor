@@ -3,7 +3,7 @@
 Read this first if you are a teammate or an AI coding agent working on student progress, grading or unlocking.
 It says what exists, where it lives, what is half done, and what to watch out for.
 Update it in the same branch as your change (see "How to update this file" at the bottom).
-Format follows Ruthvik's handoff (`docs/ruthvik-handoff.md` on `ruthvik/class-tabs`).
+Format follows Ruthvik's handoff (`Handoffs/ruthvik-handoff.md`).
 
 Last updated: Sat Nov 14 2026, by Shivraj (with Claude Code).
 
@@ -104,4 +104,5 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-14 7:30 PM, Ruthvik: confirmed with `migration list` that 1001 and 1002 are applied to the hosted DB. Items 4 (builder reads `activity_keys`) and 5 (scoring rules in instructor progress) are done on `ruthvik/class-tabs`.
 - 2026-11-14, Shivraj: created. Migrations 1001 (grading, unlock rules, self-chosen courses) and 1002 (answer mover trigger, assigned modules only), both tested locally, not yet applied.

@@ -63,7 +63,7 @@ export function ClassDashboard({ group, course, onSave, justCreated, tab, detail
     {tab === 'dashboard' && <DashboardTab group={group} course={course} />}
     {tab === 'curriculum' && <CurriculumTab group={group} course={course} onEditAssignment={editAssignment} />}
     {tab === 'assignments' && <AssignmentsTab group={group} course={course} otherClasses={otherClasses} assignmentId={detail} onSave={onSave} />}
-    {tab === 'grades' && <GradesTab group={group} course={course} onSelect={setSelected} />}
+    {tab === 'grades' && <GradesTab group={group} course={course} onSelect={setSelected} onSave={onSave} />}
     {tab === 'roster' && <RosterTab group={group} course={course} onSave={onSave} onImport={openImport} onCards={openCards} />}
     {details && <Dialog wide title={details.learner.name + ' · Activity details'} onClose={() => setSelected(null)}>
       <p className="ic-note">{details.status} · {details.completed} of {details.total} completed · {details.minutes} min · Learning gain {points(details.gain)}</p>
