@@ -30,7 +30,7 @@ export function PublishedDemo() {
     <header className="ic-page-header">
       <div><Link className="ic-back" to="/student">My courses</Link><h1>{module.title}</h1><p>{course.title} · Browser demo</p></div>
     </header>
-    <div className="ic-stack">{module.lessons.map(lesson => <DemoLesson key={lesson.id} lesson={lesson}
+    <div className="cic-student-lessons">{module.lessons.map(lesson => <DemoLesson key={lesson.id} lesson={lesson}
       attemptKey={['cic-learn.demo-attempt', profile.id, module.id, module.revision ?? 1].join(':')} />)}</div>
   </div>
 }

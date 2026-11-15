@@ -115,6 +115,12 @@ export async function listActivityStatus(moduleId: string): Promise<ActivityStat
   return []
 }
 
+/** The student's latest saved answer for one activity (null if never answered), to show it again. */
+export async function getActivityResponse(activityId: string): Promise<Record<string, unknown> | null> {
+  if (curriculumBackend) return result(curriculumBackend.rpc('my_activity_response', { p_activity_id: activityId }))
+  return null
+}
+
 export async function recordAttempt(input: AttemptInput): Promise<AttemptResult> {
   if (curriculumBackend) return result(curriculumBackend.rpc('submit_attempt', {
     p_activity_id: input.activity_id,

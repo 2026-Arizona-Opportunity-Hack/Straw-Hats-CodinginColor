@@ -1,0 +1,42 @@
+/* Owner: Shivraj. One-card module player: step segments and the "correct!" celebration. */
+
+/* Step segments: done = brand green, current = outlined, ahead = grey. */
+.sp-seg { flex: 1; min-width: 6px; height: 8px; border-radius: 4px; background: #e7e5df; border: 0; padding: 0; }
+.sp-seg.done { background: var(--color-brand); }
+.sp-seg.current { background: #fff; box-shadow: inset 0 0 0 2px var(--color-brand); }
+button.sp-seg:not(:disabled) { cursor: pointer; }
+button.sp-seg:not(:disabled):hover { filter: brightness(1.15); }
+button.sp-seg:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
+
+/* Card slides in when the step changes. */
+.sp-card { animation: sp-in 0.28s ease-out; }
+@keyframes sp-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* Celebration: a burst of confetti from the middle of the card, plus a badge. */
+.sp-party { pointer-events: none; position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+.sp-party i { position: absolute; left: 50%; top: 45%; width: 9px; height: 14px; border-radius: 2px; opacity: 0;
+  background: var(--c); animation: sp-burst 1.1s cubic-bezier(.15,.7,.3,1) forwards; animation-delay: var(--d); }
+@keyframes sp-burst {
+  0% { opacity: 1; transform: translate(-50%, -50%) rotate(0); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) rotate(var(--r)); }
+}
+.sp-badge { position: absolute; left: 50%; top: 18px; translate: -50% 0; border-radius: 999px; background: var(--color-brand);
+  color: #fff; padding: 6px 16px; font-weight: 700; box-shadow: 0 10px 24px -10px rgb(0 122 61 / 0.7);
+  animation: sp-pop 1.6s ease-out forwards; }
+@keyframes sp-pop {
+  0% { opacity: 0; transform: scale(0.6); }
+  15% { opacity: 1; transform: scale(1.08); }
+  25% { transform: scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Finished-module trophy */
+.sp-trophy { animation: sp-bounce 0.9s ease-out; }
+@keyframes sp-bounce { 0% { transform: scale(0.4); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-card, .sp-trophy { animation: none; }
+  .sp-party { display: none; }
+  .sp-badge { animation: none; }
+}

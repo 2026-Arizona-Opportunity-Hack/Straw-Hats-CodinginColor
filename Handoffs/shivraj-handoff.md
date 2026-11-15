@@ -27,6 +27,7 @@ A first pretest try at or above the pass mark tests the student out of that modu
 | `1002_answer_keys_and_assigned_modules.sql` | Merged (#17) | Applied to the hosted DB |
 | `1003_student_sign_up.sql` | Written, tested locally (21 checks) | **Not applied to the hosted DB** |
 | `1008_starter_quiz.sql` | Written, tested locally (26 checks) | **Not applied to the hosted DB** |
+| `1009_unlock_and_duplicate_fixes.sql` | Written, tested locally (14 checks) | **Not applied to the hosted DB** |
 
 Tests: 45 checks in a local Postgres (PGlite) with `0001`, `1001`, `1002` and `2001`, passing in both orders.
 The hosted DB applies `0001, 2001, 1001, 1002`; a fresh setup applies `0001, 1001, 1002, 2001`.
@@ -60,6 +61,20 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 - Edit questions with SQL (`placement_items` + `placement_keys`); the scoring adapts to any number of knowledge items. Subjects come from course titles (`course_subject()`), like `src/student/languages.ts`.
 - Explore (`listCatalog`) now lists original courses only (`copied_from is null`).
 - Off unless `VITE_LIVE_STUDENT_CURRICULUM=true`.
+
+### Fixes in 1009
+
+- An **unscorable final check** (no items or no key) counts as passed once submitted, so it no longer blocks the next class module.
+- A class with **no assigned modules** shows the whole course; assigning modules limits it again.
+- **Course families**: `course_family(id)` = the original's id for a copy. `enroll_in_course` refuses any family member the student's class already uses (`ALREADY_IN_CLASS`); `_join_class` drops self-added copies of the class course. Existing duplicates were deleted.
+- `my_activity_response(activity)` returns the student's latest saved answer; the module player shows it on locked cards (`previousResponse` prop on `ActivityBlock`).
+
+### Module player and student sidebar
+
+- `/student/module/:id` shows **one card at a time** (`ModulePlayer.tsx`). `?step=N` (1-based) opens a card. Next unlocks once a card is done; non-required cards offer "Skip for now". A segment bar shows progress without showing questions. Correct answers trigger a short confetti burst (`stepper.css`, none under reduced motion).
+- `ActivityBlock` (`LessonContent.tsx`) new optional props: `onResult` (each attempt result), `hideTitle` (caller shows the title), `answerOnce` (lock after first submission, except `posttest`). Video activities now embed via `embedUrl`, like the instructor preview.
+- Student sidebar: Home (`/student`), My courses (`/student/courses`), My classroom (`/student/classroom`). Inside a course, `StudentCourseNav.tsx` lists modules as dropdowns of their steps; locked modules show a lock and don't expand.
+- Shared step names: `src/student/steps.ts`. Shared course progress hook: `src/student/useMyCourseProgress.ts`.
 
 ### Functions the app calls (`supabase.rpc`)
 
