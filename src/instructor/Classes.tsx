@@ -1,13 +1,13 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { ArrowRight, BookOpen, Clipboard, GraduationCap, Plus, Printer, Search, Users } from 'lucide-react';
 import { RosterUpload } from './RosterUpload';
-import { AttemptResponse } from './AttemptResponse';
 import { makeLearners, type ClassGroup, type Course, type Learner } from './model';
 import { attemptFor, classProgress, percent, points } from './progress';
 import {
   ClassTabBar, CurriculumTab, DashboardTab, GradesTab, RosterTab,
 } from './ClassTabs';
 import type { ClassTabId } from './classTabIds';
+import { AttemptResponse } from './AttemptResponse';
 import { AssignmentsTab } from './assignments/AssignmentsTab';
 import type { RosterRow } from './roster';
 import { copyText, Dialog, Empty, PageHeader, Panel } from './ui';
