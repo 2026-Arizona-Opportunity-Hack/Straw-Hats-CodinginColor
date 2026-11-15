@@ -1,4 +1,5 @@
 import { LOOP_DEMO_HTML } from '../api/fixtures';
+import type { Submission } from './assignments/grading';
 import { newAssignment, newQuestion, type Assignment, type Block, type QuizQuestion } from './assignments/model';
 import type { Activity, Course, InstructorData, Learner } from './model';
 
@@ -106,13 +107,43 @@ const maryvaleAssignments: Assignment[] = [
     blocks: [{ id: 'b-html', type: 'html', html: LOOP_DEMO_HTML, reportsScore: true, points: 5 }],
   },
   {
-    ...newAssignment('written'), id: 'written-reflection', title: 'Reflection: where do you see loops?', moduleId: 'loops',
+    ...newAssignment('written'), id: 'written-reflection', title: 'Reflection: where do you see loops?', moduleId: 'loops', published: true, dueAt: daysFromNow(-1),
     blocks: [
       { id: 'b-w1', type: 'written', prompt: 'Describe something in your day that repeats like a loop.', points: 5 },
       { id: 'b-w2', type: 'written', prompt: 'How would you write it as a for loop?', points: 5 },
     ],
   },
 ];
+
+// Fictional submissions so the gradebook has work to grade: some auto-graded, some waiting
+// on the instructor, one late, and students who have not submitted.
+const reflections = [
+  ['My alarm goes off every 5 minutes until I get up.', 'for snooze in range(5): print("wake up")'],
+  ['Practicing free throws: shoot, rebound, repeat.', 'for shot in range(10): shoot()'],
+  ['Brushing each tooth.', ''],
+];
+const maryvaleSubmissions: Submission[] = learners.slice(0, 7).flatMap((learner, index) => {
+  const at = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();
+  const list: Submission[] = [];
+  if (index !== 3) list.push({
+    id: 'sub-quiz-' + index, assignmentId: 'quiz-variables', studentId: learner.id, submittedAt: at(1 + (index % 3)),
+    responses: { 'b-q1': [index % 4 === 2 ? 0 : 1], 'b-q2': [index % 3 === 0 ? 0 : 1], 'b-q3': index % 2 ? 'print' : 'show' },
+    manualScores: {}, feedback: '', gradedAt: at(0),
+  });
+  if (index < 5) list.push({
+    id: 'sub-link-' + index, assignmentId: 'link-reading', studentId: learner.id, submittedAt: at(index),
+    responses: { 'b-q4': String(index === 1 ? 4 : 5), 'b-q5': index === 4 ? [0] : [0, 1] }, manualScores: {}, feedback: '', gradedAt: null,
+  });
+  if (index < 3) list.push({
+    id: 'sub-written-' + index, assignmentId: 'written-reflection', studentId: learner.id,
+    // The last one arrives after the due date.
+    submittedAt: index === 2 ? at(0) : at(2),
+    responses: { 'b-w1': reflections[index][0], 'b-w2': reflections[index][1] },
+    manualScores: index === 0 ? { 'b-w1': 5, 'b-w2': 4 } : {},
+    feedback: index === 0 ? 'Great real-world example. Check the indentation in your loop.' : '', gradedAt: index === 0 ? at(1) : null,
+  });
+  return list;
+});
 
 export const demoData: InstructorData = {
   courses: [Python, Web],
@@ -122,8 +153,8 @@ export const demoData: InstructorData = {
     { id: 'reviewer', name: 'Demo reviewer', role: 'reviewer', classIds: [] },
   ],
   classes: [
-    { id: 'maryvale', name: 'Maryvale · Period 3', school: 'Maryvale High School', courseId: 'python', moduleIds: ['variables', 'loops'], joinCode: 'MARY3', learners, assignments: maryvaleAssignments },
-    { id: 'desert-edge', name: 'Desert Edge · After school', school: 'Desert Edge High School', courseId: 'web', moduleIds: ['html'], joinCode: 'DESRT8', assignments: [], learners: [
+    { id: 'maryvale', name: 'Maryvale · Period 3', school: 'Maryvale High School', courseId: 'python', moduleIds: ['variables', 'loops'], joinCode: 'MARY3', learners, assignments: maryvaleAssignments, submissions: maryvaleSubmissions },
+    { id: 'desert-edge', name: 'Desert Edge · After school', school: 'Desert Edge High School', courseId: 'web', moduleIds: ['html'], joinCode: 'DESRT8', assignments: [], submissions: [], learners: [
       { id: 'demo-9', name: 'Alex Reed', passcode: '880419', baseline: null, attempts: [], hints: [], lastActive: null },
       { id: 'demo-10', name: 'Noor Cruz', passcode: '880420', baseline: null, attempts: [], hints: [], lastActive: null },
     ] },

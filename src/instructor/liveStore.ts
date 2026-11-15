@@ -2,6 +2,7 @@
 // assignments and progress, and writes back only what changed. Row Level Security decides
 // what the signed-in person can read or change (supabase/migrations/2001_instructor_workspace.sql).
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Submission } from './assignments/grading';
 import { normalizeAssignment, totalPoints, type Assignment, type AssignmentKind } from './assignments/model';
 import {
   activityTypes, type Activity, type ActivityType, type Attempt, type ClassGroup, type Course, type InstructorData,
@@ -124,6 +125,14 @@ function assignmentRow(a: Assignment, classId: string) {
   };
 }
 
+function toSubmission(row: Row): Submission {
+  return {
+    id: String(row.id), assignmentId: String(row.assignment_id), studentId: String(row.class_student_id),
+    responses: (row.responses ?? {}) as Submission['responses'], manualScores: (row.manual_scores ?? {}) as Submission['manualScores'],
+    feedback: str(row.feedback), submittedAt: str(row.submitted_at), gradedAt: (row.graded_at as string | null) ?? null,
+  };
+}
+
 // ---- Progress ----
 
 function learnersFor(classId: string, roster: Row[], attempts: Row[]): Learner[] {
@@ -150,7 +159,7 @@ function learnersFor(classId: string, roster: Row[], attempts: Row[]): Learner[]
 export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, displayName: string): Promise<InstructorData> {
   const [courses, classes, attempts] = await Promise.all([
     supabase.from('courses').select('id, title, description, level, owner_id, created_at, modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content)))').order('created_at'),
-    supabase.from('classes').select('id, name, school, course_id, join_code, created_at, class_modules (module_id), class_students (id, display_name, passcode, profile_id, created_at), assignments (*)').order('created_at'),
+    supabase.from('classes').select('id, name, school, course_id, join_code, created_at, class_modules (module_id), class_students (id, display_name, passcode, profile_id, created_at), assignments (*), assignment_submissions (*)').order('created_at'),
     supabase.from('activity_attempts').select('student_id, activity_id, class_id, score, submitted_at, time_on_task_ms, attempt_no, response'),
   ]);
   fail('load courses', courses.error);
@@ -171,6 +180,7 @@ export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, di
     moduleIds: (arr(c.class_modules) as Row[]).map(m => String(m.module_id)),
     learners: learnersFor(String(c.id), arr(c.class_students) as Row[], attempts.data as Row[]),
     assignments: (arr(c.assignments) as Row[]).sort((a, b) => str(a.created_at).localeCompare(str(b.created_at))).map(toAssignment),
+    submissions: (arr(c.assignment_submissions) as Row[]).map(toSubmission),
   }));
   return {
     courses: courseList,
@@ -220,7 +230,7 @@ async function syncCourse(supabase: SupabaseClient, userId: string, course: Cour
 }
 
 async function syncClass(supabase: SupabaseClient, userId: string, next: ClassGroup, prev: ClassGroup | undefined) {
-  if (!prev || !same({ ...prev, learners: 0, assignments: 0, moduleIds: 0 }, { ...next, learners: 0, assignments: 0, moduleIds: 0 })) {
+  if (!prev || !same({ ...prev, learners: 0, assignments: 0, moduleIds: 0, submissions: 0 }, { ...next, learners: 0, assignments: 0, moduleIds: 0, submissions: 0 })) {
     const row: Row = { id: next.id, name: next.name, school: next.school, course_id: next.courseId, join_code: next.joinCode };
     if (!prev) row.created_by = userId;
     fail('save the class', (await supabase.from('classes').upsert(row)).error);
@@ -236,6 +246,17 @@ async function syncClass(supabase: SupabaseClient, userId: string, next: ClassGr
     await upsert(supabase, 'class_students', learners
       .filter(l => { const old = prevLearners.get(l.id); return !old || old.name !== l.name || old.passcode !== l.passcode; })
       .map(l => ({ id: l.id, class_id: next.id, display_name: l.name, passcode: l.passcode })));
+  }
+  // Instructors only grade submissions (scores, feedback); students create them.
+  const prevSubmissions = new Map((prev?.submissions ?? []).map(s => [s.id, s]));
+  for (const submission of next.submissions ?? []) {
+    if (same(prevSubmissions.get(submission.id), submission)) continue;
+    const result = await supabase.from('assignment_submissions').update({
+      manual_scores: submission.manualScores, feedback: submission.feedback, graded_at: submission.gradedAt, graded_by: submission.gradedAt ? userId : null,
+    }).eq('id', submission.id).select('id');
+    fail('save the grade', result.error);
+    // RLS hides rows instead of erroring, so an update that matched nothing was not allowed.
+    if (!result.data?.length) throw new Error('Could not save the grade: you do not have access to this submission.');
   }
   const prevAssignments = new Map((prev?.assignments ?? []).map(a => [a.id, a]));
   const assignments = next.assignments ?? [];
