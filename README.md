@@ -170,9 +170,10 @@ With Supabase staff sign-in and a Jev provider configured, **Suggest matches** s
 Assignments (`src/instructor/assignments/`) are built from blocks in any order: text, links and videos, interactive HTML pages, questions (multiple choice, select all, true/false, short answer, number), written responses and code exercises, so a video can be followed by questions about it.
 Instructors can create, edit, duplicate, publish, delete, export to a `.json` file, and import from that file, from another class, or from pasted quiz text in the Aiken format (`A.` choices plus an `ANSWER: B` line).
 The Grades tab is a gradebook with needs-grading, missing, late and not-due states, rubrics, file uploads and CSV export.
-Apply migration `3018_student_quiz_submissions.sql` before deploying the student quiz page.
-Enrolled students open published quizzes from **Class assignments** on Home or My classroom, submit answers, and can reopen their work and teacher feedback.
+Apply migration `3020_student_quiz_submissions.sql` before deploying the student quiz page.
+Enrolled students open published quizzes from **Class assignments** on Home or My classroom, submit answers, and can reopen their work, final score, and teacher feedback.
 The gradebook auto-scores quiz questions and lets teachers score written responses and add feedback.
+Quizzes with submitted work can be unpublished or duplicated. Their assessed blocks are locked to preserve the original grades.
 Run `supabase/tests/student_quiz_submissions.sql` against a disposable migrated database to check publication, permissions, submission retries, and grade visibility.
 Student activity details show saved worksheet answers, question choices, exit reflections and code. The latest response and counted score identify their attempts when they differ; concept mastery follows the counted assessment, excluding later practice tries.
 With Supabase configured, all of this is live data (`src/instructor/liveStore.ts`).

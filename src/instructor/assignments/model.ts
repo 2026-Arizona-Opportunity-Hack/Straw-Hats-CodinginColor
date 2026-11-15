@@ -239,8 +239,14 @@ export function blockName(blocks: Block[], index: number) {
 export function publishProblem(a: Assignment): string | null {
   if (!a.title.trim()) return 'Give the assignment a title.';
   if (!a.blocks.length) return 'Add at least one block.';
+  if (a.kind === 'quiz' && (a.timeLimit !== null || a.shuffle)) {
+    return 'Use the displayed question order and leave the time limit blank for student quizzes.';
+  }
   for (const [index, block] of a.blocks.entries()) {
     const where = blockName(a.blocks, index) + ': ';
+    if (a.kind === 'quiz' && (block.type === 'file' || (block.type === 'html' && block.reportsScore))) {
+      return where + 'student quizzes cannot collect file uploads or scores from an embedded page.';
+    }
     if (block.type === 'text' && !block.text.trim()) return where + 'add some text or remove the block.';
     if (block.type === 'link' && !isHttpsUrl(block.url)) return where + 'add a link that starts with https://.';
     if (block.type === 'html' && !block.html.trim()) return where + 'paste or upload the HTML page.';

@@ -142,7 +142,7 @@ It only fills `assignments.module_id` where it is empty and is safe to re-run.
 3. **Remove mock mode.**
    Done once on a local branch (`ruthvik/remove-mock-mode`), but it conflicts with teammates' new features; redo it on top of current `main`.
 4. **Student quiz submissions.**
-   Migration 3018 connects published quizzes to enrolled students and the existing gradebook.
+   Migration 3020 connects published quizzes to enrolled students and the existing gradebook.
    Follow-up work includes timed quizzes, answer-release and shuffle settings, and student file uploads.
 5. **Grades for curriculum activities** (checks, pre and post tests) are in Curriculum progress, not in the assignment gradebook.
 6. **Tests to add:** answer shapes sent to `submit_attempt`, and students getting `ADMINS_ONLY` from admin RPCs.
@@ -198,7 +198,7 @@ Put each sentence on its own line.
 
 ## Log
 
-- 2026-11-15, Codex: connected published quizzes with student submissions and teacher grading, with scoped quiz reads and saved feedback.
+- 2026-11-15, Codex: connected published quizzes with student submissions and teacher grading, with scoped quiz reads, recorded grades, and protection for submitted quiz content.
 - 2026-11-15, Codex: corrected admin before/after averages to use matched assessment pairs and show sample sizes; verified sparse, disjoint and negative-gain cohorts plus rendered growth labels.
 - 2026-11-15, Ken: added migration 3011 and rollback-only tests for archive/restore with unchanged authenticated claims. Hosted application pending.
 - 2026-11-15 8:55 AM, Ruthvik: rewrote this handoff to cover everything I built (PR list, features, migrations, open work) now that #49 is on `main`. Updated the README instructor section and the Supabase handoff (2006 applied).

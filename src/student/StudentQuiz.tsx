@@ -16,7 +16,8 @@ export function StudentQuiz() {
   const quiz = useQuery({ queryKey, queryFn: () => getClassQuiz(quizId), retry: false })
   const qc = useQueryClient()
   const submission = useMutation({
-    mutationFn: (responses: QuizResponses) => submitClassQuiz(quizId, responses, quiz.data?.attemptCount ?? 0),
+    mutationFn: ({ responses, attemptCount, revision }: { responses: QuizResponses; attemptCount: number; revision: string }) =>
+      submitClassQuiz(quizId, responses, attemptCount, revision),
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({ queryKey }),
@@ -30,17 +31,30 @@ export function StudentQuiz() {
     {quiz.isPending && <p role="status">Loading quiz…</p>}
     {quiz.isError && <p role="alert">Could not load this quiz. Try reloading.</p>}
     {quiz.isSuccess && !quiz.data && <p role="status">This quiz isn’t available.</p>}
-    {quiz.data && <QuizForm key={quiz.data.id + ':' + quiz.data.attemptCount} quiz={quiz.data}
-      saving={submission.isPending} error={submission.error?.message} saved={submission.isSuccess} onSubmit={submission.mutate} />}
+    {quiz.data && <QuizForm key={[quiz.data.id, quiz.data.revision, quiz.data.attemptCount].join(':')} quiz={quiz.data}
+      saving={submission.isPending} error={submission.error?.message} saved={submission.isSuccess}
+      onSubmit={(responses, attemptCount, revision) => submission.mutate({ responses, attemptCount, revision })} />}
   </section>
 }
 
 function QuizForm({ quiz, saving, error, saved, onSubmit }: {
-  quiz: ClassQuiz; saving: boolean; error?: string; saved: boolean; onSubmit: (responses: QuizResponses) => void
+  quiz: ClassQuiz; saving: boolean; error?: string; saved: boolean; onSubmit: (responses: QuizResponses, attemptCount: number, revision: string) => void
 }) {
   const [responses, setResponses] = useState(quiz.responses)
   const set = (id: string, value: QuizResponses[string]) => setResponses(current => ({ ...current, [id]: value }))
   const readOnly = !quiz.canSubmit || saving
+  const unchanged = !!quiz.submittedAt && JSON.stringify(responses) === JSON.stringify(quiz.responses)
+  const statusAt = quiz.gradedAt ?? quiz.submittedAt
+  function confirmSubmission() {
+    if (readOnly || unchanged) return
+    const blanks = quiz.blocks.filter(block => {
+      if (block.type !== 'question') return false
+      const response = responses[block.id]
+      return Array.isArray(response) ? response.length === 0 : !response?.trim()
+    }).length
+    if (blanks && !window.confirm(`Submit with ${blanks} unanswered question${blanks === 1 ? '' : 's'}?`)) return
+    onSubmit(responses, quiz.attemptCount, quiz.revision)
+  }
   return <>
     <header className="space-y-2 border-b border-divider pb-4">
       <p className="text-sm text-cic-muted">{quiz.className}</p>
@@ -49,23 +63,25 @@ function QuizForm({ quiz, saving, error, saved, onSubmit }: {
         {quiz.maxAttempts !== null && ' · ' + quiz.attemptCount + ' of ' + quiz.maxAttempts + ' attempts used'}</p>
     </header>
     {quiz.instructions && <p className="whitespace-pre-wrap">{quiz.instructions}</p>}
-    {quiz.submittedAt && <p role="status" className="font-semibold text-brand">
-      {quiz.gradedAt ? 'Graded' : 'Submitted'} · {new Date(quiz.submittedAt).toLocaleString()}
+    {statusAt && <p role="status" className="font-semibold text-brand">
+      {quiz.score ? `Graded · ${quiz.score.earned}/${quiz.score.possible} points` : 'Submitted'} · {new Date(statusAt).toLocaleString()}
     </p>}
+    {quiz.submissionProblem && <p role="status">{quiz.submissionProblem} Ask your teacher for help.</p>}
     {quiz.gradedAt && quiz.feedback && <section className="rounded-lg border border-divider bg-white p-4">
       <h2 className="font-semibold">Teacher feedback</h2>
       <p className="whitespace-pre-wrap">{quiz.feedback}</p>
     </section>}
-    <form className="space-y-5" onSubmit={event => { event.preventDefault(); if (!readOnly) onSubmit(responses) }}>
+    <form className="space-y-5" onSubmit={event => { event.preventDefault(); confirmSubmission() }}>
       <fieldset disabled={readOnly} className="space-y-5">
         <legend className="sr-only">Quiz content</legend>
         {quiz.blocks.map((block, index) => <QuizBlock key={block.id} block={block} response={responses[block.id]}
           number={quiz.blocks.slice(0, index + 1).filter(item => item.type === 'question').length}
           onRespond={value => set(block.id, value)} />)}
       </fieldset>
-      {quiz.canSubmit && quiz.blocks.length > 0 && <Button type="submit" disabled={saving}>
+      {quiz.canSubmit && quiz.blocks.length > 0 && <Button type="submit" disabled={saving || unchanged}>
         {saving ? 'Submitting…' : quiz.submittedAt ? 'Submit another attempt' : 'Submit quiz'}
       </Button>}
+      {quiz.canSubmit && unchanged && <p className="text-sm text-cic-muted">Change an answer to submit another attempt.</p>}
       <FormStatus error={error} success={saved && !quiz.submittedAt ? 'Your quiz was submitted.' : undefined} />
     </form>
   </>
@@ -107,7 +123,7 @@ function QuizBlock({ block, number, response, onRespond }: {
       : (question.choices ?? []).map((choice, index) => choice.trim() && <label key={index} className="flex items-center gap-2">
         <input type={question.kind === 'multiple' ? 'checkbox' : 'radio'} name={'choice-' + block.id}
           checked={selected.includes(index)} onChange={event => onRespond(question.kind === 'multiple'
-            ? event.target.checked ? [...selected, index] : selected.filter(value => value !== index) : [index])} />
+            ? event.target.checked ? [...selected, index].sort((a, b) => a - b) : selected.filter(value => value !== index) : [index])} />
         {choice}
       </label>)}
   </fieldset>

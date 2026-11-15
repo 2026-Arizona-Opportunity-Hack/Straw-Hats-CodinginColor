@@ -22,6 +22,9 @@ export type ClassQuiz = {
   attemptCount: number
   submittedAt: string | null
   gradedAt: string | null
+  revision: string
+  score: { earned: number; possible: number } | null
+  submissionProblem: string | null
   responses: QuizResponses
   feedback: string | null
   canSubmit: boolean
@@ -42,12 +45,14 @@ export async function getClassQuiz(id: string): Promise<ClassQuiz | null> {
   return data as ClassQuiz | null
 }
 
-export async function submitClassQuiz(id: string, responses: QuizResponses, expectedAttemptCount: number) {
+export async function submitClassQuiz(id: string, responses: QuizResponses, expectedAttemptCount: number, revision: string) {
   if (!supabase) throw new Error('This quiz is unavailable.')
   const { error } = await supabase.rpc('submit_class_quiz', {
-    p_quiz_id: id, p_responses: responses, p_expected_attempt_count: expectedAttemptCount,
+    p_quiz_id: id, p_responses: responses, p_expected_attempt_count: expectedAttemptCount, p_revision: revision,
   })
   if (!error) return
+  if (error.message === 'QUIZ_CHANGED') throw new Error('Your teacher changed this quiz. Reload before submitting.')
+  if (error.message === 'QUIZ_UNSUPPORTED') throw new Error('This quiz uses settings that prevent submission. Ask your teacher.')
   if (error.message === 'QUIZ_UNAVAILABLE') throw new Error('This quiz is no longer available.')
   if (error.message === 'QUIZ_SUBMISSION_CLOSED') throw new Error('This submission changed or the quiz is closed. Reload to see your saved answers.')
   throw new Error('Could not submit this quiz. Check your answers and try again.')

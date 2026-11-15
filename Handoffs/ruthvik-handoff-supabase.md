@@ -125,7 +125,7 @@ Policies today (minimal, a full permissions pass is still open):
 - `class_modules`, `class_students`, `assignments`: full access if `can_manage_class`; after 3009, this also requires an active instructor/admin profile.
 - `activity_attempts`: students insert their own; read by the student, their teacher, or admin.
 - `assignment_submissions`: read and update (grade) if `can_manage_class`. No direct insert or delete policy.
-  Migration 3018 allows enrolled students to submit published quizzes through a scoped RPC.
+  Migration 3020 allows enrolled students to submit published quizzes through a scoped RPC.
   RLS hides rows instead of erroring, so `liveStore.ts` treats an update that matched no rows as a stale or inaccessible submission.
 - `storage.objects` in `submission-files`: authenticated users can read a file only if `can_manage_class` on the class id in its path. No insert policy yet (students upload once sign-in exists).
   Verified: anonymous and another class's instructor get "Object not found"; the class's instructor gets a signed URL.
@@ -133,7 +133,7 @@ Policies today (minimal, a full permissions pass is still open):
 
 Known gaps for the permissions pass:
 
-- Students read only published quizzes from active enrollments through the sanitized migration 3018 RPCs. Direct assignment reads remain staff-only.
+- Students read only published quizzes from active enrollments through the sanitized migration 3020 RPCs. Direct assignment reads remain staff-only.
 - Instructors cannot edit library courses owned by the admin; they import their own copy instead (migration 2004 below).
 
 ## Migrations 2010, 2013 and 3009: staff role boundaries (applied to hosted)

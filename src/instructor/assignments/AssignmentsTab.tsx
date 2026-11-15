@@ -70,7 +70,11 @@ function AssignmentList({ group, course, otherClasses, assignments, base, onCrea
     }
   }
   function remove(item: Assignment) {
-    if (!window.confirm(`Delete "${item.title}"? Student submissions for it are kept but hidden.`)) return;
+    if (group.submissions?.some(submission => submission.assignmentId === item.id)) {
+      setMessage('Unpublish this assignment to hide it and keep student work.');
+      return;
+    }
+    if (!window.confirm(`Delete "${item.title}"?`)) return;
     if (saveAll(assignments.filter(a => a.id !== item.id))) setMessage(`Deleted "${item.title}".`);
   }
   function duplicate(item: Assignment) {
