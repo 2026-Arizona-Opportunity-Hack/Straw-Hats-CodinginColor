@@ -198,8 +198,13 @@ export function InstructorWorkspace({
         canEditLibrary={profile.role === 'admin'} libraryOnly={profile.role !== 'admin'} />;
     }
     if (section === 'review') {
-      if (course?.modules.some(module => module.published)) return <CourseReviewer key={course.id} course={course} />;
-      if (!item) return <CurriculumList key="reviewer" courses={data.courses} reviewer />;
+      // Instructors reach this page from the CIC library's Preview, so they go back there.
+      const fromLibrary = profile.role !== 'reviewer';
+      if (course?.modules.some(module => module.published)) return <CourseReviewer key={course.id} course={course}
+        back={fromLibrary ? { label: 'CIC library', to: '#/curriculum' } : undefined} />;
+      if (!item && fromLibrary) return <CurriculumList courses={data.courses} libraryOnly canEditLibrary={profile.role === 'admin'} />;
+      // Reviewers check shared curriculum; per-class copies are not theirs to review.
+      if (!item) return <CurriculumList key="reviewer" courses={data.courses.filter(course => !course.copiedFrom)} reviewer />;
     }
     if (section === 'overview') return <ProgramOverview groups={data.classes} courses={data.courses} />;
     if (section === 'access') return <AccessSettings staff={data.staff} groups={data.classes} onSave={staff => save({ ...(draftsLocal ? store.load() : data), staff })} />;
