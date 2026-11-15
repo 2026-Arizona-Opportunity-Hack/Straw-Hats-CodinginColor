@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { ArrowDown, ArrowRight, ArrowUp, BookOpen, Copy, Eye, FilePlus2, GripVertical, ImagePlus, Plus, Save, Star, Trash2 } from 'lucide-react';
-import { isMockMode } from '../shared/supabase.ts';
+import { isLocalDemo } from '../shared/supabase.ts';
 import { HtmlActivityEditor, HtmlActivityPreview } from './HtmlActivity';
 import { emptyHtml } from './htmlStarter';
 import { BlockPicker } from './BlockPicker';
@@ -416,7 +416,7 @@ function ActivityEditor({ activity, onChange }: { activity: Activity; onChange: 
     <label>Block title<input id={'block-title-' + activity.id} value={activity.title} maxLength={100} onChange={event => set({ title: event.target.value })} /></label>
     {activity.type === 'interactive_html' && <div className="ic-html-editor">
       <HtmlActivityEditor value={activity.interactiveHtml ?? emptyHtml} onChange={interactiveHtml => set({ interactiveHtml })} />
-      <HtmlActivityPreview activity={activity.interactiveHtml ?? emptyHtml} title={activity.title || 'HTML activity'} scripts={isMockMode} />
+      <HtmlActivityPreview activity={activity.interactiveHtml ?? emptyHtml} title={activity.title || 'HTML activity'} scripts={isLocalDemo} />
     </div>}
     {(activity.type === 'video' || activity.type === 'slides') && <div><label>{activity.type === 'video' ? 'Video URL' : 'Slide deck URL'}<input type="url" aria-describedby={mediaHintId}
       placeholder={activity.type === 'video' ? 'https://www.youtube.com/watch?v=…' : 'https://docs.google.com/presentation/d/…'}

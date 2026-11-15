@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from 'react'
-import { isolatedHtml, readCompletion } from './isolatedHtml.ts'
+import { useLayoutEffect, useMemo, useRef } from 'react'
+import { isolatedHtml, readFrameCompletion } from './isolatedHtml.ts'
 
 interface Props {
   html: string
@@ -22,11 +22,11 @@ function IsolatedFrame({ srcDoc, title, allowScripts, onComplete, height }: {
   const frame = useRef<HTMLIFrameElement>(null)
   const completed = useRef(false)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!onComplete || !allowScripts) return
     function receive(event: MessageEvent) {
-      if (completed.current || event.origin !== 'null' || event.source !== frame.current?.contentWindow) return
-      const result = readCompletion(event.data)
+      if (completed.current) return
+      const result = readFrameCompletion(event, frame.current?.contentWindow)
       if (!result) return
       completed.current = true
       onComplete?.(result.score)

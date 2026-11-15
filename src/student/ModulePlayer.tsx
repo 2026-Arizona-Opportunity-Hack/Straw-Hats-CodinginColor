@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { getModule, recordAttempt } from '../api/student/index.ts'
 import type { Activity } from '../shared/types/db.ts'
-import { isMockMode } from '../shared/supabase.ts'
+import { isLocalDemo } from '../shared/supabase.ts'
 import { InteractiveHtmlFrame } from '../shared/ui/InteractiveHtmlFrame.tsx'
 import { Button, Card, PageHeader } from '../shared/ui/index.tsx'
 
@@ -20,13 +20,13 @@ function InteractiveBlock({ activity }: { activity: Activity<'interactive_html'>
   return (
     <div className="space-y-3">
       {instructions && <p>{instructions}</p>}
-      <InteractiveHtmlFrame html={html} allowScripts={isMockMode} title={`Interactive activity: ${activity.concept}`} onComplete={reports_score && done === undefined ? (s) => void complete(s) : undefined} />
+      <InteractiveHtmlFrame html={html} allowScripts={isLocalDemo} title={`Interactive activity: ${activity.concept}`} onComplete={reports_score && done === undefined ? (s) => void complete(s) : undefined} />
       {done !== undefined ? (
         <p role="status" className="font-medium text-green-800">
           Done{done !== null ? ` (score ${Math.round(done * 100)}%)` : ''}
         </p>
       ) : (
-        (!reports_score || !isMockMode) && <Button onClick={() => void complete()}>Mark as done</Button>
+        (!reports_score || !isLocalDemo) && <Button onClick={() => void complete()}>Mark as done</Button>
       )}
     </div>
   )
