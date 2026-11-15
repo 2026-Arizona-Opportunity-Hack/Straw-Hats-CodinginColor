@@ -84,7 +84,7 @@ With Supabase configured, the instructor workspace reads and writes live data (c
 Apply migration `3007_roster_student_login.sql` and deploy the `roster-login` Supabase Edge Function before using imported learners' login cards.
 Students enter their class code and individual six-digit passcode; their existing roster row is linked to an Auth identity and enrollment on first login.
 New identities use an opaque internal address, with no personal email or email delivery.
-Existing linked students keep their accounts and progress, and email sign-in remains available.
+Existing linked students keep their accounts and progress. Username account creation and sign-in remain available, with email access for older accounts.
 The function uses Supabase's built-in server credentials; never add its service key to frontend environment variables.
 Login attempts are limited in the database to 10 per card and 120 per class per 15 minutes, including failures; a throttled class must wait for its window to expire.
 Verify with `supabase/tests/roster_login.sql` against a local migrated database and `npm test -- tests/roster-login.test.ts`.
