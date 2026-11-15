@@ -34,7 +34,7 @@ insert into activities (id, lesson_id, position, type, concept) values
   ('aa500000-0000-0000-0000-000000000004', 'aa400000-0000-0000-0000-000000000004', 1, 'content', 'Former classroom');
 insert into classes (id, name, school, course_id, join_code, created_by) values
   ('aa600000-0000-0000-0000-000000000001', 'Class A', 'School A', 'aa200000-0000-0000-0000-000000000002', 'QARQ01', 'aa100000-0000-0000-0000-000000000001'),
-  ('aa600000-0000-0000-0000-000000000002', 'Class B', 'School B', 'aa200000-0000-0000-0000-000000000002', 'QARQ02', 'aa100000-0000-0000-0000-000000000002'),
+  ('aa600000-0000-0000-0000-000000000002', 'Class B', 'School B', 'aa200000-0000-0000-0000-000000000001', 'QARQ02', 'aa100000-0000-0000-0000-000000000002'),
   ('aa600000-0000-0000-0000-000000000003', 'Legacy class', 'School A', 'aa200000-0000-0000-0000-000000000001', 'QARQ03', 'aa100000-0000-0000-0000-000000000001'),
   ('aa600000-0000-0000-0000-000000000004', 'Former class', 'School A', 'aa200000-0000-0000-0000-000000000004', 'QARQ04', 'aa100000-0000-0000-0000-000000000001');
 delete from classes where id = 'aa600000-0000-0000-0000-000000000004';
@@ -55,7 +55,7 @@ do $$ begin
   end if;
   begin
     insert into curriculum_block_comments (activity_id, class_id, body)
-    values ('aa500000-0000-0000-0000-000000000002', 'aa600000-0000-0000-0000-000000000002', 'Wrong class');
+    values ('aa500000-0000-0000-0000-000000000001', 'aa600000-0000-0000-0000-000000000002', 'Wrong class');
     raise exception 'Teacher A could comment in a class they do not manage';
   exception when insufficient_privilege then null; end;
   begin
@@ -89,12 +89,20 @@ end $$;
 
 select set_config('request.jwt.claim.sub', 'aa100000-0000-0000-0000-000000000002', true);
 do $$ begin
-  if (select array_agg(body) from curriculum_block_comments) is distinct from array['Shared feedback'] then
+  if (select array_agg(body order by body) from curriculum_block_comments) is distinct from array['Global admin feedback', 'Shared feedback'] then
     raise exception 'Teacher B could see comments outside their scope';
   end if;
 end $$;
 insert into curriculum_block_comments (activity_id, class_id, body) values
-  ('aa500000-0000-0000-0000-000000000002', 'aa600000-0000-0000-0000-000000000002', 'Private Class B feedback');
+  ('aa500000-0000-0000-0000-000000000001', 'aa600000-0000-0000-0000-000000000002', 'Private Class B feedback'),
+  ('aa500000-0000-0000-0000-000000000003', null, 'Teacher feedback on unlinked global');
+select set_config('request.jwt.claim.sub', 'aa100000-0000-0000-0000-000000000001', true);
+do $$ begin
+  if exists (select 1 from curriculum_block_comments where body = 'Private Class B feedback')
+     or not exists (select 1 from curriculum_block_comments where body = 'Teacher feedback on unlinked global') then
+    raise exception 'Shared originals and separate class scopes did not stay separate';
+  end if;
+end $$;
 
 select set_config('request.jwt.claim.sub', 'aa100000-0000-0000-0000-000000000004', true);
 do $$ begin
