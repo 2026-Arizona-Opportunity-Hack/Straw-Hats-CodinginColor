@@ -101,6 +101,10 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 ### Module player and student sidebar
 
 - `/student/module/:id` shows **one card at a time** (`ModulePlayer.tsx`). `?step=N` (1-based) opens a card. Next unlocks once a card is done; non-required cards offer "Skip for now". A segment bar shows progress without showing questions. Correct answers trigger a short confetti burst (`stepper.css`, none under reduced motion).
+- A new module visit starts at its first card, including reading, instead of skipping to the first required question.
+  Returning visits resume the last viewed activity saved in this browser for that student and module; a fingerprint of the published lesson content invalidates the bookmark after edits or reordering.
+  Explicit step links take precedence and remain limited by unfinished required work.
+  Bookmarks are navigation only: reading still creates no submission, score or server completion record.
 - `ActivityBlock` (`LessonContent.tsx`) new optional props: `onResult` (each attempt result), `hideTitle` (caller shows the title), `answerOnce` (lock after first submission, except `posttest`). Video activities now embed via `embedUrl`, like the instructor preview.
 - Student sidebar: Home (`/student`), My courses (`/student/courses`), My classroom (`/student/classroom`). Inside a course, `StudentCourseNav.tsx` lists modules as dropdowns of their steps; locked modules show a lock and don't expand.
 - **Finish module** lands on the course page with `state.finishedModule`; `ModuleFinished.tsx` shows a banner there: confetti and the final-check score, then *Start the next module*, *Find your next course* (all done), or, when the pass mark is missed, the score needed, the tries left and *Retake the final check*. `Celebration.tsx` holds the shared confetti. `ModuleStatus` now carries `pass_mark`.
@@ -179,6 +183,8 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-15, Codex: reconciled the reading-position fix with the new final-check navigation lock; the keyed module player retains the lock and submission behavior.
+- 2026-11-15, Codex: preserved initial reading order and added per-student/module browser bookmarks; verified first entry, return visits and clamped step links in the local demo, with navigation/storage regression tests.
 - 2026-11-15, Shivraj: student usernames + educator Google sign-in (1013), final-check lock, generated parallel warm-ups/final checks with an AI endpoint and checks fallback (1014). Touches Aryan's People & roles and Ken's `liveStore.ts` publish.
 - 2026-11-15, Shivraj: rebuilt Explore as course cards with a module preview and Add course (1012); course page back link goes to My courses. Touches Jacky's `StudentExplore.tsx` and `StudentCourse.tsx`.
 - 2026-11-15, Shivraj: added the module-complete banner on the course page (touches Jacky's `StudentCourse.tsx`).
