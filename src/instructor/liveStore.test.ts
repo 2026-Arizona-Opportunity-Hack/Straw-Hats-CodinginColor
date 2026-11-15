@@ -27,7 +27,7 @@ function fakeSupabase(respond: (call: Call) => Reply = () => ({ data: [{ id: 'x'
       for (const op of ['select', 'delete', 'upsert', 'update']) {
         builder[op] = (payload?: unknown) => { if (op !== 'select' || call.op === 'select') { call.op = op; call.payload = payload; } return builder; };
       }
-      for (const filter of ['eq', 'in', 'not', 'order', 'range', 'single']) {
+      for (const filter of ['eq', 'in', 'is', 'not', 'order', 'range', 'single']) {
         builder[filter] = (...args: unknown[]) => { call.filters.push([filter, ...args]); return builder; };
       }
       return builder;
@@ -239,6 +239,21 @@ describe('library courses', () => {
 });
 
 describe('loadLiveData', () => {
+  it('loads only published original library content for a reviewer', async () => {
+    const { client, calls } = fakeSupabase(() => ({ data: [{ id: 'library', is_library: true }], error: null }));
+
+    const result = await loadLiveData(client, 'reviewer', 'Reviewer');
+
+    expect(result.courses).toMatchObject([{ id: 'library', library: true }]);
+    expect(result.classes).toEqual([]);
+    expect(calls.map(call => call.table)).toEqual(['courses']);
+    expect(calls[0].payload).not.toContain('activity_keys');
+    expect(calls[0].filters).toEqual([
+      ['eq', 'is_library', true], ['is', 'copied_from', null], ['eq', 'published', true],
+      ['eq', 'modules.published', true], ['order', 'created_at'],
+    ]);
+  });
+
   it('reads every page of attempts past the 1000-row limit', async () => {
     const pageOf = (from: number, size: number) => Array.from({ length: size }, (_, i) => ({ id: `t${from + i}`, class_id: 'c', student_id: 's', activity_id: 'a', score: 1, attempt_no: 1 }));
     const { client, calls } = fakeSupabase(withSettings(call => {

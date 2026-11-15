@@ -297,6 +297,23 @@ function rulesFor(classId: string, rows: Row[], settings: ProgramSettings): Clas
 }
 
 export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, displayName: string): Promise<InstructorData> {
+  if (role === 'reviewer') {
+    const reviewColumns = 'id, title, description, level, is_library, copied_from, published, publication_revision, created_at, modules (id, position, title, published, lessons (id, position, title, activities (id, position, type, concept, points, content)))';
+    const { data, error } = await supabase.from('courses')
+      .select(reviewColumns)
+      .eq('is_library', true)
+      .is('copied_from', null)
+      .eq('published', true)
+      .eq('modules.published', true)
+      .order('created_at');
+    fail('load published library courses', error);
+    return {
+      courses: (data as Row[]).map(toCourse),
+      classes: [],
+      staff: [{ id: role, name: displayName, role, classIds: [] }],
+    };
+  }
+
   const [courses, classes, attempts, moduleSettings, programSettings, progress] = await Promise.all([
     // Includes published library courses (RLS "read published courses") so instructors can import them.
     supabase.from('courses').select(courseColumns).order('created_at'),
@@ -304,7 +321,7 @@ export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, di
     selectAll(supabase, 'activity_attempts', 'id, student_id, activity_id, class_id, score, submitted_at, time_on_task_ms, attempt_no, response'),
     selectAll(supabase, 'class_module_settings', 'class_id, module_id, pass_mark, max_posttest_tries', ['class_id', 'module_id']),
     supabase.from('program_settings').select('inactive_days, low_score_pct'),
-    role === 'reviewer' ? Promise.resolve([]) : loadStaffProgress(supabase),
+    loadStaffProgress(supabase),
   ]);
   fail('load courses', courses.error);
   fail('load classes', classes.error);
