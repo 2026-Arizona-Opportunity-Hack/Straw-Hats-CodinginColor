@@ -1,4 +1,4 @@
-# Ken's handoff: curriculum builder
+# Ken's handoff: curriculum builder and roster entry
 
 ## Drafts and publication
 
@@ -49,7 +49,7 @@ The provided `cat.jpg` matches the photo in the freeCodeCamp Cat Photo App proje
 Migration 1004 restricts module, lesson, and activity reads using the existing enrollment and unlock rules.
 After applying it, enable `VITE_LIVE_STUDENT_CURRICULUM=true` to use the database for the signed-in student's course list, module content, and attempts.
 Source changes ship before hosted activation.
-Published snapshots, My blocks, and executable labs remain browser-local.
+Mock snapshots and My blocks remain browser-local. Runnable Python labs use the local runner.
 Run `supabase/tests/student_curriculum_access.sql` against a migrated development database to check both access and grading.
 
 ## Anonymous class notes
@@ -58,11 +58,22 @@ Migration 1006 scopes opt-in worksheet notes to a class and reveals up to 15 aft
 Instructors can review and hide notes for classes they manage.
 The Cat Photo App demo activation script opts in Maryvale without sharing prior submissions.
 
+## Roster entry
+
+Class setup and existing classes share the same CSV and manual-entry controls.
+Both require confirmation before passing validated names to the existing save flow.
+The roster mapping endpoint checks the signed-in Supabase profile and calls Jev through OpenRouter when `OPENROUTER_API_KEY` is set. Otherwise it uses Vercel AI Gateway.
+Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
+
 ## Log
 
 - 2026-11-15, Ken: added anonymous classmate notes and teacher moderation.
 
 - 2026-11-14, Ken: added the verified Cat Photo App lab and its local demo.
+
+- 2026-11-14, Ken: added optional OpenRouter support to the Jev roster mapping endpoint.
+
+- 2026-11-14, Ken: added CSV column previews and Jev suggestions, manual entry, and Enter-to-advance navigation.
 
 - 2026-11-14, Ken: added the Read & check template for new courses and empty lessons.
 
