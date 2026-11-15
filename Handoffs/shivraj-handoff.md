@@ -30,7 +30,9 @@ A first pretest try at or above the pass mark tests the student out of that modu
 | `1009_unlock_and_duplicate_fixes.sql` | Merged (#58) | Applied to the hosted DB |
 | `1010_intro_python_demo_content.sql` | Merged (#59) | Applied to the hosted DB |
 | `1011_check_feedback.sql` | Merged (#62) | Applied to the hosted DB |
-| `1012_catalog_modules.sql` | Branch `shivraj-polish`, tested (PGlite) | Not applied yet |
+| `1012_catalog_modules.sql` | Branch `shivraj-polish` | Applied to the hosted DB |
+| `1013_student_usernames.sql` | Branch `shivraj-polish`, tested (15 checks) | Not applied yet |
+| `1014_module_assessments.sql` | Branch `shivraj-polish`, tested (14 checks) | Not applied yet |
 | `2009_course_state_merge.sql` | Merged (#62). In Ruthvik's range on purpose | Applied to the hosted DB |
 
 Tests: 45 checks in a local Postgres (PGlite) with `0001`, `1001`, `1002` and `2001`, passing in both orders.
@@ -79,6 +81,23 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 - `my_check_answer(activity)` returns the right choice id only for `check`/`exit` cards the caller has already answered. Warm-up and final check keys stay hidden.
 - **Ruthvik:** 1009 and 2006 both replaced `_course_state`; live had 1009's version (no program defaults), a fresh DB would keep 2006's (no 1009 fixes). `2009_course_state_merge.sql` holds both and runs after both. Change `_course_state` only in a newer migration that starts from that copy.
 
+### Student usernames (1013)
+
+- Students have **no email**. Sign-up: first name, last name, password, optional class code. They get a username like `jsmith1` (first initial + last name + lowest free number, accents folded) and see it once before signing in. Sign-in: username + password.
+- Auth still needs an email, so each student uses a hidden, undeliverable `<username>@students.cic-learn.invalid` (`studentAuthEmail` in `src/api/student/auth.ts` must match `_create_student`).
+- `student_create_account(first, last, password, class_code)` (anon) and `admin_create_student(first, last, password, class_id)` (admins; People & roles uses it for students). Public email sign-up (`student_sign_up`) is revoked.
+- **Google sign-in = K-12 educators**: new Google accounts get the `reviewer` role. The button sits under the staff sign-in.
+- Sidebar and People & roles show `@username`.
+- One-time cleanup: `supabase/demo/delete_all_students.sql` deletes every student account, roster row and all student work (staff and curriculum stay).
+
+### Generated warm-ups and final checks (1014)
+
+- Every module gets a warm-up and final check as **parallel forms**: same concepts, same count, different questions where possible, so gain compares like with like.
+- `POST /api/curriculum/assessment { moduleId }` (instructor/admin): the AI reads the module and writes both forms; `generate_module_assessment(module, ai)` validates and stores them (answers into `activity_keys`). Invalid or missing AI output falls back to the module's own keyed checks. Publishing a module calls it in the background (`requestModuleAssessment` in `liveStore.ts`).
+- Hand-written tests are never replaced (only empty ones or ones with `content.generated`). 1014 backfills all published modules.
+- They are normal pretest/posttest activities, so the instructor gain columns, admin analytics and per-concept scores work unchanged.
+- **Final check lock**: while an unsubmitted final check is open, every way out is blocked (`useBlocker`) and a popup shakes on each try.
+
 ### Module player and student sidebar
 
 - `/student/module/:id` shows **one card at a time** (`ModulePlayer.tsx`). `?step=N` (1-based) opens a card. Next unlocks once a card is done; non-required cards offer "Skip for now". A segment bar shows progress without showing questions. Correct answers trigger a short confetti burst (`stepper.css`, none under reduced motion).
@@ -101,6 +120,8 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 | `my_activity_response(activity_id)` | The student's latest saved response, or null |
 | `my_check_answer(activity_id)` | Right choice id of a check/exit the student already answered, else null |
 | `catalog_modules()` | Module titles of published modules in published original courses (Explore preview) |
+| `student_create_account(first, last, password, class_code)` | `{user_id, username, class}`; callable signed out |
+| `generate_module_assessment(module_id, ai)` | `{source: 'ai'|'checks'|null, written, pretest, posttest}` (instructor/admin) |
 | `submit_attempt(activity_id, response, time_on_task_ms, client_score)` | `{attempt_id, attempt_no, score, is_correct, counts}`. Errors: `MODULE_LOCKED`, `NOT_ENROLLED`, `BAD_RESPONSE` |
 
 `response` shapes are documented above `submit_attempt` in `1001_student_progress.sql`.
@@ -154,6 +175,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-15, Shivraj: student usernames + educator Google sign-in (1013), final-check lock, generated parallel warm-ups/final checks with an AI endpoint and checks fallback (1014). Touches Aryan's People & roles and Ken's `liveStore.ts` publish.
 - 2026-11-15, Shivraj: rebuilt Explore as course cards with a module preview and Add course (1012); course page back link goes to My courses. Touches Jacky's `StudentExplore.tsx` and `StudentCourse.tsx`.
 - 2026-11-15, Shivraj: added the module-complete banner on the course page (touches Jacky's `StudentCourse.tsx`).
 - 2026-11-15, Shivraj: added check explanations and right-answer reveal (1011) and merged the 1009 and 2006 versions of `_course_state` (2009).
