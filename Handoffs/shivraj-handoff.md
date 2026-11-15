@@ -23,8 +23,9 @@ A first pretest try at or above the pass mark tests the student out of that modu
 | Item | State | Notes |
 |---|---|---|
 | `Shivraj` branch | Up to date with `main` (includes 2001) | Has 1001 committed; 1002 to commit |
-| `1001_student_progress.sql` | Written, tested locally | **Not applied to the hosted DB** |
-| `1002_answer_keys_and_assigned_modules.sql` | Written, tested locally | **Not applied to the hosted DB** |
+| `1001_student_progress.sql` | Merged (#16) | Applied to the hosted DB |
+| `1002_answer_keys_and_assigned_modules.sql` | Merged (#17) | Applied to the hosted DB |
+| `1003_student_sign_up.sql` | Written, tested locally (21 checks) | **Not applied to the hosted DB** |
 
 Tests: 45 checks in a local Postgres (PGlite) with `0001`, `1001`, `1002` and `2001`, passing in both orders.
 The hosted DB applies `0001, 2001, 1001, 1002`; a fresh setup applies `0001, 1001, 1002, 2001`.
@@ -41,6 +42,14 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 - `module_unlocks`: an instructor opens a module for one student.
 - Students can no longer insert into `activity_attempts` directly. The `"student writes own attempts"` policy from 0001 is dropped.
 - New policy: students read their own `enrollments` rows (0001 had no select policy, so students could not see their class).
+
+### Student sign-up and sign-in (1003)
+
+- Login page has a Student / Teacher-or-staff switch. Students get Google sign-in and email + password (`src/student/auth/StudentAuthCard.tsx`, `src/api/student/auth.ts`).
+- `student_sign_up(email, password, display_name, school, class_code)` is callable signed out. It creates a confirmed account, a student profile and, with a code, a class enrollment, all in one transaction. Errors: `BAD_EMAIL`, `BAD_PASSWORD`, `BAD_NAME`, `BAD_CLASS_CODE`, `EMAIL_TAKEN`.
+- A trigger on `auth.users` gives **every** new account a student profile (Google included). Staff are promoted by an admin.
+- `join_class(code)` joins later. Progress from a self-chosen copy of the same course moves into the class.
+- Google needs setup in Google Cloud and the Supabase dashboard (redirect URI `https://aeatfaxavfppeauncbts.supabase.co/auth/v1/callback`). The client secret goes in the dashboard only.
 
 ### Functions the app calls (`supabase.rpc`)
 
@@ -69,7 +78,7 @@ The reply never contains the right answer.
 
 1. **Swap `src/api/student/index.ts` from mocks to the RPCs above** (Shivraj, next).
 2. **Placement quiz**: tables, item bank, scoring (Shivraj).
-3. **Student sign-in with class code + passcode** against `class_students` (Shivraj; Ruthvik's handoff proposes an Edge Function).
+3. **Roster passcodes** (`class_students`) are not linked to sign-up yet; revisit once sign-up is live.
 4. **Ruthvik:** the course builder now loads activities without answers.
    Select `activity_keys (key)` with each activity and put answers back: `content.answer = key.answer`, `items[i].answer = key.answers[items[i].id]`, `questions[i].answer = key.question_answers[i]`, `solution = key.solution`.
    Saving needs no change.
