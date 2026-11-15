@@ -373,12 +373,13 @@ async function syncClass(supabase: SupabaseClient, userId: string, next: ClassGr
   }
 }
 
-export async function saveLiveData(supabase: SupabaseClient, userId: string, prev: InstructorData, next: InstructorData) {
+/** `editLibrary`: admins may change shared library courses; everyone else edits their own imported copy. */
+export async function saveLiveData(supabase: SupabaseClient, userId: string, prev: InstructorData, next: InstructorData, { editLibrary = false } = {}) {
   const prevCourses = new Map(prev.courses.map(c => [c.id, c]));
   for (const course of next.courses) {
-    // Library courses are shared and read-only here; instructors edit their imported copy.
+    // Library courses are shared: only admins write them; instructors edit their imported copy.
     const prevCourse = prevCourses.get(course.id);
-    if (course.library || prevCourse?.library) continue;
+    if (!editLibrary && (course.library || prevCourse?.library)) continue;
     if (!same(prevCourse, course)) await syncCourse(supabase, userId, course, prevCourse);
   }
   const prevClasses = new Map(prev.classes.map(c => [c.id, c]));

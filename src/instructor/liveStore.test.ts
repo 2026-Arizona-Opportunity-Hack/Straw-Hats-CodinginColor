@@ -81,6 +81,12 @@ describe('library courses', () => {
     expect(calls).toEqual([]);
   });
 
+  it('lets an admin edit a library course', async () => {
+    const { client, calls } = fakeSupabase();
+    await saveLiveData(client, 'admin', data({ courses: [library('Intro')] }), data({ courses: [library('Intro, edited')] }), { editLibrary: true });
+    expect(calls.find(c => c.table === 'lessons' && c.op === 'upsert')?.payload).toMatchObject([{ id: 'll1', title: 'Intro, edited' }]);
+  });
+
   it('loads library courses as read-only and remembers where a copy came from', async () => {
     const { client } = fakeSupabase(call => ({
       data: call.table === 'courses'

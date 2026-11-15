@@ -36,7 +36,7 @@ function LiveWorkspace({ role, hash, userId, name }: { role: StaffRole; hash: st
   const store = useMemo<InstructorStore | null>(() => data ? {
     load: () => structuredClone(data),
     save: (next: InstructorData, previous: InstructorData) => {
-      return queue.run(() => saveLiveData(client, userId, previous, next)).catch(problem => {
+      return queue.run(() => saveLiveData(client, userId, previous, next, { editLibrary: role === 'admin' })).catch(problem => {
         setSyncError(`${problem instanceof Error ? problem.message : 'Saving failed.'} The page was reloaded from the database, so recent changes may be missing.`)
         void queryClient.invalidateQueries({ queryKey })
         throw problem

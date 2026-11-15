@@ -174,7 +174,7 @@ export function InstructorWorkspace({
       if (!item) return <ClassList groups={visibleClasses} courses={data.courses} />;
     }
     if (section === 'curriculum') {
-      if (course && !course.library) return <CourseBuilder key={author + ':' + course.id} initial={data.courseDrafts?.[draftKey(course.id)] ?? course}
+      if (course && (!course.library || profile.role === 'admin')) return <CourseBuilder key={author + ':' + course.id} initial={data.courseDrafts?.[draftKey(course.id)] ?? course}
         released={course} localAuthoring={draftsLocal} onSave={saveDraft} onRelease={release} assigned={assigned} draftModule={draftModule}
         library={library} onSaveLibrary={saveLibrary} />;
       if (!item) return <CurriculumList courses={data.courses.map(item => data.courseDrafts?.[draftKey(item.id)] ?? item)} onCreate={createCourse}
