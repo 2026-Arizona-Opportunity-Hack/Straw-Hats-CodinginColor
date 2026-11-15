@@ -32,6 +32,7 @@ See the [README](../README.md#draft-curriculum-from-materials) for preview confi
 
 Lesson and module previews reuse the renderer from the corresponding student player.
 Preview answers run only in the open preview.
+Selecting a multiple-choice knowledge check answer gives feedback in both the student player and teacher preview.
 Hosted previews use the live response types, safe Markdown and slides support.
 The local preview can also run demo HTML activities and coding labs.
 
@@ -76,6 +77,8 @@ The roster mapping endpoint checks the signed-in Supabase profile and calls Jev 
 Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
 
 ## Log
+
+- 2026-11-15, Ken: refreshed immediate knowledge check feedback against the current student player.
 
 - 2026-11-15, Ken: added anonymous classmate notes and teacher moderation.
 

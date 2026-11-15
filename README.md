@@ -85,6 +85,8 @@ Apply migration `2005_publish_curriculum.sql` before deploying the private-draft
 
 Before opening a PR: `npm run build && npm run lint`.
 
+Multiple-choice knowledge checks show feedback when students select an answer. The teacher preview grades the same interaction as practice.
+
 ### Instructor workspace
 
 Instructors and reviewers use the workspace in `src/instructor/` inside the main app, under the shared sidebar: `/instructor#/classes`, `/instructor#/curriculum`, `/instructor#/review`, and `/reviewer` for external reviewers.
