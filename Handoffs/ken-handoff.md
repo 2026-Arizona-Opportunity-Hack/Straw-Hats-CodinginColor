@@ -25,6 +25,11 @@ Preview answers run only in the open preview.
 Hosted previews use the live response types, safe Markdown and slides support.
 The local preview can also run demo HTML activities and coding labs.
 
+## Read & check
+
+Choose **Read & check** when creating a course, or apply the template to any empty lesson.
+Each use creates independent article and quiz blocks with an editable HTML heading example.
+
 ## Coding labs and student demo
 
 PR #15 adds instructor starter files and practice checks for Python and HTML/CSS.
@@ -43,6 +48,8 @@ Published snapshots, My blocks, and executable labs remain browser-local.
 Run `supabase/tests/student_curriculum_access.sql` against a migrated development database to check both access and grading.
 
 ## Log
+
+- 2026-11-14, Ken: added the Read & check template for new courses and empty lessons.
 
 - 2026-11-14, Ken: connected the draft preview to the student lesson renderer and added practice-only feedback.
 

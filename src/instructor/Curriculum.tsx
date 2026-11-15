@@ -7,6 +7,7 @@ import { CodingLabEditor } from './CodingLabEditor';
 import { HtmlActivityEditor, HtmlActivityPreview } from './HtmlActivity';
 import { emptyHtml } from './htmlStarter';
 import { BlockPicker } from './BlockPicker';
+import { readAndCheckLesson } from './lessonTemplates';
 import { ActivityPreview, LessonPreview } from './LessonPreview';
 import { practiceAttempt, previewLesson } from './studentPreview';
 import {
@@ -31,6 +32,7 @@ export function CurriculumList({ courses, reviewer = false, onCreate }: { course
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
   const [level, setLevel] = useState('Beginner');
+  const [template, setTemplate] = useState('blank');
   const visible = reviewer ? courses.filter(course => course.modules.some(module => module.published)) : courses;
   return <>
     <PageHeader title={reviewer ? 'Curriculum reviewer' : 'Curriculum'} description={reviewer
@@ -55,9 +57,14 @@ export function CurriculumList({ courses, reviewer = false, onCreate }: { course
       <form className="ic-stack" onSubmit={event => {
         event.preventDefault();
         if (!title.trim()) return;
-        onCreate?.({ id: id(), title: title.trim(), description: '', level, modules: [newModule()] });
+        const module = newModule();
+        if (template === 'read-check') module.lessons = [readAndCheckLesson()];
+        onCreate?.({ id: id(), title: title.trim(), description: '', level, modules: [module] });
       }}><label>Course title<input required autoFocus value={title} maxLength={100} onChange={event => setTitle(event.target.value)} /></label>
         <label>Level<select value={level} onChange={event => setLevel(event.target.value)}>{['Beginner', 'Intermediate', 'Advanced', 'Expert'].map(value => <option key={value}>{value}</option>)}</select></label>
+        <label>Start with<select value={template} onChange={event => setTemplate(event.target.value)}>
+          <option value="blank">Blank lesson</option><option value="read-check">Read &amp; check</option>
+        </select></label>
         <div className="ic-form-footer"><button className="ic-button ic-primary" type="submit">Create course</button></div>
       </form>
     </Dialog>}
@@ -335,6 +342,12 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
           {tab === 'preview' ? <StudentPreview lessons={[lesson]} moduleId={module.id} local={localAuthoring} /> : <>
             <input className="ic-lesson-title" aria-label="Lesson title" value={lesson.title} placeholder="Untitled lesson" maxLength={100}
               onChange={event => updateLesson(lesson.id, item => ({ ...item, title: event.target.value }))} />
+            {!lesson.activities.length && <button type="button" className="ic-button ic-fit" onClick={() => {
+              const starter = readAndCheckLesson();
+              updateLesson(lesson.id, current => ({
+                ...current, title: current.title === 'New lesson' ? starter.title : current.title, activities: starter.activities,
+              }));
+            }}>Use Read &amp; check template</button>}
             {Array.from({ length: lesson.activities.length + 1 }, (_, index) => {
               const block = lesson.activities[index];
               const editing = block?.id === activity?.id;
