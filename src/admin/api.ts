@@ -216,8 +216,20 @@ const ENROLL_ERRORS: Record<string, string> = {
 
 /** Enrolls an existing student (migration 3004), with the same rules as joining by class code. */
 export async function enrollStudent(studentId: string, classId: string): Promise<void> {
-  const { error } = await db().rpc('admin_enroll_student', { p_student: studentId, p_class: classId })
+  const client = db()
+  const { error } = await client.rpc('admin_enroll_student', { p_student: studentId, p_class: classId })
   if (error) throw rpcError(error, ENROLL_ERRORS, 'adding them to the class')
+
+  // The RPC returns void. Read back the saved membership and active roster entry
+  // before the UI can announce success.
+  const [enrollment, roster] = await Promise.all([
+    client.from('enrollments').select('student_id').eq('class_id', classId).eq('student_id', studentId).maybeSingle(),
+    client.from('class_students').select('profile_id')
+      .eq('class_id', classId).eq('profile_id', studentId).not('passcode', 'is', null).maybeSingle(),
+  ])
+  if (enrollment.error || roster.error || !enrollment.data || !roster.data) {
+    throw new Error('Could not confirm the enrollment. Reload and check the class roster before trying again.')
+  }
 }
 
 export async function removeStudent(studentId: string, classId: string): Promise<void> {

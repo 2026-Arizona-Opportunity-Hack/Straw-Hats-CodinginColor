@@ -131,6 +131,7 @@ CSV and manual entry are available on the Roster tab. Imported rows require conf
 The import dialog explains that self-sign-up creates its own roster row. Previously issued login cards still work through student sign-in.
 Failed saves keep the roster draft available for retry with the same student IDs.
 Admins remove students from a class in **People & roles**. Migration 3015 removes the enrollment and retires its login card while keeping the linked roster row and submissions for re-enrollment. Class pickers display **Class, School**.
+Admin enrollment in **People & roles** confirms the saved membership and active linked roster entry before showing success. The local browser check used the existing SQL RPC for a committed enrollment and replayed a successful HTTP response without a write. An immediate reload preserved only the committed enrollment, which also appeared on the teacher roster.
 Class creation maps selected library modules to their copy using the complete course order or stored positions when the library hides unpublished modules.
 A class setup retry keeps the same copied course and selection mapping.
 The roster mapping endpoint checks the signed-in Supabase profile and calls Jev through OpenRouter when `OPENROUTER_API_KEY` is set. Otherwise it uses Vercel AI Gateway.
@@ -141,6 +142,8 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 The public root introduces AI Academy and Responsive Web Development using the existing CIC brand tokens and fonts. Log in and Sign up open the existing student and staff flows. Featured course links continue to a catalog search after student sign-in. Coming Soon mirrors planned subjects in Student Explore.
 
 ## Log
+
+- 2026-11-15, Codex: confirmed admin enrollment saves before showing success and verified the roster after immediate reload using disposable PostgreSQL.
 
 - 2026-11-15, Codex: added admin class removal for students with preserved work and class-and-school dropdown labels.
 
