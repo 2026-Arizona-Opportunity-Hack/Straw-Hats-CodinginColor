@@ -168,6 +168,8 @@ In draft review, choose a lesson and select **Add a coding lab** to ask GPT-6.1 
 
 In draft preview, choose **Generate image** to describe a scene for Seedream 5.0 Flash. CIC Learn uses a browser-based model to suggest boxes and masks for recognized objects. Choose **Adjust an annotation** to move points, change the label, or remove a suggestion. You can also draw your own shapes. Add an image description before approving. Approved images appear after the selected lesson block. A module has five image generation attempts. Apply migration 2008 before enabling image generation on the hosted app.
 
+To create annotations without a pointer, expand **Add points with the keyboard** and enter percentages from the image's left and top. Add two opposite corners for a box, or at least three points followed by **Finish mask**. For example, points at `(10%, 20%)` and `(80%, 75%)` create a box even when the image has no suggested annotations.
+
 On localhost, **Draft from materials** includes **Local QA** buttons for the lesson preview, image review, and the exhausted image limit. **Test image review** opens a sample photo and runs the same automatic annotations in the browser. The model downloads on first use. The QA buttons make no paid AI requests.
 
 ### Interactive HTML activities

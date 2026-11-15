@@ -31,6 +31,8 @@ The optional coding lab remains available from the preview.
 The browser runs MediaPipe DeepLab after downloading the model and suggests editable masks and their bounding boxes for recognized objects.
 Instructors can move points, change labels, remove annotations, or draw their own before approving or rejecting the image from the side panel.
 Approved figures and their editable annotations stay in the module draft. Each generated module has five attempts, including rejected images.
+Image annotation creation also works with a keyboard: expand **Add points with the keyboard**, enter positions as percentages from the left/top, and add two box corners or at least three mask points.
+Existing point handles still support arrow-key adjustment, and pointer drawing and automatic suggestions use the same annotation data.
 Apply migration 2008 before enabling the hosted image route. Local Vite enforces its quota independently.
 Local QA buttons open preview, image review, and the image-limit state without paid AI requests. The sample photo uses the same browser annotation path.
 Adding a module starts it unpublished.
@@ -115,6 +117,8 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 ## Log
 
 - 2026-11-15, Codex: added automatic browser image annotations and verified adjusting, approving, and rejecting them through local image QA.
+
+- 2026-11-15, Codex: added keyboard creation of image boxes and masks, including images with no suggested annotations.
 
 - 2026-11-15, Codex: added optional Seedream images with editable annotations, instructor approval, and a five-attempt quota.
 
