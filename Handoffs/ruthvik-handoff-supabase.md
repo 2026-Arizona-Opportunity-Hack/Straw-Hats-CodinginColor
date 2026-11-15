@@ -188,11 +188,11 @@ This is the database prerequisite for the separate completion-reporting UI PR.
 Validate with `supabase/tests/staff_progress_snapshot.sql` on a migrated disposable database.
 Migration 3008 was applied to hosted on 2026-11-15; real student-token checks and the live instructor dashboard agree with its canonical states.
 
-## Migration 3014: roster Auth metadata timing (not applied)
+## Migration 3014: roster Auth metadata timing (applied to hosted)
 
 Live card-login verification exposed a Supabase Auth ordering issue: `admin.createUser` inserts `auth.users` before applying its trusted `app_metadata` in the same transaction ([Auth source](https://github.com/supabase/auth/blob/master/internal/api/admin.go)). Migration 3014 retains the immediate email guard and permits only an existing roster's exact `@students.cic.invalid` address to await a deferred final-row check. That check still requires the server-owned roster marker; client metadata never authorizes an identity. Personal email signup and student email changes remain immediately rejected. This matters because [Auth signup](https://github.com/supabase/auth/blob/master/internal/api/signup.go) can send confirmation mail before transaction commit.
 
-Run `supabase/tests/roster_auth_metadata_timing.sql` plus the existing privacy suites against a disposable migrated database. They use the actual Auth worker session and force deferred validation before changing roles. Migration 3014 requires review and hosted application before the live card-login retry; this commit does not change hosted data.
+Run `supabase/tests/roster_auth_metadata_timing.sql` plus the existing privacy suites against a disposable migrated database. They use the actual Auth worker session and force deferred validation before changing roles. Migration 3014 was reviewed, merged in PR #86 and applied to hosted on 2026-11-15. First and repeat live card login and browser classroom access passed afterward.
 
 ## Hosted review verification — 2026-11-15
 
