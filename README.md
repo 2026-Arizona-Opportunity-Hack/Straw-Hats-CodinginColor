@@ -81,6 +81,8 @@ With Supabase configured, the instructor workspace reads and writes live data (c
 
 For the live student curriculum, apply migration `1004_student_curriculum_access.sql` before setting `VITE_LIVE_STUDENT_CURRICULUM=true` and rebuilding. Students can then open published, unlocked modules in their enrolled courses and save attempts to Supabase. Live HTML is scriptless. The full Coding Lab runner is available in the local demo.
 
+Migration `2004_module_assignment_progress.sql` lets opted-in assignments show required lesson steps completed under **Grades → Assignment grades**. For the hosted Maryvale demo, the [Cat Photo App activation script](supabase/demo/maryvale_cat_photo_assignment.sql) publishes the existing draft and adds prior progress. Students open the lesson from **My courses**.
+
 Before opening a PR: `npm run build && npm run lint`.
 
 ### Instructor workspace

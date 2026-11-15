@@ -32,7 +32,19 @@ Source changes ship before hosted activation.
 Published snapshots, My blocks, and executable labs remain browser-local.
 Run `supabase/tests/student_curriculum_access.sql` against a migrated development database to check both access and grading.
 
+## Module completion in the assignment gradebook
+
+Migration 2004 adds opt-in gradebook tracking for a published module linked to a class assignment.
+It records the fraction of required steps with a submitted attempt for each enrolled student.
+It accepts that student's self-paced attempts and attempts from the target class.
+Teachers keep their manual scores and feedback.
+After 2004 is approved and applied, `supabase/demo/maryvale_cat_photo_assignment.sql` publishes the existing Maryvale Cat Photo App draft and picks up prior lesson progress.
+Students still open the lesson from My Courses.
+Use `supabase/tests/module_assignment_progress.sql` to check the student-to-instructor flow in a local database.
+
 ## Log
+
+- 2026-11-14, Ken: added opt-in module completion for the Maryvale assignment gradebook.
 
 - 2026-11-14, Ken: connected the authenticated student curriculum flow to the existing server grading and unlock rules.
 
