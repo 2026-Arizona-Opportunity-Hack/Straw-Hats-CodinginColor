@@ -1,8 +1,10 @@
 // Student data functions. Owner: Shivraj.
-// Frontend (Jacky) calls ONLY these. Each starts as a mock; swap the body for a
-// real Supabase call without changing the signature.
+// The same interface supports Supabase-backed classes and the local demo.
 import type { Activity, Course, Lesson, Module } from '../../shared/types/db.ts'
 import { MOCK_ACTIVITIES, MOCK_COURSES, MOCK_LESSONS, MOCK_MODULES, mockDelay } from '../fixtures.ts'
+import { supabase } from '../../shared/supabase.ts'
+
+const curriculumBackend = import.meta.env.VITE_LIVE_STUDENT_CURRICULUM === 'true' ? supabase : null
 
 export interface ModuleWithContent extends Module {
   lessons: (Lesson & { activities: Activity[] })[]
@@ -16,18 +18,42 @@ export interface ModuleStatus {
 
 export interface AttemptInput {
   activity_id: string
-  class_id: string
+  /** Accepted from existing players. The server resolves the student's enrollment. */
+  class_id?: string
   response: unknown
-  /** 0..1 when the client can grade (interactive HTML); server grades everything else. */
+  /** Practice score for the local demo. The live server scores assessed answers. */
   client_score?: number
   time_on_task_ms: number
 }
 
-export async function listMyCourses(): Promise<Course[]> {
+export type StudentCourse = Pick<Course, 'id' | 'title' | 'description' | 'level' | 'delivery_mode'>
+export type ActivityStatus = { activity_id: string; submitted: boolean; best_score: number | null }
+type AttemptResult = { is_correct: boolean | null; score: number | null }
+
+async function result<T>(request: PromiseLike<{ data: unknown; error: { message: string } | null }>): Promise<T> {
+  const { data, error } = await request
+  if (error) throw new Error(error.message)
+  return data as T
+}
+
+export async function listMyCourses(): Promise<StudentCourse[]> {
+  if (curriculumBackend) {
+    const rows = await result<(Omit<StudentCourse, 'id'> & { course_id: string })[]>(curriculumBackend.rpc('my_courses'))
+    const courses = rows.map(({ course_id, title, description, level, delivery_mode }) => ({
+      id: course_id, title, description, level, delivery_mode,
+    }))
+    return [...new Map(courses.map(course => [course.id, course])).values()]
+  }
   return mockDelay(MOCK_COURSES.filter((c) => c.published))
 }
 
 export async function listModuleStatus(courseId: string): Promise<ModuleStatus[]> {
+  if (curriculumBackend) {
+    const rows = await result<(Omit<ModuleStatus, 'title'> & { module_title: string })[]>(
+      curriculumBackend.rpc('my_course_progress', { p_course_id: courseId }),
+    )
+    return rows.map(({ module_id, module_title, state }) => ({ module_id, title: module_title, state }))
+  }
   const modules = MOCK_MODULES.filter((m) => m.course_id === courseId).sort((a, b) => a.position - b.position)
   return mockDelay(
     modules.map((m, i) => ({ module_id: m.id, title: m.title, state: i === 0 ? 'available' : 'locked' })),
@@ -35,6 +61,7 @@ export async function listModuleStatus(courseId: string): Promise<ModuleStatus[]
 }
 
 export async function getModule(moduleId: string): Promise<ModuleWithContent | null> {
+  if (curriculumBackend) return result(curriculumBackend.rpc('my_module_content', { p_module_id: moduleId }))
   const mod = MOCK_MODULES.find((m) => m.id === moduleId)
   if (!mod) return mockDelay(null)
   const lessons = MOCK_LESSONS.filter((l) => l.module_id === moduleId)
@@ -46,12 +73,23 @@ export async function getModule(moduleId: string): Promise<ModuleWithContent | n
   return mockDelay({ ...mod, lessons })
 }
 
-export async function recordAttempt(input: AttemptInput): Promise<{ is_correct: boolean | null; score: number | null }> {
+export async function listActivityStatus(moduleId: string): Promise<ActivityStatus[]> {
+  if (curriculumBackend) return result(curriculumBackend.rpc('my_module_activities', { p_module_id: moduleId }))
+  return []
+}
+
+export async function recordAttempt(input: AttemptInput): Promise<AttemptResult> {
+  if (curriculumBackend) return result(curriculumBackend.rpc('submit_attempt', {
+    p_activity_id: input.activity_id,
+    p_response: input.response ?? {},
+    p_time_on_task_ms: input.time_on_task_ms,
+  }))
   return mockDelay({ is_correct: null, score: input.client_score ?? null })
 }
 
 /** Where a student (including a late joiner) should start. */
 export async function nextActivityFor(courseId: string): Promise<{ module_id: string; activity_id: string } | null> {
+  if (curriculumBackend) return result(curriculumBackend.rpc('my_next_activity', { p_course_id: courseId }))
   const first = MOCK_MODULES.filter((m) => m.course_id === courseId).sort((a, b) => a.position - b.position)[0]
   const lesson = first && MOCK_LESSONS.find((l) => l.module_id === first.id)
   const activity = lesson && MOCK_ACTIVITIES.find((a) => a.lesson_id === lesson.id)

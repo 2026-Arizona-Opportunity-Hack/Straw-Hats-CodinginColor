@@ -24,7 +24,17 @@ The demo keeps student edits and submissions locally per published revision.
 Practice results stay out of the live reporting pipeline.
 The seeded course **Try the curriculum builder** includes both labs, a quiz, a written response, and an HTML widget.
 
+## Supabase student curriculum
+
+Migration 1004 restricts module, lesson, and activity reads using the existing enrollment and unlock rules.
+After applying it, enable `VITE_LIVE_STUDENT_CURRICULUM=true` to use the database for the signed-in student's course list, module content, and attempts.
+Source changes ship before hosted activation.
+Published snapshots, My blocks, and executable labs remain browser-local.
+Run `supabase/tests/student_curriculum_access.sql` against a migrated development database to check both access and grading.
+
 ## Log
+
+- 2026-11-14, Ken: connected the authenticated student curriculum flow to the existing server grading and unlock rules.
 
 - 2026-11-14, Ken: added the framed coding labs, seeded lesson, and mock student entry point in PR #15.
 
