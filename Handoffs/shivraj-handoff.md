@@ -33,6 +33,7 @@ A first pretest try at or above the pass mark tests the student out of that modu
 | `1012_catalog_modules.sql` | Branch `shivraj-polish` | Applied to the hosted DB |
 | `1013_student_usernames.sql` | Branch `shivraj-polish`, tested (15 checks) | Not applied yet |
 | `1014_module_assessments.sql` | Branch `shivraj-polish`, tested (14 checks) | Not applied yet |
+| `1015_placement_card_hide.sql` | Branch `shivraj-polish-2`, tested (3 checks) | Not applied yet |
 | `2009_course_state_merge.sql` | Merged (#62). In Ruthvik's range on purpose | Applied to the hosted DB |
 
 Tests: 45 checks in a local Postgres (PGlite) with `0001`, `1001`, `1002` and `2001`, passing in both orders.
@@ -175,6 +176,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-15, Shivraj: starter-quiz skip writes the result into the cache (one click), "Don't show again" on the quiz card (1015, hide_placement_card), separate sign-in/sign-up password fields so browsers only suggest strong passwords on sign-up.
 - 2026-11-15, Shivraj: fixed starter-quiz double prompt (refetch placement after skip/submit, no redirect on stale cache), white Start learning/Join buttons, answer card reload (stays mounted, feedback slides in), Review opening the clicked card; My classroom uses course cards with the join box below.
 - 2026-11-15, Shivraj: student usernames + educator Google sign-in (1013), final-check lock, generated parallel warm-ups/final checks with an AI endpoint and checks fallback (1014). Touches Aryan's People & roles and Ken's `liveStore.ts` publish.
 - 2026-11-15, Shivraj: rebuilt Explore as course cards with a module preview and Add course (1012); course page back link goes to My courses. Touches Jacky's `StudentExplore.tsx` and `StudentCourse.tsx`.

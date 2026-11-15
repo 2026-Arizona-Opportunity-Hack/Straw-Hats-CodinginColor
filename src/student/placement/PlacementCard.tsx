@@ -1,22 +1,37 @@
 // Owner: Shivraj. Student home card for the starter quiz.
 // First visit (never taken, never skipped): sends the student to the quiz.
 // Taken: shows the recommended course. Skipped: offers the quiz again.
-import { useQuery } from '@tanstack/react-query'
+// "Don't show again" hides the card until the student retakes the quiz (1015).
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CSSProperties } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import { getMyPlacement, placementAvailable } from '../../api/student/placement.ts'
+import { getMyPlacement, hidePlacementCard, placementAvailable, type MyPlacement } from '../../api/student/placement.ts'
 import { useAuth } from '../../shared/auth/AuthContext.tsx'
 import { languageOf } from '../languages.ts'
 
 export function PlacementCard() {
   const { profile } = useAuth()
+  const qc = useQueryClient()
+  const key = ['placement', profile?.id]
   const { data, isLoading, isFetching, isError } = useQuery({
-    queryKey: ['placement', profile?.id], queryFn: getMyPlacement, enabled: placementAvailable,
+    queryKey: key, queryFn: getMyPlacement, enabled: placementAvailable,
+  })
+  const hide = useMutation({
+    mutationFn: hidePlacementCard,
+    // Hide at once; the server call just records it.
+    onMutate: () => qc.setQueryData<MyPlacement | null>(key, (old) => old && { ...old, card_hidden: true }),
+    onError: () => void qc.invalidateQueries({ queryKey: key }),
   })
   if (!placementAvailable || isLoading || isError) return null
   // Only redirect on a fresh answer: a cached "never taken" from before the quiz must not win.
   if (data === null) return isFetching ? null : <Navigate to="/student/start" replace />
+  if (data?.card_hidden) return null
 
+  const dismiss = (
+    <button type="button" onClick={() => hide.mutate()} className="inline-flex min-h-11 items-center rounded-xl px-3 text-sm text-cic-muted hover:bg-white hover:text-black">
+      Don't show again
+    </button>
+  )
   const course = data?.result?.course
   if (!course) {
     return (
@@ -25,7 +40,10 @@ export function PlacementCard() {
           <h2 className="st-serif text-2xl">Not sure where to start?</h2>
           <p className="text-sm text-cic-muted">Answer 12 quick questions and we'll suggest a course for you.</p>
         </div>
-        <Link to="/student/start" className="inline-flex min-h-11 items-center rounded-xl bg-brand px-4 font-semibold text-white hover:bg-brand-dark">Find my course</Link>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/student/start" className="inline-flex min-h-11 items-center rounded-xl bg-brand px-4 font-semibold text-white hover:bg-brand-dark">Find my course</Link>
+          {dismiss}
+        </div>
       </section>
     )
   }
@@ -44,6 +62,7 @@ export function PlacementCard() {
         <Link to={`/student/course/${course.id}`} className="inline-flex min-h-11 items-center rounded-xl bg-brand px-4 font-semibold text-white hover:bg-brand-dark">Open course</Link>
         <Link to="/student/explore" className="inline-flex min-h-11 items-center rounded-xl px-4 font-semibold text-brand hover:bg-white">Explore other courses</Link>
         <Link to="/student/start" className="inline-flex min-h-11 items-center rounded-xl px-3 text-sm text-cic-muted hover:bg-white hover:text-black">Retake quiz</Link>
+        {dismiss}
       </div>
     </section>
   )

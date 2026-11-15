@@ -93,6 +93,7 @@ export function LoginPage() {
             <Field id="staff-login" label="Email or username">
               <Input
                 id="staff-login"
+                name="username"
                 required
                 autoComplete="username"
                 autoCapitalize="none"
@@ -104,6 +105,7 @@ export function LoginPage() {
             <Field id="staff-password" label="Password">
               <Input
                 id="staff-password"
+                name="password"
                 type="password"
                 required
                 autoComplete="current-password"
