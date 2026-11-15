@@ -23,7 +23,7 @@ The team plan is in [`plan.md`](../plan.md); the nonprofit brief is linked from 
 | Branch | State | Notes |
 |---|---|---|
 | `main` | Has everything through PR #14 (tabs, assignments, live data), Shivraj's #16 and #17 (migrations 1001, 1002) | Source of truth |
-| `ruthvik/class-tabs` | Ahead of `main`, needs a new PR | Grading (2002), rubrics and file uploads (2003), answer keys in the builder, scoring rules, the stale-save fix below. |
+| `ruthvik/class-tabs` | PR #18 into `main`, open | Grading (2002), rubrics and file uploads (2003), answer keys in the builder, scoring rules, the stale-save fix below. |
 | `jacky/student-join-and-player` | Pushed, no PR | Student module player with a renderer per activity type (`src/student/activities.tsx`). |
 | `Shivraj` | 2 commits ahead of `main` | Supabase CLI config (`supabase/config.toml`). Already merged into `ruthvik/class-tabs`. |
 | `Aryan`, `Ken`, `Jacky` | Nothing new beyond `main` | |
@@ -140,7 +140,7 @@ Put each sentence on its own line.
 
 ## Log
 
-- 2026-11-14 7:30 PM, Ruthvik: merged `main` (Shivraj's 1001, 1002). Did Shivraj's items 4 (answer keys in the builder) and 5 (scoring rules). Found and fixed the stale-save data loss above. Moved handoffs from `docs/` to `Handoffs/`. Two demo assignments still need restoring.
+- 2026-11-14 7:30 PM, Ruthvik: merged `main` (Shivraj's 1001, 1002). Did Shivraj's items 4 (answer keys in the builder) and 5 (scoring rules). Found and fixed the stale-save data loss above. Moved handoffs from `docs/` to `Handoffs/`. Restored the two demo assignments by re-running `supabase/demo/*.sql`; opened PR #18.
 - 2026-11-14 6:45 PM, Ruthvik: rubrics and file uploads. Migration 2003 (rubric scores, private `submission-files` bucket, `file` assignment type) and `supabase/demo/rubric_demo.sql` plus three sample PDFs applied to the hosted project. Checked that another class's instructor and anonymous users cannot read the files.
 - 2026-11-14 6:00 PM, Ruthvik: grading. Migration 2002 (`assignment_submissions`) and `supabase/demo/grading_demo.sql` applied to the hosted project; gradebook and grading dialog in the Grades tab, live and mock.
 - 2026-11-14 5:35 PM, Ruthvik: deleted stale `ruthvik/instructor-in-app` (PR #9 had merged into it; nothing unique on it). Opened #13 (schema) and #14 (UI) into `main`.
