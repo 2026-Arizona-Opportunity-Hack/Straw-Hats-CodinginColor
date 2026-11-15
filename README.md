@@ -81,6 +81,12 @@ npx supabase db push --include-seed   # runs supabase/migrations/ in order, then
 
 With Supabase configured, the instructor workspace reads and writes live data (classes, rosters, assigned modules, assignments, course content); Row Level Security limits each instructor to their own classes.
 
+### Sign in and create an account
+
+Use `/login` to sign in. Students use their username and password, an existing email and password, or **Use a teacher login card**.
+New students use `/signup` to get a username and can enter a class code during sign-up or join later from **My classroom**.
+Educators can sign up with Google on `/signup` for curriculum reviewer access and return through `/login`. CIC administrators provision instructor accounts.
+
 ### Student login cards
 
 Apply migration `3007_roster_student_login.sql` and deploy the `roster-login` Supabase Edge Function before using imported learners' login cards.

@@ -21,7 +21,7 @@ const learningSteps = [
 
 export function HomePage() {
   const { profile } = useAuth()
-  const startPath = profile ? homePathFor(profile.role) : '/login?mode=signup'
+  const startPath = profile ? homePathFor(profile.role) : '/signup'
   const startLabel = profile ? 'Open dashboard' : 'Sign up'
 
   return (
