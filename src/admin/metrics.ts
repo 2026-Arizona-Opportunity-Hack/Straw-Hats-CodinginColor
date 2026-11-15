@@ -8,17 +8,17 @@
 // - Post-test     = the student's BEST post-test attempt among the tries that count: the first
 //                   max_posttest_tries in a class (like the database's _course_state), all when self-paced.
 // - Learning gain = post-test % − pretest %, in percentage points; only when both exist.
-// - Module done   = every activity that counts toward unlock is submitted AND, if the module has a
-//                   post-test, the counted post-test is at least the class's pass mark for the module.
-//                   Self-paced (course_enrollments): every counted activity submitted, as in the database.
-// - Modules in scope for a class: self-paced course → all published modules of the class's course;
-//   instructor-led → only modules released to the class (class_modules).
+// - Live completion, scope and pre/post scores come from staff_progress_snapshot (_course_state).
+//   This includes test-out, exhausted attempts, unscorable checks, manual/sequential unlocks,
+//   required-activity flags, and whole-course fallback when no modules have been released.
+//   Local derivation below is retained only for intentional mock fixtures.
 // - Completion    = done (student, module) pairs ÷ pairs in scope.
 // - Stuck         = started, not done, and either idle more than inactive_days, or below the module's
 //                   pass mark on one activity after using its max post-test tries.
 // - Not started   = enrolled with no submitted attempts in that class.
 import type { ActivityType } from '../shared/types/activities.ts'
 import type { StudentProgress } from '../shared/types/db.ts'
+import type { StaffModuleProgress } from '../shared/staffProgress.ts'
 
 export type Status = StudentProgress['status']
 
@@ -33,6 +33,8 @@ type Attempt = {
 }
 
 export interface OrgData {
+  /** Required for live reports; absent only in deliberate mock fixtures. */
+  progress?: StaffModuleProgress[]
   /** program_settings (migration 2006). */
   settings: { inactive_days: number }
   /** class_module_settings (migration 2006): resolved rules for every module of every class. pass_mark is 0..1. */
@@ -84,6 +86,7 @@ export interface GroupSummary {
   label: string
   students: number
   completionPct: number | null
+  assessmentPairs: number
   avgPre: number | null
   avgPost: number | null
   avgGain: number | null
@@ -98,6 +101,7 @@ export const mean = (xs: (number | null)[]) => {
 
 /** Modules a class is working on (see definitions above), in course order. */
 export function modulesInScope(d: OrgData, classId: string): string[] {
+  if (d.progress !== undefined) return [...new Set(d.progress.filter(row => row.class_id === classId).map(row => row.module_id))]
   const cls = d.classes.find((c) => c.id === classId)
   if (!cls) return []
   const course = d.courses.find((c) => c.id === cls.course_id)
@@ -162,6 +166,15 @@ function studentModule(acts: OrgData['activities'], triesFor: (activityId: strin
   }
 }
 
+function canonicalProgress(derived: ReturnType<typeof studentModule>, row?: StaffModuleProgress) {
+  if (!row) return derived
+  const pre = row.pretest_score === null ? null : row.pretest_score * 100
+  const post = row.posttest_best === null ? null : row.posttest_best * 100
+  return { ...derived, started: derived.started || row.done_count > 0, done: row.state === 'completed',
+    pre, post, gain: pre !== null && post !== null ? post - pre : null,
+    activitiesDone: row.done_count, activitiesTotal: row.required_count }
+}
+
 function groupBy<T>(rows: T[], key: (row: T) => string) {
   const map = new Map<string, T[]>()
   for (const row of rows) map.set(key(row), [...(map.get(key(row)) ?? []), row])
@@ -176,12 +189,14 @@ function computeStudentModules(d: OrgData): StudentModule[] {
   const out: StudentModule[] = []
   for (const e of d.enrollments) {
     for (const moduleId of scope.get(e.class_id) ?? []) {
+      const canonical = d.progress?.find(row => row.class_id === e.class_id && row.student_id === e.student_id && row.module_id === moduleId)
+      if (d.progress !== undefined && !canonical) continue
       const progress = studentModule(
         actsByModule.get(moduleId) ?? [],
         (activityId) => tries.get(`${e.class_id}|${e.student_id}|${activityId}`) ?? [],
         ruleFor(d, e.class_id, moduleId),
       )
-      out.push({ studentId: e.student_id, classId: e.class_id, moduleId, ...progress })
+      out.push({ studentId: e.student_id, classId: e.class_id, moduleId, ...canonicalProgress(progress, canonical) })
     }
   }
   return out
@@ -194,7 +209,11 @@ export function selfPacedProgress(d: OrgData) {
   const rows = d.courseEnrollments.flatMap((e) =>
     d.modules
       .filter((m) => m.course_id === e.course_id && m.published)
-      .map((m) => studentModule(actsByModule.get(m.id) ?? [], (activityId) => tries.get(`${e.student_id}|${activityId}`) ?? [], null)),
+      .flatMap((m) => {
+        const canonical = d.progress?.find(row => row.class_id === null && row.student_id === e.student_id && row.course_id === e.course_id && row.module_id === m.id)
+        if (d.progress !== undefined && !canonical) return []
+        return [canonicalProgress(studentModule(actsByModule.get(m.id) ?? [], (activityId) => tries.get(`${e.student_id}|${activityId}`) ?? [], null), canonical)]
+      }),
   )
   return {
     students: new Set(d.courseEnrollments.map((e) => e.student_id)).size,
@@ -232,15 +251,15 @@ function computeStudentSummaries(d: OrgData, sm: StudentModule[], now = Date.now
       lastActivity: last,
       timeOnTaskMs: mine.reduce((s, x) => s + x.timeOnTaskMs, 0),
     }
-    if (!attempts.length) return { ...base, status: 'not_started' as const, reason: "Hasn't started yet" }
     if (mine.length && doneCount === mine.length) return { ...base, status: 'done' as const, reason: 'Finished every module' }
+    if (!attempts.length) return { ...base, status: 'not_started' as const, reason: "Hasn't started yet" }
 
     // Stuck on an activity: below the module's pass mark after using its max post-test tries.
     const inScope = new Set(mine.map((x) => x.moduleId))
     for (const [actId, t] of groupBy(attempts, (a) => a.activity_id)) {
       const a = actById.get(actId)
       // Pretests only record a starting point, so retaking one is never being stuck.
-      if (!a || a.type === 'pretest' || !inScope.has(a.module_id)) continue
+      if (!a || a.type === 'pretest' || !inScope.has(a.module_id) || mine.some(row => row.moduleId === a.module_id && row.done)) continue
       const rule = ruleFor(d, e.class_id, a.module_id)
       const score = countedScore(a.type, t, rule)
       if (t.length >= rule.maxTries && score != null && score < rule.passPct) {
@@ -263,15 +282,17 @@ function summarize(
 ): GroupSummary[] {
   return groups.map((g) => {
     const rows = sm.filter((r) => inGroup(g.id, r))
+    const paired = rows.filter((r) => r.pre !== null && r.post !== null)
     const studs = students.filter((s) => inGroup(g.id, s))
     return {
       id: g.id,
       label: g.label,
       students: new Set([...rows.map((r) => `${r.classId}|${r.studentId}`), ...studs.map((s) => `${s.classId}|${s.studentId}`)]).size,
       completionPct: rows.length ? (rows.filter((r) => r.done).length / rows.length) * 100 : null,
-      avgPre: mean(rows.map((r) => r.pre)),
-      avgPost: mean(rows.map((r) => r.post)),
-      avgGain: mean(rows.map((r) => r.gain)),
+      assessmentPairs: paired.length,
+      avgPre: mean(paired.map((r) => r.pre)),
+      avgPost: mean(paired.map((r) => r.post)),
+      avgGain: mean(paired.map((r) => r.gain)),
       stuck: studs.filter((s) => s.status === 'stuck').length,
       notStarted: studs.filter((s) => s.status === 'not_started').length,
     }

@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { generateFromRequest } from '../server/curriculum/request.ts'
 import { issueImageTicket, localImageQuota } from '../server/curriculum/images.ts'
-import { outlinesFromMask } from '../src/instructor/figureSuggestions.ts'
+import { annotationCrops, mergeCropMask, outlinesFromMask } from '../src/instructor/figureSuggestions.ts'
 import { validLessonFigure } from '../src/shared/curriculum/figure.ts'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -62,4 +62,26 @@ it('outlines disconnected objects separately and ignores stray pixels', () => {
   expect(marks[1]).toMatchObject({ from: { x: 133, y: 150 }, to: { x: 367, y: 650 } })
   expect(marks[3]).toMatchObject({ from: { x: 667, y: 150 }, to: { x: 833, y: 650 } })
   expect(validLessonFigure({ src: 'data:image/jpeg;base64,/9j/AA==', alt: 'Two cats', caption: '', marks })).toBe(true)
+})
+
+it('covers both ends of wide and tall photos with overlapping square crops', () => {
+  expect(annotationCrops(16, 9)).toEqual([
+    { x: 4, y: 0, size: 9 }, { x: 0, y: 0, size: 9 }, { x: 7, y: 0, size: 9 },
+  ])
+  expect(annotationCrops(9, 16)).toEqual([
+    { x: 0, y: 4, size: 9 }, { x: 0, y: 0, size: 9 }, { x: 0, y: 7, size: 9 },
+  ])
+  expect(annotationCrops(12, 10)).toEqual([])
+})
+
+it('joins overlapping masks in original image coordinates before making a box', () => {
+  const target = { pixels: new Uint8Array(20 * 10), width: 20, height: 10 }
+  const mask = { pixels: new Uint8Array(5 * 5), width: 5, height: 5 }
+  for (let y = 1; y < 4; y++) mask.pixels.fill(1, y * 5 + 1, y * 5 + 4)
+  mergeCropMask(target, mask, { x: 4, y: 0, size: 10 })
+  mask.pixels[6] = 2
+  mergeCropMask(target, mask, { x: 8, y: 0, size: 10 })
+  const marks = outlinesFromMask(target.pixels, target.width, target.height, ['background', 'cat', 'dog'])
+  expect(marks.map(({ kind, label }) => [kind, label])).toEqual([['mask', 'Cat'], ['box', 'Cat']])
+  expect(marks[1]).toMatchObject({ from: { x: 300, y: 200 }, to: { x: 800, y: 800 } })
 })

@@ -29,10 +29,13 @@ The student preview shows topic checks in reading order and keeps references in 
 The optional coding lab remains available from the preview.
 **Generate image** sends the instructor’s scene description to Seedream 5.0 Flash.
 The browser runs MediaPipe DeepLab after downloading the model and suggests editable masks and their bounding boxes for recognized objects.
+When a wide or tall image yields no annotations, the browser retries with overlapping square crops and combines their masks in the original image coordinates.
 Instructors can move points, change labels, remove annotations, or draw their own before approving or rejecting the image from the side panel.
 Approved figures and their editable annotations stay in the module draft. Each generated module has five attempts, including rejected images.
+Image annotation creation also works with a keyboard: expand **Add points with the keyboard**, enter positions as percentages from the left/top, and add two box corners or at least three mask points.
+Existing point handles still support arrow-key adjustment, and pointer drawing and automatic suggestions use the same annotation data.
 Apply migration 2008 before enabling the hosted image route. Local Vite enforces its quota independently.
-Local QA buttons open preview, image review, and the image-limit state without paid AI requests. The sample photo uses the same browser annotation path.
+Local QA buttons open preview, image review, and the image-limit state without paid AI requests. Test image review uses the sample photo or a locally selected PNG or JPEG.
 Adding a module starts it unpublished.
 PPTX extraction runs in the browser, and only selected image previews go to the selected model.
 The default runs Terra, then Opus, then Jev, with at most one targeted Terra edit.
@@ -56,6 +59,14 @@ Preview answers run only in the open preview.
 Selecting a multiple-choice knowledge check answer gives feedback in both the student player and teacher preview.
 Hosted previews use the live response types, safe Markdown and slides support.
 The local preview can also run demo HTML activities and coding labs.
+
+## Curriculum workspace
+
+Instructors and admins open published lessons from **Curriculum** and can leave staff comments on individual blocks.
+Global edits are an explicit admin action, and class edits follow the class's own curriculum route.
+**CIC Library** shows curated workshop slide decks from published global courses. Admins manage the catalog by selecting **Include in CIC Library** on a Slides block and publishing its module.
+Migrations 2011 and 2012 add durable class-local scope and staff-only comment threads. Apply them in that order before deploying the workspace.
+See the [curriculum isolation audit](curriculum-isolation-audit-2026-11-15.md) for the current database boundaries and legacy global course links.
 
 ## Read & check
 
@@ -94,6 +105,12 @@ Migration 1006 scopes opt-in worksheet notes to a class and reveals up to 15 aft
 Instructors can review and hide notes for classes they manage.
 The Cat Photo App demo activation script opts in Maryvale without sharing prior submissions.
 
+## Saved student responses
+
+Class activity details now show saved worksheet answers, question choices, exit reflections and code as plain text with their prompts. The loader uses original input and choice IDs and ignores undeclared payload fields, answer keys and reference solutions.
+The latest response is labeled with its attempt number; if the score counts a different attempt, that number is shown separately. Concept mastery uses the same counted attempt as the overall score: first pretest, best eligible post-test, earliest tied score. Later practice does not replace counted concept scores.
+Verified with fictional loader/model/render fixtures and a local browser screenshot in `docs/screenshots/saved-student-responses.png`; no hosted student records were read or changed. No migration is needed.
+
 ## Maryvale Cat Photo App assignment
 
 Migration 2007 links selected curriculum activities to separate completion entries in Assignment grades.
@@ -114,7 +131,13 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 
 ## Log
 
+- 2026-11-15, Codex: recovered editable annotations on the full wide cat frame and added a file option to local image review QA.
+
+- 2026-11-15, Codex: restored Curriculum for instructors and admins with view-first navigation, staff comments, and database isolation for local copies.
+
 - 2026-11-15, Codex: added automatic browser image annotations and verified adjusting, approving, and rejecting them through local image QA.
+
+- 2026-11-15, Codex: added keyboard creation of image boxes and masks, including images with no suggested annotations.
 
 - 2026-11-15, Codex: added optional Seedream images with editable annotations, instructor approval, and a five-attempt quota.
 
@@ -145,6 +168,8 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 
 - 2026-11-15, Ken: added anonymous classmate notes and teacher moderation.
 
+- 2026-11-15, Codex: restored structured activity responses and counted-attempt concept mastery; verified safe text rendering and later-practice isolation.
+
 - 2026-11-15, Ken: removed reading submissions and excluded reading from curriculum completion totals.
 
 - 2026-11-14, Ken: added the verified Cat Photo App lab and its local demo.
@@ -172,3 +197,5 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 - 2026-11-14, Codex: added reviewed proposal conversion with approved references and editable article blocks.
 
 - 2026-11-14, Codex: added PowerPoint text, speaker notes, and opt-in image analysis to the converter.
+
+- 2026-11-15, Codex: corrected the [README startup commands](../README.md#run-it-locally) and verified them in a fresh clone.

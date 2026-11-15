@@ -1,10 +1,12 @@
 import { validLessonFigure } from '../shared/curriculum/figure';
+import { loadStaffProgress, type StaffModuleProgress } from '../shared/staffProgress';
 import { parseWebPracticeChecks } from '../shared/labs/webPracticeChecks';
 // Supabase-backed data for the instructor workspace. Loads courses, classes, rosters,
 // assignments and progress, and writes back only what changed. Row Level Security decides
 // what the signed-in person can read or change (supabase/migrations/2001_instructor_workspace.sql).
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Submission } from './assignments/grading';
+import { savedConceptScores, savedResponse } from './attemptResponses';
 import { normalizeAssignment, totalPoints, type Assignment, type AssignmentKind } from './assignments/model';
 import {
   activityTypes, type Activity, type ActivityType, type Attempt, type ClassGroup, type ClassRules, type Course, type InstructorData,
@@ -100,6 +102,7 @@ function toActivity(row: Row): Activity {
   };
   if (content.format === 'open-ended') activity.format = 'open-ended';
   if (type === 'worksheet') activity.discussionEnabled = content.discussion_enabled === true;
+  if (type === 'slides') activity.cicLibraryDeck = content.cic_library_deck === true;
   return activity;
 }
 
@@ -112,8 +115,9 @@ export function activityContent(activity: Activity): Json {
   switch (activity.type) {
     case 'content': return { ...base, markdown: activity.markdown,
       ...(activity.presentation ? { presentation: activity.presentation } : {}), ...(activity.figure ? { figure: activity.figure } : {}) };
-    case 'video':
-    case 'slides': return { ...base, url: activity.url, caption: activity.title, markdown: activity.markdown };
+    case 'video': return { ...base, url: activity.url, caption: activity.title, markdown: activity.markdown };
+    // Publishing merges JSON, so explicitly write false when a deck is removed.
+    case 'slides': return { ...base, url: activity.url, caption: activity.title, markdown: activity.markdown, cic_library_deck: activity.cicLibraryDeck === true };
     case 'check': return { ...base, prompt: first?.prompt ?? '', choices: first ? choices(first) : [], answer: first ? answerId(first) : undefined, markdown: activity.markdown };
     case 'exit': return { ...base, prompt: first?.prompt ?? '', choices: first ? choices(first) : [], markdown: activity.markdown };
     case 'worksheet': return {
@@ -181,7 +185,7 @@ function toSubmission(row: Row): Submission {
 
 // ---- Progress ----
 
-type ActivityInfo = { type: string; moduleId: string };
+type ActivityInfo = { type: string; moduleId: string; content: Json; concepts: string[] };
 
 /**
  * Which tries count, matching the database rules in 1001_student_progress.sql
@@ -189,35 +193,38 @@ type ActivityInfo = { type: string; moduleId: string };
  * pretest counts try #1 only; post-test counts the best of the first N tries
  * (class_module_settings.max_posttest_tries, migration 2006); everything else counts the best try.
  */
-function countedScore(rows: Row[], info: ActivityInfo | undefined, maxTries: number | undefined): number | null {
-  const scored = (list: Row[]) => list.map(r => r.score).filter((v): v is number | string => v !== null && v !== undefined).map(Number);
+function countedAttempt(rows: Row[], info: ActivityInfo | undefined, maxTries: number | undefined): Row | undefined {
   const byTry = rows.slice().sort((a, b) => Number(a.attempt_no) - Number(b.attempt_no));
-  if (info?.type === 'pretest') return scored(byTry.slice(0, 1))[0] ?? null;
   // No rule for the module (a module outside the class's course): which tries count is unknown.
-  if (info?.type === 'posttest' && maxTries === undefined) return null;
-  const pool = info?.type === 'posttest' ? byTry.filter(r => Number(r.attempt_no) <= (maxTries as number)) : byTry;
-  const scores = scored(pool);
-  return scores.length ? Math.max(...scores) : null;
+  if (info?.type === 'posttest' && maxTries === undefined) return undefined;
+  const pool = info?.type === 'pretest' ? byTry.slice(0, 1)
+    : info?.type === 'posttest' ? byTry.filter(r => Number(r.attempt_no) <= (maxTries as number)) : byTry;
+  const scored = pool.filter(r => r.score !== null && r.score !== undefined && Number.isFinite(Number(r.score)) && Number(r.score) >= 0 && Number(r.score) <= 1);
+  // Stable sort preserves the earliest attempt when two counted scores tie.
+  return scored.sort((a, b) => Number(b.score) - Number(a.score))[0];
 }
 
-function learnersFor(classId: string, roster: Row[], attempts: Row[], activities: Map<string, ActivityInfo>, rules: ClassRules): Learner[] {
+function learnersFor(classId: string, roster: Row[], attempts: Row[], activities: Map<string, ActivityInfo>, rules: ClassRules, progress: StaffModuleProgress[]): Learner[] {
   return roster.slice().sort((a, b) => str(a.created_at).localeCompare(str(b.created_at))).map(student => {
     const mine = attempts.filter(a => a.class_id === classId && student.profile_id && a.student_id === student.profile_id);
     const byActivity = new Map<string, Row[]>();
     for (const attempt of mine) byActivity.set(String(attempt.activity_id), [...(byActivity.get(String(attempt.activity_id)) ?? []), attempt]);
     const list: Attempt[] = [...byActivity.entries()].map(([activityId, rows]) => {
       const info = activities.get(activityId);
-      const counted = countedScore(rows, info, info && rules.maxTries[info.moduleId]);
+      const counted = countedAttempt(rows, info, info && rules.maxTries[info.moduleId]);
       const latest = rows.slice().sort((a, b) => Number(b.attempt_no) - Number(a.attempt_no))[0];
       return {
         activityId, count: rows.length, submitted: rows.some(r => r.submitted_at),
-        score: counted === null ? null : counted * 100,
+        score: counted ? Number(counted.score) * 100 : null,
         minutes: Math.round(rows.reduce((sum, r) => sum + Number(r.time_on_task_ms ?? 0), 0) / 60_000),
-        response: typeof latest.response === 'string' ? latest.response : undefined,
+        response: savedResponse(latest.response, info?.type ?? '', info?.content ?? {}),
+        responseAttempt: Number(latest.attempt_no), scoreAttempt: counted ? Number(counted.attempt_no) : undefined,
+        conceptScores: counted ? savedConceptScores(counted.response, info?.concepts ?? []) : undefined,
       };
     });
     const last = mine.map(a => str(a.submitted_at)).filter(Boolean).sort().at(-1) ?? null;
-    return { id: String(student.id), name: str(student.display_name), passcode: str(student.passcode), baseline: null, attempts: list, hints: [], lastActive: last };
+    return { id: String(student.id), name: str(student.display_name), passcode: str(student.passcode), baseline: null, attempts: list, hints: [], lastActive: last,
+      moduleProgress: progress.filter(row => row.class_id === classId && row.student_id === student.profile_id) };
   });
 }
 
@@ -238,7 +245,7 @@ async function selectAll(supabase: SupabaseClient, table: string, columns: strin
   }
 }
 
-const courseColumns = 'id, title, description, level, owner_id, is_library, copied_from, publication_revision, created_at, modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))';
+const courseColumns = 'id, title, description, level, owner_id, is_library, copied_from, published, publication_revision, created_at, local_curricula (course_id), modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))';
 
 function toCourse(c: Row): Course {
   const course: Course = {
@@ -251,8 +258,10 @@ function toCourse(c: Row): Course {
       })),
     })),
   };
+  if (typeof c.published === 'boolean') course.published = c.published;
   if (c.is_library) course.library = true;
   if (c.copied_from) course.copiedFrom = String(c.copied_from);
+  if (Array.isArray(c.local_curricula) ? c.local_curricula.length : c.local_curricula) course.local = true;
   return course;
 }
 
@@ -287,13 +296,14 @@ function rulesFor(classId: string, rows: Row[], settings: ProgramSettings): Clas
 }
 
 export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, displayName: string): Promise<InstructorData> {
-  const [courses, classes, attempts, moduleSettings, programSettings] = await Promise.all([
+  const [courses, classes, attempts, moduleSettings, programSettings, progress] = await Promise.all([
     // Includes published library courses (RLS "read published courses") so instructors can import them.
     supabase.from('courses').select(courseColumns).order('created_at'),
-    supabase.from('classes').select('id, name, school, course_id, join_code, created_at, class_modules (module_id), class_students (id, display_name, passcode, profile_id, created_at), assignments (*), assignment_submissions (*)').order('created_at'),
+    supabase.from('classes').select('id, name, school, course_id, join_code, created_at, class_modules (module_id, released_at), class_students (id, display_name, passcode, profile_id, created_at), assignments (*), assignment_submissions (*)').order('created_at'),
     selectAll(supabase, 'activity_attempts', 'id, student_id, activity_id, class_id, score, submitted_at, time_on_task_ms, attempt_no, response'),
     selectAll(supabase, 'class_module_settings', 'class_id, module_id, pass_mark, max_posttest_tries', ['class_id', 'module_id']),
     supabase.from('program_settings').select('inactive_days, low_score_pct'),
+    role === 'reviewer' ? Promise.resolve([]) : loadStaffProgress(supabase),
   ]);
   fail('load courses', courses.error);
   fail('load classes', classes.error);
@@ -301,14 +311,22 @@ export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, di
   const settings = toSettings(programSettings.data as Row[] | null);
 
   const courseList = (courses.data as Row[]).map(toCourse);
-  const activityInfo = new Map<string, ActivityInfo>(courseList.flatMap(course => course.modules.flatMap(m =>
-    m.lessons.flatMap(l => l.activities.map(a => [a.id, { type: a.type, moduleId: m.id }] as const)))));
+  const activityInfo = new Map<string, ActivityInfo>();
+  // Keep original input/choice IDs for saved responses, independently of builder round-trip fields.
+  for (const course of courses.data as Row[]) for (const module of arr(course.modules) as Row[])
+    for (const lesson of arr(module.lessons) as Row[]) for (const activity of arr(lesson.activities) as Row[]) {
+      const content = (activity.content ?? {}) as Json;
+      activityInfo.set(String(activity.id), { type: str(activity.type), moduleId: String(module.id), content,
+        concepts: questionsFrom(content, str(activity.concept)).map(question => question.concept) });
+    }
   const classList: ClassGroup[] = (classes.data as Row[]).map(c => {
     const rules = rulesFor(String(c.id), moduleSettings, settings);
+    const released = (arr(c.class_modules) as Row[]).filter(m => Date.parse(str(m.released_at)) <= Date.now()).map(m => String(m.module_id));
     return {
       id: String(c.id), name: str(c.name), school: str(c.school), courseId: String(c.course_id), joinCode: str(c.join_code),
       moduleIds: (arr(c.class_modules) as Row[]).map(m => String(m.module_id)),
-      learners: learnersFor(String(c.id), arr(c.class_students) as Row[], attempts, activityInfo, rules),
+      progressModuleIds: released.length ? released : courseList.find(course => course.id === c.course_id)?.modules.filter(m => m.published).map(m => m.id) ?? [],
+      learners: learnersFor(String(c.id), arr(c.class_students) as Row[], attempts, activityInfo, rules, progress),
       assignments: (arr(c.assignments) as Row[]).sort((a, b) => str(a.created_at).localeCompare(str(b.created_at))).map(toAssignment),
       submissions: (arr(c.assignment_submissions) as Row[]).map(toSubmission),
       rules,

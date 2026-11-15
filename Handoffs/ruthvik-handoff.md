@@ -67,6 +67,8 @@ The #27 student "Browse courses" UI was dropped in favor of the Explore page alr
 - No thresholds are hardcoded on the frontend.
   Inactive days, low score, pass mark and post-test tries come from `program_settings` and the `class_module_settings` view (migration 2006); each class gets `rules` in `liveStore.ts`.
   Admin analytics (`src/admin/api.ts`, `metrics.ts`) read the same tables, every row, including self-enrolled students.
+- Admin before/after and learning-gain averages use the same matched student/module pairs.
+  The headline, module growth rows and breakdown table show the matched-pair sample size; unmatched scores stay in individual detail without affecting the aggregate comparison.
 
 ### Assignments and grading
 
@@ -76,6 +78,14 @@ The #27 student "Browse courses" UI was dropped in favor of the Explore page alr
   Each cell opens the submission block by block; auto-graded questions can be overridden, feedback is saved.
 - Rubrics on written, code and file blocks: click a rating per criterion to sum the score; typed points still override.
 - File uploads go to the private `submission-files` bucket; instructors open them through 10-minute signed URLs.
+
+### Canonical live progress reports
+
+Apply migration 3008 before deploying the completion-report UI.
+Both loaders require `staff_progress_snapshot()` and fail visibly if it is missing or denied.
+Teacher/admin live completion and pre/post scores come from `_course_state`; browser mock fixtures retain local calculations.
+Teacher module completion counts completed enrolled learners, with required-activity submissions shown separately.
+The snapshot refreshes when the workspace/report reloads; assignment editing still keeps its stored module selection.
 
 ### AI Academy curriculum (from CIC's Week 1 deck)
 
@@ -182,6 +192,7 @@ Keep it short; link to code instead of copying it.
 Put each sentence on its own line.
 
 ## Log
+- 2026-11-15, Codex: corrected admin before/after averages to use matched assessment pairs and show sample sizes; verified sparse, disjoint and negative-gain cohorts plus rendered growth labels.
 - 2026-11-15 8:55 AM, Ruthvik: rewrote this handoff to cover everything I built (PR list, features, migrations, open work) now that #49 is on `main`. Updated the README instructor section and the Supabase handoff (2006 applied).
 - 2026-11-15 1:20 AM, Ruthvik: opened one PR from `ruthvik/class-library-dashboard` that merges latest `main` with the CIC library, edit-in-class curriculum, class Dashboard drill-downs, DB-driven thresholds (migration 2006, already applied to hosted), the lesson reading view, AI Academy curriculum and embedded HTML activities.
   Merge choices: course edits for a class use Ken's browser drafts and `publish_curriculum`; the student player stays on main's `LessonContent` (now rendering Markdown with `LessonMarkdown`); the student enrollment UI from #27 is dropped for main's Explore page.
@@ -206,6 +217,7 @@ Put each sentence on its own line.
 - 2026-11-14 5:35 PM, Ruthvik: deleted stale `ruthvik/instructor-in-app` (PR #9 had merged into it; nothing unique on it). Opened #13 (schema) and #14 (UI) into `main`.
 - 2026-11-14 5:25 PM, Ruthvik: pushed `ruthvik/schema-2001` (migration 2001 + seed fixes only) so teammates can get the schema without the UI work.
 - 2026-11-14 5:15 PM, Ruthvik: renamed to `ruthvik-handoff.md` and `ruthvik-handoff-supabase.md`.
+- 2026-11-15, Codex: connected teacher/admin live reports to canonical student state, with loader failure checks and regression coverage for test-out, exhausted tries, locks and required-work counts; migration 3008 is a deployment prerequisite.
 - 2026-11-14 5:05 PM, Ruthvik: created this file.
   Live Supabase data for the instructor workspace, migration 2001 and demo seed applied to the hosted project, block-based assignments, CIC logo.
   PR #9 merged into the wrong base; `main` still needs `ruthvik/class-tabs`.

@@ -640,6 +640,9 @@ body:has(.ic-app) { margin: 0; }
 .ic-image-review-popover { position: sticky; top: 0; padding: 14px; border: 1px solid var(--ic-border); border-radius: 8px; background: var(--ic-paper); box-shadow: 0 2px 5px #0001; }
 .ic-image-review-popover .ic-button { width: 100%; }
 .ic-app .ic-figure-tools .ic-button[aria-pressed=true] { color: var(--ic-green); background: var(--ic-tint); border-color: var(--ic-green); }
+.ic-annotation-position summary { cursor: pointer; font-weight: 600; }
+.ic-annotation-position[open] > .ic-stack { margin-top: 12px; }
+.ic-annotation-position .ic-row { align-items: end; }
 @media (max-width: 700px) {
   .ic-image-review-layout { grid-template-columns: minmax(0, 1fr); }
   .ic-image-review-popover { position: static; }

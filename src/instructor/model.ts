@@ -2,6 +2,7 @@ import { validLessonFigure, type LessonFigure } from '../shared/curriculum/figur
 import type { CodingLabSettings, InteractiveHtmlPayload } from '../shared/types/activities.ts';
 import type { Submission } from './assignments/grading';
 import type { Assignment } from './assignments/model';
+import type { StaffModuleProgress } from '../shared/staffProgress';
 
 export const activityTypes = {
   content: 'Article',
@@ -30,28 +31,38 @@ export type Activity = {
   presentation?: 'cic-article';
   figure?: LessonFigure;
   discussionEnabled?: boolean;
+  cicLibraryDeck?: boolean;
   interactiveHtml?: InteractiveHtmlPayload;
 };
 export type Lesson = { id: string; title: string; activities: Activity[]; htmlFirst?: boolean };
 export type Module = { id: string; title: string; published: boolean; revision?: number; lessons: Lesson[] };
 export type Course = {
   id: string; title: string; description: string; level: string; modules: Module[];
+  published?: boolean;
   publicationRevision?: number;
   /** Shared library course: read-only, instructors import their own copy. */
   library?: boolean;
   /** The library course this one was copied from. */
   copiedFrom?: string;
+  /** A class-local course remains local even after its source or last class is removed. */
+  local?: boolean;
 };
+export type SavedAnswer = { prompt: string; value: string; code?: boolean };
 export type Attempt = {
   activityId: string;
   score: number | null;
   minutes: number;
   count: number;
   submitted: boolean;
-  response?: string;
+  response?: string | SavedAnswer[];
+  /** Latest saved response can be a practice try, distinct from the counted score. */
+  responseAttempt?: number;
+  scoreAttempt?: number;
   conceptScores?: Record<string, number>;
 };
 export type Learner = {
+  /** Canonical live state. Undefined only for browser-created/mock learners. */
+  moduleProgress?: StaffModuleProgress[];
   id: string;
   name: string;
   passcode: string;
@@ -81,6 +92,8 @@ export type ClassGroup = {
   school: string;
   courseId: string;
   moduleIds: string[];
+  /** Released module scope for reports; assignment editing still uses moduleIds. */
+  progressModuleIds?: string[];
   joinCode: string;
   learners: Learner[];
   /** Class-level assignments (quizzes, links, pages, written, code). */
@@ -114,7 +127,7 @@ export function copyCourse(source: Course): Course {
   const course = structuredClone(source);
   delete course.library;
   return {
-    ...course, id: id(), copiedFrom: source.id,
+    ...course, id: id(), copiedFrom: source.id, local: true,
     modules: course.modules.map(module => ({
       ...module, id: id(), revision: undefined,
       lessons: module.lessons.map(lesson => ({ ...lesson, id: id(), activities: lesson.activities.map(copyBlock) })),

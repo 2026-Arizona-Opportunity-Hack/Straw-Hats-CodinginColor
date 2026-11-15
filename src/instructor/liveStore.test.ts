@@ -1,8 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { describe, expect, it } from 'vitest';
 import { newAssignment } from './assignments/model';
-import { importLibraryCourse, loadLiveData, saveLiveClass, saveLiveData } from './liveStore';
+import { activityContent, importLibraryCourse, loadLiveData, saveLiveClass, saveLiveData } from './liveStore';
 import type { ClassGroup, Course, InstructorData } from './model';
+import { classProgress } from './progress';
 
 type Call = { table: string; op: string; payload?: unknown; filters: [string, ...unknown[]][] };
 type Reply = { data: unknown; error: null | { message: string; code?: string } };
@@ -11,7 +12,8 @@ type Reply = { data: unknown; error: null | { message: string; code?: string } }
 const settingsRow = { inactive_days: 3, low_score_pct: 60 };
 /** Answers program_settings like the database; everything else from `respond`. */
 const withSettings = (respond: (call: Call) => Reply) => (call: Call): Reply =>
-  call.table === 'program_settings' ? { data: [settingsRow], error: null } : respond(call);
+  call.table === 'program_settings' ? { data: [settingsRow], error: null }
+    : call.table === 'staff_progress_snapshot' ? { data: { modules: [] }, error: null } : respond(call);
 
 /** Records every query; `respond` decides what each one returns. */
 function fakeSupabase(respond: (call: Call) => Reply = () => ({ data: [{ id: 'x' }], error: null })) {
@@ -101,6 +103,70 @@ describe('saveLiveData', () => {
   });
 });
 
+describe('saved curriculum responses', () => {
+  const items = [{ id: 'custom-q', prompt: 'What repeats?', concept: 'loops', choices: [{ id: 'repeat', label: 'A loop' }] },
+    { id: 'next-q', prompt: 'What comes next?', concept: 'sequence', choices: [{ id: 'step', label: 'The next step' }] }];
+  const activities = [
+    { id: 'pre', type: 'pretest', content: { items } }, { id: 'post', type: 'posttest', content: { items } },
+    { id: 'worksheet', type: 'worksheet', content: { fields: [{ id: 'reflection', prompt: 'Explain your plan' },
+      { id: 'plan', kind: 'multiple_choice', prompt: 'Choose a plan', choices: [{ id: 'repeat', label: 'Repeat the steps' }] }] } },
+    { id: 'code', type: 'code', content: { prompt: 'Write code', solution: 'hidden reference' } },
+  ];
+  const row = (activity_id: string, attempt_no: number, score: number | null, response: unknown) => ({
+    activity_id, attempt_no, score, response, student_id: 'student', class_id: 'class', submitted_at: '2026-11-15T12:00:00Z',
+  });
+  async function load(attempts: unknown[], maxTries: number | null = 2) {
+    const { client } = fakeSupabase(withSettings(call => ({ data: {
+      courses: [{ id: 'course', modules: [{ id: 'module', published: true, lessons: [{ id: 'lesson', activities }] }] }],
+      classes: [{ id: 'class', course_id: 'course', class_modules: [{ module_id: 'module' }], class_students: [{ id: 'roster', profile_id: 'student' }] }],
+      activity_attempts: attempts,
+      class_module_settings: maxTries === null ? [] : [{ class_id: 'class', module_id: 'module', max_posttest_tries: maxTries, pass_mark: 0.7 }],
+    }[call.table] ?? [], error: null })));
+    return loadLiveData(client, 'instructor', 'Teacher');
+  }
+
+  it('retains labeled worksheet/code responses and mastery from counted tests, apart from the latest practice response', async () => {
+    const loaded = await load([
+      row('pre', 1, 0.25, { concept_scores: { loops: 0, sequence: 0.5 } }),
+      row('pre', 2, 1, { concept_scores: { loops: 1, sequence: 1 } }),
+      row('post', 1, 0.25, { concept_scores: { loops: 0, sequence: 0.5 } }),
+      row('post', 2, 0.75, { concept_scores: { loops: 1, sequence: 0.5, hidden: 1 } }),
+      row('post', 3, 1, { answers: { 'custom-q': 'repeat', 'next-q': 'step', hidden: 'not a question' }, concept_scores: { loops: 1, sequence: 1 }, solution: 'secret' }),
+      row('worksheet', 1, null, { fields: { reflection: 'Repeat until done.\nThen stop.', plan: 'repeat', hidden: 'private' }, share_discussion: true }),
+      row('code', 1, 1, { code: '<h1>Hello</h1>', solution: 'never display' }),
+    ]);
+    const group = loaded.classes[0];
+    const attempts = group.learners[0].attempts;
+    expect(attempts.find(a => a.activityId === 'pre')).toMatchObject({ score: 25, scoreAttempt: 1, conceptScores: { loops: 0, sequence: 50 } });
+    expect(attempts.find(a => a.activityId === 'post')).toMatchObject({ score: 75, scoreAttempt: 2, responseAttempt: 3,
+      conceptScores: { loops: 100, sequence: 50 }, response: [{ prompt: 'What repeats?', value: 'A loop' }, { prompt: 'What comes next?', value: 'The next step' }] });
+    expect(attempts.find(a => a.activityId === 'worksheet')?.response).toEqual([
+      { prompt: 'Explain your plan', value: 'Repeat until done.\nThen stop.' }, { prompt: 'Choose a plan', value: 'Repeat the steps' },
+    ]);
+    expect(attempts.find(a => a.activityId === 'code')?.response).toEqual([{ prompt: 'Submitted code', value: '<h1>Hello</h1>', code: true }]);
+    expect(JSON.stringify(attempts)).not.toMatch(/hidden|secret|private|never display/);
+    expect(classProgress(group, loaded.courses[0]).mastery.map(({ concept, score, mastered }) => ({ concept, score, mastered })))
+      .toEqual([{ concept: 'loops', score: 100, mastered: 1 }, { concept: 'sequence', score: 50, mastered: 0 }]);
+  });
+
+  it('uses the earliest tied best try and never substitutes a later pretest for an unscored first try', async () => {
+    const loaded = await load([row('post', 2, 0.5, { concept_scores: { loops: 0 } }), row('post', 1, 0.5, { concept_scores: { loops: 1 } }),
+      row('pre', 1, null, { concept_scores: { loops: 1 } }), row('pre', 2, 1, { concept_scores: { loops: 1 } })]);
+    const [post, pre] = loaded.classes[0].learners[0].attempts;
+    expect(post).toMatchObject({ score: 50, scoreAttempt: 1, conceptScores: { loops: 100 } });
+    expect(pre.score).toBeNull();
+    expect(pre.conceptScores).toBeUndefined();
+  });
+
+  it('withholds score and concept mastery when the counted post-test rule is unavailable', async () => {
+    const loaded = await load([row('post', 1, 1, { answers: { 'custom-q': 'repeat' }, concept_scores: { loops: 1 } })], null);
+    const attempt = loaded.classes[0].learners[0].attempts[0];
+    expect(attempt.score).toBeNull();
+    expect(attempt.conceptScores).toBeUndefined();
+    expect(attempt.response).toContainEqual({ prompt: 'What repeats?', value: 'A loop' });
+  });
+});
+
 describe('library courses', () => {
   const library = (title: string): Course => ({
     id: 'lib-1', title: 'AI Academy', description: '', level: 'Beginner', library: true,
@@ -119,15 +185,21 @@ describe('library courses', () => {
     expect(calls.find(c => c.table === 'lessons' && c.op === 'upsert')?.payload).toMatchObject([{ id: 'll1', title: 'Intro, edited' }]);
   });
 
-  it('loads library courses as read-only and remembers where a copy came from', async () => {
+  it('loads library courses and retains local scope even when the source was removed', async () => {
     const { client } = fakeSupabase(withSettings(call => ({
       data: call.table === 'courses'
-        ? [{ id: 'lib-1', title: 'AI Academy', is_library: true, modules: [] }, { id: 'mine', title: 'AI Academy', is_library: false, copied_from: 'lib-1', modules: [] }]
+        ? [
+          { id: 'lib-1', title: 'AI Academy', is_library: true, modules: [] },
+          { id: 'mine', title: 'AI Academy', copied_from: 'lib-1', local_curricula: { course_id: 'mine' }, modules: [] },
+          { id: 'orphan', title: 'School lessons', copied_from: null, local_curricula: { course_id: 'orphan' }, modules: [] },
+        ]
         : [],
       error: null,
     })));
     const loaded = await loadLiveData(client, 'instructor', 'T');
-    expect(loaded.courses.map(c => [c.id, c.library, c.copiedFrom])).toEqual([['lib-1', true, undefined], ['mine', undefined, 'lib-1']]);
+    expect(loaded.courses.map(c => [c.id, c.library, c.copiedFrom, c.local])).toEqual([
+      ['lib-1', true, undefined, undefined], ['mine', undefined, 'lib-1', true], ['orphan', undefined, undefined, true],
+    ]);
   });
 
   it('imports through copy_library_course and loads the new copy', async () => {
@@ -140,6 +212,29 @@ describe('library courses', () => {
     expect(calls[1].filters).toContainEqual(['eq', 'id', 'copy-1']);
     expect(copy).toMatchObject({ id: 'copy-1', copiedFrom: 'lib-1' });
     expect(copy.library).toBeUndefined();
+  });
+
+  it('round-trips deck curation and writes false to clear a previously curated deck', async () => {
+    const slides = { title: 'Workshop deck', url: 'https://docs.google.com/presentation/d/example/view', cic_library_deck: true };
+    const { client } = fakeSupabase(withSettings(call => ({
+      data: call.table === 'courses'
+        ? [{ id: 'library', published: true, modules: [{ id: 'm1', lessons: [{ id: 'l1', activities: [
+          { id: 's1', type: 'slides', content: slides },
+          { id: 's2', type: 'slides', content: { title: 'Other deck', cic_library_deck: 'true' } },
+          { id: 'v1', type: 'video', content: { title: 'Video', cic_library_deck: true } },
+        ] }] }] }]
+        : [],
+      error: null,
+    })));
+    const { courses: [course] } = await loadLiveData(client, 'admin', 'T');
+    const [curated, unmarked, video] = course.modules[0].lessons[0].activities;
+    expect(course.published).toBe(true);
+    expect(curated.cicLibraryDeck).toBe(true);
+    expect(unmarked.cicLibraryDeck).toBe(false);
+    expect(video.cicLibraryDeck).toBeUndefined();
+    expect(activityContent(curated)).toMatchObject({ cic_library_deck: true });
+    expect(activityContent({ ...curated, cicLibraryDeck: false })).toMatchObject({ cic_library_deck: false });
+    expect(activityContent({ ...video, cicLibraryDeck: true })).not.toHaveProperty('cic_library_deck');
   });
 });
 
@@ -196,7 +291,24 @@ describe('loadLiveData', () => {
   });
 
   it('refuses to load without the program_settings row', async () => {
-    const { client } = fakeSupabase(() => ({ data: [], error: null }));
+    const { client } = fakeSupabase(call => ({ data: call.table === 'staff_progress_snapshot' ? { modules: [] } : [], error: null }));
     await expect(loadLiveData(client, 'instructor', 'T')).rejects.toThrow(/program_settings has no row/);
+  });
+
+  it('requires the live snapshot and maps profile IDs to roster learners', async () => {
+    const canonical = { student_id: 'p1', class_id: 'class-1', course_id: 'course-1', module_id: 'm1', state: 'completed',
+      tested_out: true, required_count: 2, done_count: 1, pretest_score: 0.9, posttest_best: null };
+    const { client } = fakeSupabase(call => ({ data: {
+      courses: [posttestCourse], classes: [{ ...classRow, class_modules: [
+        { module_id: 'm1', released_at: '2000-01-01' }, { module_id: 'm2', released_at: '2999-01-01' },
+      ] }], program_settings: [settingsRow], staff_progress_snapshot: { modules: [canonical] },
+    }[call.table] ?? [], error: null }));
+    const loaded = await loadLiveData(client, 'instructor', 'T');
+    expect(loaded.classes[0].progressModuleIds).toEqual(['m1']);
+    expect(loaded.classes[0].learners[0].moduleProgress).toEqual([canonical]);
+    const missing = fakeSupabase(call => call.table === 'staff_progress_snapshot'
+      ? { data: null, error: { code: 'PGRST202', message: 'Missing function' } }
+      : { data: call.table === 'program_settings' ? [settingsRow] : [], error: null });
+    await expect(loadLiveData(missing.client, 'instructor', 'T')).rejects.toThrow(/3008_staff_progress_snapshot/);
   });
 });

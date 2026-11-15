@@ -1,7 +1,19 @@
 import catPhoto from '../shared/labs/cat-photo.jpg?inline'
-import { materialDraft, type MaterialDraft } from './materialsDraft'
+import { compressFigureImage } from './figureImage'
+import { materialDraft, type DraftQaFixture, type MaterialDraft } from './materialsDraft'
 
-export function localQaDraft(scenario: 'preview' | 'image' | 'limit'): MaterialDraft {
+export async function localQaDraft(scenario: DraftQaFixture['scenario'], image?: File): Promise<MaterialDraft> {
+  const fixture: DraftQaFixture = { scenario, src: catPhoto, alt: 'A cat resting on its side' }
+  if (scenario === 'image' && image) {
+    if (!['image/png', 'image/jpeg'].includes(image.type)) throw new Error('Choose a PNG or JPEG test image.')
+    const source = URL.createObjectURL(image)
+    try {
+      fixture.src = await compressFigureImage(source)
+      fixture.alt = ''
+    } finally {
+      URL.revokeObjectURL(source)
+    }
+  }
   return {
     module: materialDraft({
       moduleTitle: 'QA · Computer vision',
@@ -18,6 +30,6 @@ export function localQaDraft(scenario: 'preview' | 'image' | 'limit'): MaterialD
         ],
       }],
     }),
-    fixture: { scenario, src: catPhoto },
+    fixture,
   }
 }

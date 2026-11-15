@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { analyze, fmtGain, ruleFor, selfPacedProgress, type OrgData } from './metrics.ts'
+import type { StaffModuleProgress } from '../shared/staffProgress.ts'
 
 const NOW = Date.now()
 const ago = (days: number) => new Date(NOW - days * 86_400_000).toISOString()
@@ -81,8 +82,60 @@ describe('self-paced learners', () => {
   })
 })
 
+describe('canonical live progress', () => {
+  const state = (patch: Partial<StaffModuleProgress> = {}): StaffModuleProgress => ({
+    student_id: 'ana', class_id: 'k', course_id: 'c', module_id: 'm', state: 'completed', tested_out: true,
+    required_count: 2, done_count: 1, pretest_score: 0.9, posttest_best: null, ...patch,
+  })
+
+  it('counts test-out and exhausted tries as complete, using canonical scores', () => {
+    const result = analyze(org({ progress: [state(), state({ student_id: 'ben', tested_out: false, done_count: 2, pretest_score: 0.2, posttest_best: 0.4 })] }))
+    expect(result.overall.completionPct).toBe(100)
+    expect(result.students.map(row => row.status)).toEqual(['done', 'done'])
+    expect(result.studentModules[1]).toMatchObject({ done: true, pre: 20, post: 40, gain: 20 })
+  })
+
+  it('uses authoritative scope/locks even when raw activity submissions suggest completion', () => {
+    const result = analyze(org({ progress: [state({ state: 'locked', tested_out: false, done_count: 2 })],
+      attempts: [attempt('ana', 'pre', 1, 1), attempt('ana', 'post', 1, 1)] }))
+    expect(result.studentModules).toHaveLength(1)
+    expect(result.studentModules[0].done).toBe(false)
+    expect(analyze(org({ progress: [] })).studentModules).toEqual([])
+  })
+
+  it('handles self-paced zero-required completion without inferring it from attempts', () => {
+    const data = org({ courseEnrollments: [{ student_id: 'ana', course_id: 'c' }],
+      progress: [state({ class_id: null, tested_out: false, required_count: 0, done_count: 0, pretest_score: null })] })
+    expect(selfPacedProgress(data)).toMatchObject({ modulesDone: 1, completionPct: 100 })
+  })
+})
+
 describe('fmtGain', () => {
   it('signs gains after rounding and shows a dash without paired data', () => {
     expect([fmtGain(12.4), fmtGain(-3.2), fmtGain(-0.4), fmtGain(0), fmtGain(null)]).toEqual(['+12 pts', '−3 pts', '0 pts', '0 pts', '—'])
+  })
+})
+
+describe('matched assessment averages', () => {
+  it('uses the same pairs for before, after and gain in every grouping', () => {
+    const data = org({ attempts: [attempt('ana', 'pre', 1, 0.2), attempt('ana', 'post', 1, 0.6), attempt('ben', 'pre', 1, 1)] })
+    const result = analyze(data)
+    for (const group of [result.overall, ...result.byClass, ...result.bySchool, ...result.byModule]) {
+      expect(group).toMatchObject({ assessmentPairs: 1, avgPre: 20, avgPost: 60, avgGain: 40 })
+      expect(group.avgPost! - group.avgPre!).toBeCloseTo(group.avgGain!)
+    }
+    expect(result.overall.students).toBe(2)
+  })
+
+  it('does not invent growth by pairing different students', () => {
+    const result = analyze(org({ attempts: [attempt('ana', 'pre', 1, 0.2), attempt('ben', 'post', 1, 0.8)] }))
+    expect(result.overall).toMatchObject({ assessmentPairs: 0, avgPre: null, avgPost: null, avgGain: null })
+    expect(result.studentModules.find(row => row.studentId === 'ana')?.pre).toBe(20)
+  })
+
+  it('counts each student/module pair and preserves negative gains', () => {
+    const data = org({ attempts: [attempt('ana', 'pre', 1, 0.8), attempt('ana', 'post', 1, 0.3), attempt('ben', 'pre', 1, 0.6), attempt('ben', 'post', 1, 0.5)] })
+    expect(analyze(data, { classId: 'k' }).overall).toMatchObject({ assessmentPairs: 2, avgPre: 70, avgPost: 40, avgGain: -30 })
+    expect(analyze(data, { school: 'other' }).overall).toMatchObject({ assessmentPairs: 0, avgPre: null, avgPost: null, avgGain: null })
   })
 })
