@@ -8,6 +8,7 @@ import type { Activity, Lesson } from '../shared/types/db.ts'
 import { curriculumUrl } from '../shared/ui/curriculumUrl.ts'
 import { InteractiveHtmlFrame } from '../shared/ui/InteractiveHtmlFrame.tsx'
 import { Button, Card } from '../shared/ui/index.tsx'
+import './lessonContent.css'
 
 export type SubmitActivity = (input: AttemptInput) => ReturnType<typeof recordAttempt>
 
@@ -15,7 +16,7 @@ function AnswerField({ id, prompt, choices }: { id: string; prompt: string; choi
   return choices?.length ? (
     <fieldset className="space-y-1">
       <legend className="font-medium">{prompt}</legend>
-      {choices.map(choice => <label key={choice.id} className="flex items-center gap-2">
+      {choices.map(choice => <label key={choice.id} className="cic-lesson-choice">
         <input type="radio" name={id} value={choice.id} required />{choice.label}
       </label>)}
     </fieldset>
