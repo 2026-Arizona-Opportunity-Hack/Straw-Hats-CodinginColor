@@ -14,6 +14,7 @@ PR #12 adds inline HTML blocks and an HTML-first lesson canvas.
 Use the explicit preview to run self-contained HTML.
 Authored scripts run only in the loopback mock demo, in a frame with an opaque origin.
 Keep real student data out of the demo while outbound navigation is under review.
+Use the [CIC Learn lesson style guide](../docs/lesson-style-guide.md) as model instructions for future lesson-plan or slide-deck conversion.
 
 ## Coding labs and student demo
 
@@ -41,3 +42,5 @@ Run `supabase/tests/student_curriculum_access.sql` against a migrated developmen
 - 2026-11-14, Ken: added the isolated HTML editor and active-frame completion checks in PR #12.
 
 - 2026-11-14, Ken: added visual editing, reusable blocks, and local module snapshots in PR #11.
+
+- 2026-11-14, Codex: documented the Cat Photo App style and conversion rules for lesson generation.
