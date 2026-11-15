@@ -39,6 +39,8 @@ The local preview can also run demo HTML activities and coding labs.
 
 Choose **Read & check** when creating a course, or apply the template to any empty lesson.
 Each use creates independent article and quiz blocks with an editable HTML heading example.
+Reading blocks require no student submission.
+Apply migration 1007 before deploying this change so published reading blocks do not block progression.
 
 ## Coding labs and student demo
 
@@ -78,6 +80,8 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 ## Log
 
 - 2026-11-15, Ken: added anonymous classmate notes and teacher moderation.
+
+- 2026-11-15, Ken: removed reading submissions and excluded reading from curriculum completion totals.
 
 - 2026-11-14, Ken: added the verified Cat Photo App lab and its local demo.
 

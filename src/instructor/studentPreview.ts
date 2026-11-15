@@ -6,7 +6,7 @@ import type { Activity, Lesson } from './model'
 export function previewActivity(activity: Activity, lessonId: string, index: number): StudentActivity {
   return {
     id: activity.id, lesson_id: lessonId, position: index + 1, type: activity.type, concept: activity.title,
-    points: 0, counts_toward_unlock: true, content: activityContent(activity) as unknown as StudentActivity['content'],
+    points: 0, counts_toward_unlock: activity.type !== 'content', content: activityContent(activity) as unknown as StudentActivity['content'],
   }
 }
 

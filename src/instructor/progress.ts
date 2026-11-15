@@ -8,7 +8,8 @@ export function assignedModules(group: ClassGroup, course?: Course) {
 
 export function classProgress(group: ClassGroup, course?: Course, moduleId?: string) {
   const modules = assignedModules(group, course).filter(module => !moduleId || module.id === moduleId);
-  const activities = modules.flatMap(module => module.lessons.flatMap(lesson => lesson.activities));
+  const activities = modules.flatMap(module => module.lessons.flatMap(lesson => lesson.activities))
+    .filter(activity => activity.type !== 'content');
   const roster = group.learners.map(learner => {
     const submitted = learner.attempts.filter(attempt => attempt.submitted && activities.some(activity => activity.id === attempt.activityId));
     const completed = new Set(submitted.map(attempt => attempt.activityId)).size;
