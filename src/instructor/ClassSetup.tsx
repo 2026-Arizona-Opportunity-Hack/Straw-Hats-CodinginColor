@@ -78,7 +78,7 @@ export function RosterUpload({ rows, setRows }: { rows: RosterRow[]; setRows: (r
 }
 
 export function ClassSetup({ courses, classes, onCreate, onImport }: {
-  courses: Course[]; classes: ClassGroup[]; onCreate: (group: ClassGroup) => void; onImport: (source: Course) => Promise<Course>;
+  courses: Course[]; classes: ClassGroup[]; onCreate: (group: ClassGroup, imported?: Course) => void; onImport: (source: Course) => Promise<Course>;
 }) {
   const library = publishedCourses(courses.filter(course => course.library));
   // Classes start from the CIC library; each class gets its own copy when it is created.
@@ -143,7 +143,8 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
     }
     let joinCode: string;
     do { joinCode = id().slice(0, 6).toUpperCase(); } while (classes.some(group => group.joinCode === joinCode));
-    onCreate({ id: id(), name: name.trim(), school: school.trim(), courseId: target.id, joinCode, moduleIds: targetModules, learners: makeLearners(valid) });
+    onCreate({ id: id(), name: name.trim(), school: school.trim(), courseId: target.id, joinCode, moduleIds: targetModules, learners: makeLearners(valid) },
+      course.library ? target : undefined);
   }
 
   return <>
