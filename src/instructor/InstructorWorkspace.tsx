@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { BarChart3, BookOpen, Eye, GraduationCap, Library, Pencil, Settings } from 'lucide-react';
 import { ClassSetup } from './ClassSetup';
 import { ClassDashboard, ClassList } from './Classes';
+import { copiedModuleIds } from './classCurriculum';
 import { isClassTab } from './classTabIds';
 import { CourseBuilder, CourseReviewer, CurriculumList } from './Curriculum';
 import { CurriculumBlockComments } from './CurriculumBlockComments';
@@ -233,7 +234,7 @@ export function InstructorWorkspace({
    */
   async function makeClassEditable(group: ClassGroup, source: Course) {
     const copy = await importCourse(source);
-    const moduleIds = source.modules.flatMap((module, index) => group.moduleIds.includes(module.id) && copy.modules[index] ? [copy.modules[index].id] : []);
+    const moduleIds = copiedModuleIds(source, copy, group.moduleIds);
     if (!saveClass({ ...group, courseId: copy.id, moduleIds }, copy)) throw new Error('Could not update the class.');
     window.location.assign(`#/classes/${group.id}/curriculum/edit`);
   }
