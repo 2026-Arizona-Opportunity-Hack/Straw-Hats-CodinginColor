@@ -9,7 +9,7 @@ import { LoadState, StatusBadge } from './common.tsx'
 import { useOrg } from './hooks.ts'
 import { GrowthRows, ImpactNumber, JourneyLegend, JourneyPips, OverallProgress, StatusBar, StatusLegend, type Pip } from './impact.tsx'
 import {
-  analyze, fmtGain, fmtMinutes, fmtPct, mean, modulesInScope, PASS_PCT, timeAgo,
+  analyze, fmtGain, fmtMinutes, fmtPct, mean, modulesInScope, timeAgo,
   type GroupSummary, type OrgData, type Status, type StudentSummary,
 } from './metrics.ts'
 
@@ -169,8 +169,13 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
           <ImpactNumber value={instructorIds.length} label="Instructors" hint="Teaching CIC courses" />
           <ImpactNumber value={hours} label="Hours of learning" hint="Time students spent on lessons" />
           <ImpactNumber value={modulesCompleted} label="Modules completed" hint={`${fmtPct(a.overall.completionPct)} of modules started`} />
-          <ImpactNumber value={a.overall.avgGain ?? 0} label="Avg learning gain" hint={`${fmtPct(a.overall.avgPre)} → ${fmtPct(a.overall.avgPost)} on tests`} format={(v) => `+${Math.round(v)} pts`} />
+          <ImpactNumber value={a.overall.avgGain ?? 0} label="Avg learning gain" hint={a.overall.avgGain == null ? 'Needs students with a pretest and a post-test' : `${fmtPct(a.overall.avgPre)} → ${fmtPct(a.overall.avgPost)} on tests`} format={(v) => (a.overall.avgGain == null ? '—' : fmtGain(v))} />
         </div>
+        {a.selfPaced && a.selfPaced.students > 0 && (
+          <p className="mt-5 text-sm text-white">
+            Plus {a.selfPaced.students} self-paced {a.selfPaced.students === 1 ? 'learner' : 'learners'} taking courses on their own: {a.selfPaced.modulesDone} {a.selfPaced.modulesDone === 1 ? 'module' : 'modules'} completed ({fmtPct(a.selfPaced.completionPct)}), {fmtMinutes(a.selfPaced.timeOnTaskMs)} of learning, average gain {fmtGain(a.selfPaced.avgGain)}.
+          </p>
+        )}
         <p className="mt-5 text-sm text-sidebar-muted">Every number is calculated from real student work in CIC Learn. Nothing is entered by hand.</p>
       </section>
 
@@ -382,7 +387,9 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
         <ul className="mt-3 list-disc space-y-1 pl-5 text-cic-muted">
           <li><strong className="text-black">Pretest</strong>: the student's first pretest attempt in a module. <strong className="text-black">Post-test</strong>: their best post-test attempt.</li>
           <li><strong className="text-black">Learning gain</strong>: post-test % minus pretest %, in percentage points. Only counted when a student has both.</li>
-          <li><strong className="text-black">Module completed</strong>: every activity that counts toward unlocking is submitted, and the post-test is at least {PASS_PCT}%.</li>
+          <li><strong className="text-black">Module completed</strong>: every activity that counts toward unlocking is submitted, and the post-test (best of the tries that count) meets the pass mark the class set for that module.</li>
+          <li><strong className="text-black">Stuck</strong>: below a module's pass mark after using all of its post-test tries, or no activity for more than {data.settings.inactive_days} days.</li>
+          <li><strong className="text-black">Self-paced learners</strong>: students taking a course on their own, outside any class. A module counts as completed once every activity that counts toward unlocking is submitted.</li>
           <li><strong className="text-black">Hours of learning</strong>: total time students spent on submitted activities.</li>
           <li><strong className="text-black">Modules in progress</strong>: self-paced courses count every published module; instructor-led courses count modules released to the class.</li>
         </ul>

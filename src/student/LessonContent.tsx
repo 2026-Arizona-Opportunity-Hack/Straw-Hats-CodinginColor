@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState, type FormEvent } from 'react'
-import Markdown, { defaultUrlTransform } from 'react-markdown'
+import { defaultUrlTransform } from 'react-markdown'
 import type { ActivityStatus, AttemptInput, recordAttempt } from '../api/student/index.ts'
 import { slidesUrl } from '../instructor/model.ts'
 import { CicArticle } from '../shared/curriculum/CicArticle.tsx'
@@ -8,8 +8,8 @@ import { CodeLab, type VerifyWebLab } from '../shared/labs/CodeLab.tsx'
 import { previewCatPhotoChecks } from '../shared/labs/catPhoto.ts'
 import type { Choice, DiscussionState } from '../shared/types/activities.ts'
 import type { Activity, Lesson } from '../shared/types/db.ts'
-import { curriculumUrl } from '../shared/ui/curriculumUrl.ts'
 import { InteractiveHtmlFrame } from '../shared/ui/InteractiveHtmlFrame.tsx'
+import { LessonMarkdown } from '../shared/ui/LessonMarkdown.tsx'
 import { Button, Card } from '../shared/ui/index.tsx'
 import { DiscussionNotes } from './DiscussionNotes'
 import './lessonContent.css'
@@ -151,7 +151,7 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
   return <div className="min-w-0 space-y-3">
     {themedArticle ? <CicArticle title={title || 'Read and explore'} markdown={markdown || ''} /> : <>
       {title && <h3 className="text-base font-semibold text-brand">{title}</h3>}
-      {markdown && <Markdown skipHtml urlTransform={curriculumUrl}>{markdown}</Markdown>}
+      {markdown && <LessonMarkdown markdown={markdown} title={title ?? undefined} headingBase={4} />}
     </>}
     {body()}
     {attempt.isPending && <p role="status">Saving…</p>}

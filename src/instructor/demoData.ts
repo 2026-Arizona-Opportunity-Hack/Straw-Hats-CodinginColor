@@ -56,6 +56,25 @@ const Web: Course = {
     }],
   }] }],
 };
+/** Preloaded library course: instructors import their own copy. Full content: curriculum/ai-academy. */
+export const LibraryDemo: Course = {
+  id: 'library-ai-academy', title: 'AI Academy (Classroom)', level: 'Beginner', library: true,
+  description: 'A ready-made, instructor-led course about how AI tools work and how to use them well.',
+  modules: [{
+    id: 'library-ai-what', title: 'What is AI?', published: true, lessons: [{
+      id: 'library-ai-what-lesson', title: 'Spot AI in everyday life', activities: [
+        { ...article, id: 'library-ai-what-article', title: 'AI is pattern finding', markdown: 'AI tools learn patterns from lots of examples. Your phone keyboard guesses the next word because it has seen many sentences.' },
+        { ...check, id: 'library-ai-what-check', questions: [{ prompt: 'How does a keyboard guess your next word?', choices: ['It reads your mind', 'It learned patterns from many sentences', 'It picks a random word'], answer: 1, concept: 'What is AI' }] },
+      ],
+    }],
+  }, {
+    id: 'library-ai-prompts', title: 'Write good prompts', published: true, lessons: [{
+      id: 'library-ai-prompts-lesson', title: 'Ask clearly, check the answer', activities: [
+        { ...article, id: 'library-ai-prompts-article', title: 'Be specific', markdown: 'A good prompt says who the answer is for, what you want, and what format to use. Always check the answer before you trust it.' },
+      ],
+    }],
+  }],
+};
 export const BuilderDemo: Course = {
   id: 'builder-demo', title: 'Try the curriculum builder', description: 'Practice with quizzes, a custom activity, and two coding labs.', level: 'Beginner',
   modules: [{
@@ -205,7 +224,7 @@ const maryvaleSubmissions: Submission[] = learners.slice(0, 7).flatMap((learner,
 });
 
 export const demoData: InstructorData = {
-  courses: [Python, Web, BuilderDemo],
+  courses: [Python, Web, BuilderDemo, LibraryDemo],
   staff: [
     { id: 'instructor', name: 'Demo instructor', role: 'instructor', classIds: ['maryvale', 'desert-edge'] },
     { id: 'admin', name: 'Demo program manager', role: 'admin', classIds: [] },

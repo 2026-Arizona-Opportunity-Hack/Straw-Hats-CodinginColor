@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Then vs. Now</title>
+<style>
+/* AI Academy look: shared by all five pages. Motion is CSS only and stops under prefers-reduced-motion. */
+:root{--night:#17123b;--night-2:#2b1f78;--accent:#4338ca;--accent-strong:#312e81;--accent-soft:#eef0ff;--spark:#22d3ee;--spark-soft:#a5f3fc;--on-night:#d4d2f5;--ink:#16142b;--muted:#47455e;--line:#c4c2da;--bg:#fff;--page:#f4f4fb;--panel:#ecebf8;--ok:#14532d;--ok-bg:#e4f4e9;--ok-line:#15803d;--no:#8a1c1c;--no-bg:#fcebeb;--gold:#facc15;--focus:#c2410c;--shadow:0 1px 2px rgba(23,18,59,.06),0 6px 18px -8px rgba(23,18,59,.18);--out:cubic-bezier(.2,.8,.2,1);--pop:cubic-bezier(.3,1.6,.5,1);color-scheme:light}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--page);color:var(--ink);font:1.0625rem/1.55 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+main{max-width:52rem;margin:0 auto;padding:16px 16px 28px}
+h1{font-size:1.75rem;line-height:1.2;font-weight:800;letter-spacing:-.01em;margin:.25rem 0 0}
+h2{font-size:1.2rem;line-height:1.3;margin:1.5rem 0 .5rem}
+p{margin:.5rem 0}
+ul,ol{margin:.5rem 0;padding-left:1.4rem}
+.hero{position:relative;isolation:isolate;overflow:hidden;margin:-16px -16px 16px;padding:22px 16px 24px;background:linear-gradient(135deg,var(--night) 0%,var(--night-2) 70%,#3a2b9e 100%);color:#fff;border-radius:0 0 22px 22px}
+.hero::before{content:"";position:absolute;inset:-48px;z-index:-1;background:radial-gradient(circle,rgba(165,180,252,.32) 1.3px,transparent 1.8px) 0 0/24px 24px;animation:drift 5s var(--out) backwards}
+.hero::after{content:"";position:absolute;z-index:-1;top:-60px;right:-40px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.28),transparent 68%)}
+.circuit{position:absolute;z-index:-1;right:0;bottom:0;width:min(46%,260px);height:auto;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.circuit .tr{stroke:rgba(165,243,252,.32);stroke-width:2}
+.circuit .pulse{stroke:var(--spark);stroke-width:2.5;stroke-dasharray:12 88;stroke-dashoffset:100;opacity:0;animation:trace 2.4s .4s linear 2}
+.circuit .pads{fill:var(--night);stroke:rgba(165,243,252,.6);stroke-width:2}
+.kicker{display:flex;align-items:center;gap:8px;margin:0;font-size:1rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--spark-soft)}
+.kicker::before{content:"";width:10px;height:10px;border-radius:2px;background:var(--spark);transform:rotate(45deg);box-shadow:0 0 10px rgba(34,211,238,.8)}
+.lede{color:var(--muted)}
+.note{background:var(--bg);border:1px solid var(--line);border-left:6px solid var(--accent);border-radius:14px;padding:12px 14px;margin:12px 0;box-shadow:var(--shadow)}
+.note>:first-child{margin-top:0}.note>:last-child{margin-bottom:0}
+fieldset{background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:12px 14px 14px;margin:0 0 16px;min-width:0;box-shadow:var(--shadow)}
+legend{float:left;width:100%;padding:0;margin:0 0 4px;font-weight:700;line-height:1.4}
+legend+*{clear:both}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(8.5rem,1fr));gap:8px;margin-top:8px}
+.opt{display:flex;align-items:center;gap:10px;min-height:48px;padding:8px 12px;border:2px solid var(--line);border-radius:12px;cursor:pointer;background:var(--bg);line-height:1.3;transition:border-color .2s,background-color .2s,transform .2s var(--out)}
+.opt input{width:22px;height:22px;margin:0;flex:none;accent-color:var(--accent);cursor:pointer}
+.opt:hover{border-color:var(--accent)}
+.opt:active{transform:scale(.98)}
+.opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.opt:has(.r:checked),.opt:has(.m:checked){border-color:var(--ok-line);background:var(--ok-bg);animation:pop .45s var(--pop)}
+.opt:has(.w:checked),.opt:has(.x:checked){border-color:var(--no);background:var(--no-bg);animation:shake .4s ease-in-out}
+.opt:has(.r:checked)::after,.opt:has(.m:checked)::after{content:"";flex:none;margin:0 4px 0 auto;width:9px;height:16px;border:solid var(--ok-line);border-width:0 3px 3px 0;transform:translateY(-2px) rotate(45deg);animation:badge .35s .1s var(--pop) backwards}
+.opt:has(.w:checked)::after,.opt:has(.x:checked)::after{content:"\00D7"/"";flex:none;margin-left:auto;font-size:1.5rem;font-weight:700;line-height:1;color:var(--no)}
+input:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.opt:has(input:focus-visible){outline:3px solid var(--focus);outline-offset:2px}
+.fb{display:none;position:relative;margin:10px 0 0;padding:10px 12px 10px 44px;border-radius:10px;border-left:6px solid;animation:fb-in .35s var(--out)}
+.fb>.ic{position:absolute;left:12px;top:11px;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.fb>.ic path{stroke-dasharray:1 1;animation:draw .45s .15s var(--out) backwards}
+.fb.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+.fb.no{background:var(--no-bg);color:var(--no);border-color:var(--no)}
+.fb.maybe{background:var(--accent-soft);color:var(--accent-strong);border-color:var(--accent)}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+fieldset:has(.r:checked)>.fb.ok,fieldset:has(.w:checked)>.fb.no{display:block}
+main>:not(.hero):not(.score):not(.progress):not(.confetti){animation:rise .5s var(--out) backwards}
+main>:nth-child(2){animation-delay:.06s}main>:nth-child(3){animation-delay:.12s}main>:nth-child(4){animation-delay:.18s}main>:nth-child(5){animation-delay:.24s}main>:nth-child(6){animation-delay:.3s}main>:nth-child(n+7){animation-delay:.36s}
+.confetti{display:none;position:absolute;left:0;right:0;bottom:50%;z-index:5;height:360px;overflow:hidden;pointer-events:none}
+.confetti i{position:absolute;left:50%;bottom:0;width:8px;height:14px;margin-left:-4px;border-radius:2px;background:var(--c);opacity:0;animation:burst 1.8s var(--d,0s) cubic-bezier(.15,.7,.3,1)}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}}
+@keyframes drift{from{transform:translate(-48px,-24px)}}
+@keyframes trace{0%{opacity:0;stroke-dashoffset:100}10%,85%{opacity:1}100%{opacity:0;stroke-dashoffset:0}}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.05)}100%{transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+@keyframes badge{from{transform:translateY(-2px) rotate(45deg) scale(0)}}
+@keyframes fb-in{from{opacity:0;transform:translateY(-6px)}}
+@keyframes draw{from{stroke-dashoffset:1}}
+@keyframes burst{0%{opacity:1;transform:translate(0,0) rotate(0) scale(.5)}35%{opacity:1;transform:translate(calc(var(--x)*.8),var(--y)) rotate(calc(var(--r)*.5)) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(var(--x),calc(var(--y) + 120px)) rotate(var(--r)) scale(1)}}
+@media (hover:hover){.opt:hover{transform:translateY(-1px)}}
+@media (max-width:420px){h1{font-size:1.5rem}.circuit{width:52%;opacity:.7}}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,34rem),1fr));gap:20px;margin:16px 0}
+.fc{display:flex;flex-direction:column;gap:10px}
+.fc>input{position:absolute;opacity:0;width:1px;height:1px;margin:0}
+.card{position:relative;perspective:1200px;flex:1;animation:lift-a .75s var(--out)}
+.fc>input:checked~.card{animation-name:lift-b}
+.inner{display:grid;height:100%;transition:transform .75s cubic-bezier(.35,1.25,.5,1);transform-style:preserve-3d}
+.face{grid-area:1/1;padding:14px 16px;border-radius:16px;backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:visibility 0s .12s;box-shadow:0 12px 28px -14px rgba(23,18,59,.55)}
+.face h2{margin:0 0 6px}
+.front{display:flex;flex-direction:column;color:#fff;background:radial-gradient(circle,rgba(165,180,252,.18) 1.2px,transparent 1.7px) 0 0/18px 18px,linear-gradient(150deg,var(--night),var(--night-2));border:2px solid var(--night-2)}
+.front .guess{flex:1}
+.front .q{font-size:1.1rem;color:var(--on-night)}
+.guess{margin-top:10px}
+.guess>div{padding:8px 10px;border:2px dashed rgba(165,243,252,.55);border-radius:12px;background:rgba(255,255,255,.06)}
+.back{background:var(--bg);border:2px solid var(--accent);transform:rotateY(180deg);visibility:hidden}
+.back h2{color:var(--accent-strong)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.back .cols>div+div{border-left:2px solid var(--panel);padding-left:12px}
+.cols h3{margin:0 0 2px;font-size:1rem;color:var(--accent)}
+.cols p{margin:0}
+.guess h3{color:var(--on-night)}
+.guess p{font-size:1.5rem;font-weight:700;color:var(--spark-soft);line-height:1.2}
+.fc>input:checked~.card .inner{transform:rotateY(180deg)}
+.fc>input:checked~.card .back{visibility:visible}
+.fc>input:checked~.card .front{visibility:hidden}
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:8px 16px;border-radius:12px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer;user-select:none;box-shadow:0 6px 14px -8px rgba(67,56,202,.9);transition:background-color .2s,transform .2s var(--out)}
+.btn:hover{background:var(--accent-strong)}
+.btn:active{transform:scale(.97)}
+.btn svg{flex:none;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;transition:transform .5s var(--out)}
+.fc>input:checked~.btn svg{transform:rotate(180deg)}
+.fc>input:focus-visible~.btn{outline:3px solid var(--focus);outline-offset:3px}
+.btn .hide,.fc>input:checked~.btn .show{display:none}
+.fc>input:checked~.btn .hide{display:inline}
+@keyframes lift-a{50%{transform:translateY(-6px) scale(1.02)}}
+@keyframes lift-b{50%{transform:translateY(-6px) scale(1.02)}}
+@media (hover:hover){.btn:hover{transform:translateY(-1px)}}
+@media (max-width:380px){.cols{grid-template-columns:1fr}.back .cols>div+div{border-left:0;padding-left:0;border-top:2px solid var(--panel);padding-top:10px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}.confetti{display:none!important}}
+</style>
+</head>
+<body>
+<main>
+<header class="hero">
+<svg class="circuit" viewBox="0 0 240 120" aria-hidden="true" focusable="false"><g class="tr"><path d="M0 34h58l18 18h70l16-16h78"/><path d="M24 100h52l20-20h60l18 18h66"/><path d="M128 0v18l16 16"/></g><g class="pulse"><path pathLength="100" d="M0 34h58l18 18h70l16-16h78"/><path pathLength="100" d="M24 100h52l20-20h60l18 18h66"/></g><g class="pads"><circle cx="146" cy="52" r="4"/><circle cx="76" cy="100" r="4"/><circle cx="156" cy="80" r="4"/><circle cx="144" cy="34" r="4"/></g></svg>
+<p class="kicker">AI Academy - Module 1</p>
+<h1>Then vs. Now</h1>
+</header>
+<div class="note">
+<p>Charles Babbage proposed the <strong>Difference Engine</strong> in 1822. It was a mechanical calculating engine made of gears and number wheels.</p>
+<p>It had one job: working out tables of numbers. It was not a general-purpose computer like the phone or laptop you use today.</p>
+</div>
+<p>For each card, <strong>predict first</strong> with a partner. Then flip the card to check.</p>
+
+<div class="cards">
+<div class="fc">
+<input type="checkbox" id="c1">
+<div class="card"><div class="inner">
+<div class="face front"><h2>Size</h2><p class="q">How big and heavy is each machine?</p><div class="cols guess" aria-hidden="true"><div><h3>Difference Engine</h3><p>?</p></div><div><h3>Phone or laptop</h3><p>?</p></div></div></div>
+<div class="face back"><h2>Size</h2><div class="cols">
+<div><h3>Difference Engine</h3><p>Babbage never finished the 1822 design. His later Difference Engine No. 2 was built from his plans in London in 1991. It weighs about 5 tons and has about 8,000 parts.</p></div>
+<div><h3>Phone or laptop</h3><p>A phone is about 200 grams and fits in a pocket. A laptop is about 1 to 2 kilograms. You would need about 25,000 phones to match 5 tons!</p></div>
+</div></div>
+</div></div>
+<label for="c1" class="btn"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.7 5.6L4 15M4 20v-5h5"/></svg><span class="show">Flip to see the facts</span><span class="hide">Flip back</span><span class="sr"> about size</span></label>
+</div>
+
+<div class="fc">
+<input type="checkbox" id="c2">
+<div class="card"><div class="inner">
+<div class="face front"><h2>Speed and tasks</h2><p class="q">How fast is each one, and how many different jobs can it do?</p><div class="cols guess" aria-hidden="true"><div><h3>Difference Engine</h3><p>?</p></div><div><h3>Phone or laptop</h3><p>?</p></div></div></div>
+<div class="face back"><h2>Speed and tasks</h2><div class="cols">
+<div><h3>Difference Engine</h3><p>Does one kind of job: calculating number tables, step by step. It only moves as fast as a person can turn its handle.</p></div>
+<div><h3>Phone or laptop</h3><p>Does billions of steps every second. It runs many different programs: games, maps, video calls, music and AI apps.</p></div>
+</div></div>
+</div></div>
+<label for="c2" class="btn"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.7 5.6L4 15M4 20v-5h5"/></svg><span class="show">Flip to see the facts</span><span class="hide">Flip back</span><span class="sr"> about speed and tasks</span></label>
+</div>
+
+<div class="fc">
+<input type="checkbox" id="c3">
+<div class="card"><div class="inner">
+<div class="face front"><h2>Input method</h2><p class="q">How does a person give each machine information?</p><div class="cols guess" aria-hidden="true"><div><h3>Difference Engine</h3><p>?</p></div><div><h3>Phone or laptop</h3><p>?</p></div></div></div>
+<div class="face back"><h2>Input method</h2><div class="cols">
+<div><h3>Difference Engine</h3><p>A person sets the starting numbers by turning number wheels by hand, then cranks the handle. Answers show on the wheels.</p></div>
+<div><h3>Phone or laptop</h3><p>Touchscreen, keyboard, mouse or trackpad, your voice through the microphone, and the camera.</p></div>
+</div></div>
+</div></div>
+<label for="c3" class="btn"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.7 5.6L4 15M4 20v-5h5"/></svg><span class="show">Flip to see the facts</span><span class="hide">Flip back</span><span class="sr"> about input method</span></label>
+</div>
+
+<div class="fc">
+<input type="checkbox" id="c4">
+<div class="card"><div class="inner">
+<div class="face front"><h2>What is inside</h2><p class="q">What parts do the calculating?</p><div class="cols guess" aria-hidden="true"><div><h3>Difference Engine</h3><p>?</p></div><div><h3>Phone or laptop</h3><p>?</p></div></div></div>
+<div class="face back"><h2>What is inside</h2><div class="cols">
+<div><h3>Difference Engine</h3><p>Metal gears, rods and number wheels that you can watch move.</p></div>
+<div><h3>Phone or laptop</h3><p>Electronic circuits on a chip, with billions of tiny switches called transistors.</p></div>
+</div></div>
+</div></div>
+<label for="c4" class="btn"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.7 5.6L4 15M4 20v-5h5"/></svg><span class="show">Flip to see the facts</span><span class="hide">Flip back</span><span class="sr"> about what is inside</span></label>
+</div>
+</div>
+
+<h2>What stayed the same?</h2>
+<div class="note">
+<p>Both machines <strong>automate calculation using physical parts</strong>: gears then, electronic circuits now.</p>
+<p>The biggest change: a modern computer can run many different programs, not just one kind of calculation.</p>
+</div>
+<p><strong>Your turn:</strong> share one difference and one similarity with your partner.</p>
+</main>
+</body>
+</html>

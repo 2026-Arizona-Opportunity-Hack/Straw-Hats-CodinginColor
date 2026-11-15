@@ -63,6 +63,25 @@ Course saves now also write only changed modules, lessons and activities, so a s
 - Progress on live data follows Shivraj's scoring rules: pretest try #1, post-test best of the first `module_rules.max_posttest_tries` (default 3), otherwise best try.
 - Admin pages (Aryan, `src/admin/`) still read from `src/admin/mocks.ts`, not Supabase.
 
+### Students pick self-paced courses (`ruthvik/student-course-enroll`)
+
+- My courses has a "Browse courses" section: published self-paced courses the student is not in yet, each with an Enroll button.
+- `listAvailableCourses()` reads `courses` (RLS "read published courses"); `enrollInCourse()` calls Shivraj's `enroll_in_course`; `enrollErrorMessage()` turns `COURSE_NOT_AVAILABLE`, `ALREADY_IN_CLASS` and `STUDENTS_ONLY` into plain words.
+- After enrolling, the course appears under My courses with module 1 open, a status line announces it, and focus moves to the new course heading.
+- No migration needed: in a local PGlite run of 0001, 1001, 1002 and 1004, a self-enrolled student reads module 1, submits with `class_id` null (nullable since 1001, confirmed on the hosted DB), and module 2 opens after.
+- Module counts are not shown: 1004 hides modules of courses the student is not in, so counting them would need a new RPC.
+- Mock mode adds an "AI Academy (Self-paced)" fixture course; picks are kept in `localStorage` (`cic.mockCourseEnrollments`).
+### Lesson reading view (branch `ruthvik/lesson-reading-view`, not pushed)
+
+All lesson content now renders through `src/shared/ui/LessonMarkdown.tsx` and `src/shared/ui/ActivityCard.tsx`, styled by `src/shared/ui/lesson.css` (`cic-*` classes).
+Used by the student player (`src/student/ModulePlayer.tsx`), `LessonPreview`/`ActivityPreview` (reviewer, builder, "Student preview" dialog) and the browser demo (`src/student/PublishedDemo.tsx`).
+Lesson authors get callouts by starting a blockquote with a bold label: `> **Key idea:**`, `**Did you know?**`, `**Try it:**`, `**Watch out:**`, `**Remember:**`, `**Think about it:**`.
+Any other blockquote is a plain quote.
+A leading `#`/`##` heading equal to the activity title is dropped, so titles never repeat.
+Tables use `remark-gfm` (new dependency) and scroll inside their own box.
+Every rule in `lesson.css` starts with `:root` so it outranks Tailwind's reset and the `.ic-app` element rules whatever the load order; keep that when adding rules.
+Data contracts, scoring and the responses sent to `recordAttempt`/`submit_attempt` are unchanged; the player only shows "Correct"/"Not quite" on a single multiple-choice question when the server returns `is_correct`.
+
 ### Not done yet (pick these up)
 
 1. **Student sign-in with class code + passcode.**
@@ -77,12 +96,20 @@ Course saves now also write only changed modules, lessons and activities, so a s
    Either give every student a login (item 1) or add `class_student_id` to attempts.
 4. **Permissions pass.**
    RLS is on for every table, but policies are minimal (see [`ruthvik-handoff-supabase.md`](ruthvik-handoff-supabase.md)).
-   Instructors cannot edit admin-owned library courses; decide whether they copy the course first.
+   Library courses: instructors now import their own copy (see "Import from library" below); admins can still edit library courses in place.
 5. **Grades for curriculum activities** (module checks, pre/post tests) live in a separate "Curriculum progress" view; they are not in the assignment gradebook.
 6. **Code runner (Pyodide)** is a placeholder in assignment code blocks and the module player.
 7. **Admin pages on live data** (`src/admin/api.ts` still returns mocks).
 8. **PR hygiene:** `ruthvik/class-tabs` is far over the 400-line guideline.
    Consider splitting before merging to `main`.
+
+### Import from library (branch `ruthvik/import-library-course`)
+
+An instructor imports a preloaded library course (`courses.is_library`, for example "AI Academy (Classroom)") as their own editable copy.
+The "Import from library" list is in Create a class (step 3) and at the bottom of Curriculum (`src/instructor/LibraryImport.tsx`).
+Live: it calls `copy_library_course` (migration 2004, applied to the hosted project), which deep-copies modules, lessons, activities and answer keys with new ids.
+Mock mode: `copyCourse` in `model.ts` copies the course in the browser; `demoData.ts` has a short `LibraryDemo` course.
+Library courses are never opened in the builder or saved: `saveLiveData` skips them, and Create a class lists only non-library courses (`assignableCourses`).
 
 ## How the code is organized
 
@@ -144,7 +171,17 @@ Keep it short; link to code instead of copying it.
 Put each sentence on its own line.
 
 ## Log
+- 2026-11-14 9:40 PM, Ruthvik: restyled the 5 AI Academy widget pages with one shared look (indigo header band, cyan accent) and CSS-only motion (answer pop and shake, packet flow, bit toggles, 3D flips, score and progress bars, confetti); all motion stops under reduced motion. Score and progress bars are inline, not sticky, because the frame now grows to full height. Content and logic unchanged; SQL regenerated, not applied.
 
+- 2026-11-14 10:00 PM, Ruthvik: AI Academy Module 1 reading pages rewritten textbook style (hooks, subheads, tables, `> **Key idea:**`-style callouts for the new lesson renderer, no leading title heading). The 5 interactive pages are now in the classroom course too, next to its worksheets. Regenerated `supabase/curriculum/ai-academy.sql` (not applied to the hosted database).
+- 2026-11-14 9:00 PM, Ruthvik: AI Academy preloaded curriculum from CIC's Week 1 deck (`curriculum/`, see its README). One source builds a self-paced and a classroom library course; Module 1 is full with 5 HTML-and-CSS interactive pages (no scripts, so they run on live); modules 2-6 are stubs. `npm run curriculum` writes `supabase/curriculum/ai-academy.sql`. Teacher notes are in `curriculum/ai-academy/teacher-guide.md`, not in lessons, since students can open every activity. Vitest and oxlint now skip `.claude/` agent worktrees.
+- 2026-11-14 9:00 PM, Ruthvik: students browse and enroll in self-paced courses from My courses (`ruthvik/student-course-enroll`); verified the server flow needs no migration.
+
+- 2026-11-15 1:15 AM, Ruthvik: class Dashboard rebuilt (`src/instructor/dashboard.ts`, tested). Top cards: learning gain with pretest/post-test averages ("pts" replaces "pp"), average assignment score, waiting to grade, missing work. Students needing attention open to show exact reasons (stuck activity, inactive days, concept below 70%, missing or low-scored assignments, post-test drop). Each module opens to its linked assignments with due dates and turn-in counts. Status donut removed.
+- 2026-11-15 12:30 AM, Ruthvik: instructors edit curriculum inside the class card (Curriculum tab, Edit curriculum, `#/classes/<id>/curriculum/edit`); the top-level page is now "CIC library" (preview only; admins edit library courses). A class still on a library course gets its own copy via "Edit for this class". Create a class offers library courses only. Instructors' standalone courses are hidden, not deleted. Reviewer preview left the instructor sidebar (library Preview covers it).
+- 2026-11-14 11:30 PM, Ruthvik: organized Curriculum into My courses and CIC library (Preview; admins also Edit). Library courses are picked directly in Create a class step 3 and imported when the class is created; `LibraryImport.tsx` is gone.
+- 2026-11-14 9:00 PM, Ruthvik: import a library course as the instructor's own copy (Create a class and Curriculum), migration 2004 `copy_library_course` (applied 9:10 PM), library courses never written back by `saveLiveData`, tests.
+- 2026-11-14 9:45 PM, Ruthvik: lesson reading view. Shared Markdown renderer with callouts and tables, typed step cards with step count and read time, framed HTML pages, 16:9 video, large answer options, module header with progress and a sticky outline; checked on live AI Academy (read-only) and mock student at 1280 and 390 px.
 - 2026-11-14 8:30 PM, Ruthvik: fixes from a code review (ponytail-review checklist). Course saves write only changed rows; attempts load in pages past Supabase's 1000-row cap; first tests (Vitest, 12); gradebook shows "Not due yet" and leaves not-due and ungraded work out of totals; warning when a saved score no longer matches an edited rubric; pages load per section (main bundle is now framework only); gradebook total column stays visible.
 - 2026-11-14 7:30 PM, Ruthvik: merged `main` (Shivraj's 1001, 1002). Did Shivraj's items 4 (answer keys in the builder) and 5 (scoring rules). Found and fixed the stale-save data loss above. Moved handoffs from `docs/` to `Handoffs/`. Restored the two demo assignments by re-running `supabase/demo/*.sql`; opened PR #18.
 - 2026-11-14 6:45 PM, Ruthvik: rubrics and file uploads. Migration 2003 (rubric scores, private `submission-files` bucket, `file` assignment type) and `supabase/demo/rubric_demo.sql` plus three sample PDFs applied to the hosted project. Checked that another class's instructor and anonymous users cannot read the files.

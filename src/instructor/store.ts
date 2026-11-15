@@ -1,4 +1,4 @@
-import { BuilderDemo, demoData } from './demoData';
+import { BuilderDemo, demoData, LibraryDemo } from './demoData';
 import { normalizeAssignment, type Assignment } from './assignments/model';
 import type { ClassGroup, Course, InstructorData } from './model';
 
@@ -23,6 +23,11 @@ export interface InstructorStore {
    */
   save(data: InstructorData, previous: InstructorData): void | Promise<void>;
   publishCourse?(course: Course, previous: Course | undefined, moduleId: string, expectedRevision: number | undefined): Promise<number>;
+  /**
+   * Copies a library course into a course the signed-in person owns and returns the copy.
+   * Without it (browser preview) the workspace copies the course itself and saves it.
+   */
+  importCourse?(source: Course): Promise<Course>;
 }
 
 export const browserInstructorStore: InstructorStore = {
@@ -30,8 +35,9 @@ export const browserInstructorStore: InstructorStore = {
     try {
       const saved = JSON.parse(localStorage.getItem(storeKey) || 'null');
       if (Array.isArray(saved?.classes) && Array.isArray(saved?.courses)) {
-        const courses = saved.courses.some((course: { id?: string }) => course?.id === BuilderDemo.id)
-          ? saved.courses : [...saved.courses, structuredClone(BuilderDemo)];
+        // Older saves predate these demo courses; add them.
+        const courses = [BuilderDemo, LibraryDemo].reduce((list: Course[], demo) =>
+          list.some(course => course?.id === demo.id) ? list : [...list, structuredClone(demo)], saved.courses);
         return {
           ...saved, courses,
           staff: Array.isArray(saved.staff) && saved.staff.length ? saved.staff : structuredClone(demoData.staff),

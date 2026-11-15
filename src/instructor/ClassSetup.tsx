@@ -1,15 +1,20 @@
 import { useRef, useState } from 'react';
-import { ArrowRight, Check } from 'lucide-react';
+import { ArrowRight, BookOpen, Check, Library } from 'lucide-react';
 import type { ClassGroup, Course } from './model';
-import { id, makeLearners, publishedCourses } from './model';
+import { assignableCourses, id, makeLearners, publishedCourses } from './model';
 import type { RosterRow } from './roster';
 import { RosterUpload } from './RosterUpload';
 import { PageHeader, Panel } from './ui';
 
-export function ClassSetup({ courses, classes, onCreate }: {
-  courses: Course[]; classes: ClassGroup[]; onCreate: (group: ClassGroup) => void;
+export function ClassSetup({ courses, classes, onCreate, onImport }: {
+  courses: Course[]; classes: ClassGroup[]; onCreate: (group: ClassGroup, imported?: Course) => void; onImport: (source: Course) => Promise<Course>;
 }) {
-  const available = publishedCourses(courses);
+  const library = publishedCourses(courses.filter(course => course.library));
+  // Classes start from the CIC library; each class gets its own copy when it is created.
+  // Without library courses (for example a fresh database), fall back to the instructor's own courses.
+  const own = library.length ? [] : assignableCourses(courses);
+  const available = [...library, ...own];
+  const [busy, setBusy] = useState(false);
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [school, setSchool] = useState('');
@@ -29,7 +34,13 @@ export function ClassSetup({ courses, classes, onCreate }: {
     requestAnimationFrame(() => stepHeading.current?.focus());
   }
 
-  function submit(event: React.FormEvent) {
+  function pickCourse(next: Course) {
+    setCourseId(next.id);
+    setModuleIds(next.modules.map(module => module.id));
+    setError('');
+  }
+
+  async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (step === 0 && (!name.trim() || !school.trim())) {
       setError('Enter a class name and school.');
@@ -44,9 +55,25 @@ export function ClassSetup({ courses, classes, onCreate }: {
       setError('Pick a course and at least one published module.');
       return;
     }
+    let target = course;
+    let targetModules = selectedModules.map(module => module.id);
+    if (course.library) {
+      setBusy(true);
+      try {
+        target = await onImport(course);
+        // The import keeps module order, so map the chosen modules by position.
+        targetModules = course.modules.flatMap((module, index) => moduleIds.includes(module.id) && target.modules[index] ? [target.modules[index].id] : []);
+      } catch (problem) {
+        setError(problem instanceof Error ? problem.message : 'Could not add that course. Try again.');
+        return;
+      } finally {
+        setBusy(false);
+      }
+    }
     let joinCode: string;
     do { joinCode = id().slice(0, 6).toUpperCase(); } while (classes.some(group => group.joinCode === joinCode));
-    onCreate({ id: id(), name: name.trim(), school: school.trim(), courseId, joinCode, moduleIds: selectedModules.map(module => module.id), learners: makeLearners(valid) });
+    onCreate({ id: id(), name: name.trim(), school: school.trim(), courseId: target.id, joinCode, moduleIds: targetModules, learners: makeLearners(valid) },
+      course.library ? target : undefined);
   }
 
   return <>
@@ -66,10 +93,16 @@ export function ClassSetup({ courses, classes, onCreate }: {
         <div hidden={step !== 1}><RosterUpload rows={rows} setRows={next => { setRows(next); setError(''); }} /></div>
         {step === 2 && <div className="ic-stack ic-section-gap">
           {!available.length ? <p>Publish a module in <a href="#/curriculum">Curriculum</a> before assigning it.</p> : <>
-            <label>Course<select value={courseId} onChange={event => {
-              setCourseId(event.target.value);
-              setModuleIds(available.find(course => course.id === event.target.value)?.modules.map(module => module.id) || []);
-            }}>{available.map(course => <option key={course.id} value={course.id}>{course.title}</option>)}</select></label>
+            {[['CIC library', library, 'Ready-made by Coding in Color. This class gets its own version, which you can change from its Curriculum tab.'], ['My courses', own, '']].map(([label, group, hint]) => (group as Course[]).length > 0 &&
+              <fieldset key={label as string} className="ic-course-pick"><legend>{label as string}</legend>
+                {hint && <p className="ic-note">{hint as string}</p>}
+                {(group as Course[]).map(option => <label key={option.id} className="ic-pick-card">
+                  <input type="radio" name="course" checked={courseId === option.id} onChange={() => pickCourse(option)} />
+                  <span className={"ic-class-mark" + (option.library ? " ic-library-mark" : "")} aria-hidden="true">{option.library ? <Library size={18} /> : <BookOpen size={18} />}</span>
+                  <span><strong>{option.title}</strong>
+                    {option.description && <span className="ic-note ic-clamp-2">{option.description}</span>}</span>
+                </label>)}
+              </fieldset>)}
             <fieldset><legend>Modules</legend><p className="ic-note">Students see assigned modules in this order.</p>
               {course?.modules.map(module => <label className="ic-checkbox" key={module.id}><input type="checkbox" checked={moduleIds.includes(module.id)} onChange={event => setModuleIds(ids => event.target.checked ? [...ids, module.id] : ids.filter(id => id !== module.id))} />{module.title}</label>)}
             </fieldset>
@@ -78,7 +111,7 @@ export function ClassSetup({ courses, classes, onCreate }: {
         {error && <p className="ic-error" role="alert">{error}</p>}
         <div className="ic-form-footer">
           {step > 0 && <button type="button" className="ic-button" onClick={() => move(step - 1)}>Back</button>}
-          <button className="ic-button ic-primary" type="submit" disabled={step === 1 && !valid.length}>{['Continue to roster', 'Choose curriculum', 'Create class'][step]} <ArrowRight size={16} /></button>
+          <button className="ic-button ic-primary" type="submit" disabled={busy || (step === 1 && !valid.length)}>{busy ? 'Creating class…' : ['Continue to roster', 'Choose curriculum', 'Create class'][step]} <ArrowRight size={16} /></button>
         </div>
       </form></Panel>
       <Panel title="Class summary"><dl className="ic-summary">
