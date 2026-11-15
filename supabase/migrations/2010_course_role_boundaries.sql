@@ -1,5 +1,11 @@
 -- Ownership is not a staff role: students/reviewers must remain read-only even
 -- when a legacy course belongs to them or an instructor has been demoted.
+-- Migration 2011 supersedes these helpers/policies with class-local scope and
+-- co-teacher editing. A late --include-all application must not replace it.
+do $migration$
+begin
+if to_regclass('public.local_curricula') is not null then return; end if;
+
 alter policy "owner writes course" on public.courses
   to authenticated
   using (public.current_role_is('admin') or
@@ -29,3 +35,5 @@ language sql stable security definer set search_path = '' as $$
     where ac.id = a and public.can_edit_course(m.course_id)
   )
 $$;
+end
+$migration$;

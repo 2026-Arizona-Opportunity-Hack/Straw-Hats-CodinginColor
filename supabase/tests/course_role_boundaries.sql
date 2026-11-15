@@ -55,6 +55,8 @@ begin
     execute q;
     raise exception 'Expected RLS denial: %', q;
   exception when insufficient_privilege then null;
+    when raise_exception then
+      if sqlerrm <> 'COURSE_SCOPE_ADMIN_ONLY' then raise; end if;
   end;
 end $$;
 
@@ -69,7 +71,8 @@ begin
   foreach target in array array[actor, 4] loop
     allowed := admin_allowed or (own_allowed and target = actor);
     foreach q in array array[
-      format('insert into courses(title,owner_id,published,is_library) values(''New'',%L,true,true) returning id', pg_temp.fixture_id(1, target)),
+      format('insert into courses(title,owner_id,published,is_library) values(''New'',%L,true,false) on conflict (id) do update set title=excluded.title', pg_temp.fixture_id(1, target)),
+      format('insert into courses(title,owner_id,published,is_library) values(''New'',%L,true,false) returning id', pg_temp.fixture_id(1, target)),
       format('insert into modules(course_id,position,title,concept) values(%L,77,''New'',''QA'') returning id', pg_temp.fixture_id(2, target)),
       format('insert into lessons(module_id,position,title) values(%L,77,''New'') returning id', pg_temp.fixture_id(3, target)),
       format('insert into activities(lesson_id,position,type,concept,content) values(%L,77,''check'',''QA'',''{"answer":"b"}'') returning id', pg_temp.fixture_id(4, target)),
@@ -96,6 +99,10 @@ begin
         row.tbl, row.pk, pg_temp.fixture_id(row.kind, target)), allowed::int);
     end loop;
   end loop;
+  -- Migration 2011 reserves global library creation for admins.
+  q := format('insert into courses(title,owner_id,is_library) values(''Global'',%L,true) on conflict (id) do update set title=excluded.title returning id', pg_temp.fixture_id(1, actor));
+  if admin_allowed then perform pg_temp.expect_rows(q, 1);
+  else perform pg_temp.expect_denied(q); end if;
   -- WITH CHECK must reject moving owned content into another owner's tree.
   foreach q in array array[
     format('update courses set owner_id = %L where id = %L', pg_temp.fixture_id(1,4), pg_temp.fixture_id(2,actor)),

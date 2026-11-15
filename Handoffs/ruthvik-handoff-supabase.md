@@ -110,9 +110,9 @@ RLS is enabled on every table.
 Policies today (minimal, a full permissions pass is still open):
 
 - `profiles`: read your own row; admins manage all.
-- `courses`: read if published, owned by you, or you are admin; after migration 2010, write if instructor-owner or admin.
-- `modules`, `lessons`, `activities`: curriculum reads follow migration 1004's enrollment/publication rules; after 2010, writes require an instructor-owner or admin through `can_edit_course`.
-- `activity_keys`: 2010 applies the same write boundary through `can_edit_activity`; the separate staff/reviewer read policy remains.
+- `courses`: 2011 scopes local reads to their instructor owner, class staff/students and admins; published global courses remain readable. Local edits require an instructor owner/co-teacher or admin; only admins edit global templates.
+- `modules`, `lessons`, `activities`: reads follow course scope plus publication/unlock rules; writes follow `can_edit_course` and retain the staff-role boundary.
+- `activity_keys`: writes follow `can_edit_activity`; staff/reviewers can read keys only for content they can access.
 - `classes`: read if you teach it, created it, are enrolled, or are admin; insert by instructors and admins; update and delete if `can_manage_class` (teacher, creator, or admin).
 - `class_modules`, `class_students`, `assignments`: full access if `can_manage_class`; after 3009, this also requires an active instructor/admin profile.
 - `activity_attempts`: students insert their own; read by the student, their teacher, or admin.
@@ -127,13 +127,17 @@ Known gaps for the permissions pass:
 - Students cannot read assignments yet (no student policy).
 - Instructors cannot edit library courses owned by the admin; they import their own copy instead (migration 2004 below).
 
-## Migrations 2010 and 3009: staff role boundaries (not applied to hosted)
+## Migrations 2010, 2013 and 3009: staff role boundaries (not applied to hosted)
 
 Ownership alone no longer authorizes curriculum or answer-key writes.
 Students and reviewers cannot create courses or edit legacy courses they own; demoting an instructor removes write access immediately.
-Instructor owners retain access to their own trees, and admins retain access across owners.
+Migration 2011 supersedes 2010's owner policy/helpers with local owner/co-teacher editing and admin-only global edits; see the [curriculum isolation audit](curriculum-isolation-audit-2026-11-15.md).
+2010 detects the newer local-course registry and does nothing when applied late, preserving 2011's rules rather than restoring the earlier owner-only helpers.
 `supabase/tests/course_role_boundaries.sql` checks actual RLS, parent moves, role changes and published reads on a disposable migrated database.
 Run with `psql -v ON_ERROR_STOP=1 -f supabase/tests/course_role_boundaries.sql`; fixtures roll back.
+`supabase/tests/course_role_migration_compatibility.sql` replays 2010 after 2011 and asserts that the newer helpers and policies remain unchanged.
+Migration 2013 evaluates the existing admin/instructor-owner read predicates directly on new course rows, so the app's upsert and `INSERT ... RETURNING` work before the new row is visible to 2011's lookup helper.
+The scoped helper still handles co-teachers, enrolled students and global reads; write policies and scope-protection triggers are unchanged.
 Migration 3009 also requires an active staff profile in `teaches_class` and `can_manage_class`, so old class assignments/creator IDs cannot expose roster passcodes after demotion or instructor archiving.
 `supabase/tests/class_role_boundaries.sql` verifies roster and student-attempt access after those transitions, plus legitimate assigned teachers, creators and admins.
 
@@ -189,3 +193,4 @@ Delete demo auth users and rows (or create a fresh project), apply migrations wi
 - 2026-11-14 9:00 PM, Ruthvik: added and applied migration 2004 `copy_library_course`. Also loaded `supabase/curriculum/ai-academy.sql` (AI Academy library courses).
 
 - 2026-11-15, Codex: added migrations 2010 and 3009 with local RLS regressions for course/content/answer-key writes and class access after staff demotion or archiving; not applied to hosted.
+- 2026-11-15, Codex: reconciled 2010 with 2011 isolation and added 2013 for legitimate course creation; fresh/late migration-order tests preserve co-teacher/private scope and cover upsert/RETURNING under actual RLS.
