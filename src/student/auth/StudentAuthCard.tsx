@@ -7,8 +7,8 @@ import { Button, Card, Field, FormStatus, Input } from '../../shared/ui/index.ts
 
 type Mode = 'card' | 'sign-in' | 'sign-up'
 
-export function StudentAuthCard() {
-  const [mode, setMode] = useState<Mode>('card')
+export function StudentAuthCard({ initialMode = 'card' }: { initialMode?: Mode }) {
+  const [mode, setMode] = useState<Mode>(initialMode)
   const [passcode, setPasscode] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')

@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from './shared/auth/AuthContext.tsx'
 import { homePathFor } from './shared/auth/paths.ts'
 import { isMockMode, supabase } from './shared/supabase.ts'
 import type { Role } from './shared/types/db.ts'
 import { Button, Card, Field, FormStatus, Input, PageHeader } from './shared/ui/index.tsx'
 import { signInWithGoogle } from './api/student/auth.ts'
+import { featuredCoursePath } from './home/featuredCourses.ts'
 import { StudentAuthCard } from './student/auth/StudentAuthCard.tsx'
 
 function GoogleIcon() {
@@ -35,12 +36,15 @@ const DEMO_STAFF: Record<string, Role> = {
 
 export function LoginPage() {
   const { profile, signInAsMock } = useAuth()
+  const [params] = useSearchParams()
+  const signUp = params.get('mode') === 'signup'
+  const coursePath = featuredCoursePath(params.get('course'))
   const [audience, setAudience] = useState<Audience>('student')
   const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  if (profile) return <Navigate to={homePathFor(profile.role)} replace />
+  if (profile) return <Navigate to={(profile.role === 'student' && coursePath) || homePathFor(profile.role)} replace />
 
   async function handleStaffLogin(e: FormEvent) {
     e.preventDefault()
@@ -59,9 +63,9 @@ export function LoginPage() {
 
   return (
     <main className="mx-auto max-w-md px-4 py-16">
-      <span className="mb-5 inline-grid size-18 place-items-center rounded-2xl border border-black/5 bg-white p-2 shadow-sm">
+      <Link to="/" aria-label="CIC Learn home" className="mb-5 inline-grid size-18 place-items-center rounded-2xl border border-black/5 bg-white p-2 shadow-sm">
         <img src="/cic-logo.png" alt="Coding in Color" width={56} height={56} className="size-14 object-contain" />
-      </span>
+      </Link>
       <PageHeader title="CIC Learn" subtitle="Coding in Color's learning platform" />
       <div role="group" aria-label="I am a" className="mb-4 grid grid-cols-2 gap-1 rounded-xl bg-brand-tint p-1">
         {(['student', 'staff'] as const).map((a) => (
@@ -85,7 +89,7 @@ export function LoginPage() {
             <Button className="w-full" onClick={() => signInAsMock('student')}>Continue as a demo student</Button>
           </Card>
         ) : (
-          <StudentAuthCard />
+          <StudentAuthCard key={signUp ? 'sign-up' : 'card'} initialMode={signUp ? 'sign-up' : 'card'} />
         )
       ) : (
         <Card title="Teacher and admin sign in">

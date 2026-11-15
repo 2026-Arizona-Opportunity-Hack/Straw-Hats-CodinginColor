@@ -135,7 +135,13 @@ A class setup retry keeps the same copied course and selection mapping.
 The roster mapping endpoint checks the signed-in Supabase profile and calls Jev through OpenRouter when `OPENROUTER_API_KEY` is set. Otherwise it uses Vercel AI Gateway.
 Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
 
+## CIC Learn homepage
+
+The public root introduces AI Academy and Responsive Web Development using the existing CIC brand tokens and fonts. Log in and Sign up open the existing student and staff flows. Featured course links continue to a catalog search after student sign-in. Coming Soon mirrors planned subjects in Student Explore.
+
 ## Log
+
+- 2026-11-15, Ken: added the public homepage and links into sign-up and the course catalog.
 
 - 2026-11-15, Codex: recovered editable annotations on the full wide cat frame and added a file option to local image review QA.
 
