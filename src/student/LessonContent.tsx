@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { useId, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type FormEvent } from 'react'
 import Markdown, { defaultUrlTransform } from 'react-markdown'
 import type { ActivityStatus, AttemptInput, recordAttempt } from '../api/student/index.ts'
 import { slidesUrl } from '../instructor/model.ts'
@@ -11,6 +11,24 @@ import { Button, Card } from '../shared/ui/index.tsx'
 import './lessonContent.css'
 
 export type SubmitActivity = (input: AttemptInput) => ReturnType<typeof recordAttempt>
+
+type ActivityProps = {
+  activity: Activity
+  status?: ActivityStatus
+  onAttempt: SubmitActivity
+  onSaved?: () => void
+  allowScripts?: boolean
+}
+
+function useActivityAttempt(activityId: string, onAttempt: SubmitActivity, onSaved?: () => void) {
+  const [started, setStarted] = useState(() => performance.now())
+  return useMutation({
+    mutationFn: ({ response, score }: { response: unknown; score?: number }) => onAttempt({
+      activity_id: activityId, response, client_score: score, time_on_task_ms: Math.round(performance.now() - started),
+    }),
+    onSuccess: () => { setStarted(performance.now()); onSaved?.() },
+  })
+}
 
 function AnswerField({ id, prompt, choices }: { id: string; prompt: string; choices?: Choice[] }) {
   return choices?.length ? (
@@ -27,17 +45,57 @@ function AnswerField({ id, prompt, choices }: { id: string; prompt: string; choi
   )
 }
 
-export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScripts = false }: {
-  activity: Activity; status?: ActivityStatus; onAttempt: SubmitActivity; onSaved?: () => void; allowScripts?: boolean
+function KnowledgeCheck({ activityId, prompt, choices, status, onAttempt, onSaved }: {
+  activityId: string
+  prompt: string
+  choices: Choice[]
+  status?: ActivityStatus
+  onAttempt: SubmitActivity
+  onSaved?: () => void
 }) {
-  const [started, setStarted] = useState(() => performance.now())
+  const [selected, setSelected] = useState<string>()
+  const checking = useRef(false)
+  const attempt = useActivityAttempt(activityId, onAttempt, onSaved)
+
+  function choose(choiceId: string) {
+    if (checking.current || (choiceId === selected && attempt.isSuccess)) return
+    checking.current = true
+    setSelected(choiceId)
+    attempt.mutate({ response: { choice_id: choiceId } }, {
+      onSettled: () => { checking.current = false },
+    })
+  }
+
+  let feedback = status?.submitted && status.best_score === 1
+    ? 'You answered correctly.' : 'Choose an answer to check your work.'
+  if (attempt.isPending) feedback = 'Checking your answer…'
+  if (attempt.isSuccess) {
+    if (attempt.data.is_correct === true) feedback = 'Correct!'
+    else if (attempt.data.is_correct === false) feedback = 'Incorrect. Try another answer.'
+    else feedback = 'Answer saved.'
+  }
+
+  return <div className="space-y-2">
+    <fieldset aria-busy={attempt.isPending}>
+      <legend className="font-medium">{prompt}</legend>
+      <div className="mt-2 grid gap-2">
+        {choices.map(choice => <Button key={choice.id} variant="secondary"
+          className="w-full justify-start text-left aria-pressed:bg-brand-tint"
+          aria-pressed={choice.id === selected}
+          aria-disabled={attempt.isPending || (choice.id === selected && attempt.isSuccess)}
+          onClick={() => choose(choice.id)}>{choice.label}</Button>)}
+      </div>
+    </fieldset>
+    <p role="status" className={attempt.data?.is_correct === false ? 'text-warn' : 'text-brand'}>
+      {attempt.isError ? '' : feedback}
+    </p>
+    {attempt.isError && <p role="alert">Could not save your answer. Choose an answer again to retry.</p>}
+  </div>
+}
+
+function ActivityForm({ activity, status, onAttempt, onSaved, allowScripts = false }: ActivityProps) {
   const formId = useId()
-  const attempt = useMutation({
-    mutationFn: ({ response, score }: { response: unknown; score?: number }) => onAttempt({
-      activity_id: activity.id, response, client_score: score, time_on_task_ms: Math.round(performance.now() - started),
-    }),
-    onSuccess: () => { setStarted(performance.now()); onSaved?.() },
-  })
+  const attempt = useActivityAttempt(activity.id, onAttempt, onSaved)
   const done = attempt.isSuccess || status?.submitted
   const score = attempt.data ? attempt.data.score : status?.best_score
   const submit = (response: unknown = {}, score?: number) => attempt.mutate({ response, score })
@@ -101,16 +159,28 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
     }
   }
 
-  const { content } = activity
-  const title = 'title' in content && typeof content.title === 'string' ? content.title : null
-  const markdown = activity.type !== 'code' && 'markdown' in content && typeof content.markdown === 'string' ? content.markdown : null
-  return <div className="min-w-0 space-y-3">
-    {title && <h3 className="text-base font-semibold text-brand">{title}</h3>}
-    {markdown && <Markdown skipHtml urlTransform={curriculumUrl}>{markdown}</Markdown>}
+  return <>
     {body()}
     {attempt.isPending && <p role="status">Saving…</p>}
     {attempt.isError && <p role="alert">Could not save your work. Try again.</p>}
     {done && <p role="status" className="text-green-800">{score == null ? 'Completed' : `Completed · ${Math.round(score * 100)}%`}</p>}
+  </>
+}
+
+export function ActivityBlock(props: ActivityProps) {
+  const { activity, status, onAttempt, onSaved } = props
+  const { content } = activity
+  const title = 'title' in content && typeof content.title === 'string' ? content.title : null
+  const markdown = activity.type !== 'code' && 'markdown' in content && typeof content.markdown === 'string' ? content.markdown : null
+  const check = activity.type === 'check' ? (activity as Activity<'check'>).content : null
+
+  return <div className="min-w-0 space-y-3">
+    {title && <h3 className="text-base font-semibold text-brand">{title}</h3>}
+    {markdown && <Markdown skipHtml urlTransform={curriculumUrl}>{markdown}</Markdown>}
+    {check?.choices?.length
+      ? <KnowledgeCheck activityId={activity.id} prompt={check.prompt} choices={check.choices}
+        status={status} onAttempt={onAttempt} onSaved={onSaved} />
+      : <ActivityForm {...props} />}
   </div>
 }
 

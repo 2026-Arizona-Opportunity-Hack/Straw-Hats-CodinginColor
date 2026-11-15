@@ -24,6 +24,9 @@ Lesson and module previews reuse the renderer from the corresponding student pla
 Preview answers run only in the open preview.
 Hosted previews use the live response types, safe Markdown and slides support.
 The local preview can also run demo HTML activities and coding labs.
+Multiple-choice knowledge checks react to answer selection in both views.
+Live checks save and score through the existing student submission function.
+Pretests, post-tests, exit questions and written responses keep their submit buttons.
 
 ## Read & check
 
@@ -48,6 +51,8 @@ Published snapshots, My blocks, and executable labs remain browser-local.
 Run `supabase/tests/student_curriculum_access.sql` against a migrated development database to check both access and grading.
 
 ## Log
+
+- 2026-11-14, Codex: added immediate feedback to multiple-choice knowledge checks.
 
 - 2026-11-14, Ken: added the Read & check template for new courses and empty lessons.
 
