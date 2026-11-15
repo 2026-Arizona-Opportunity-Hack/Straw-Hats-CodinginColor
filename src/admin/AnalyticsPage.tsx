@@ -169,7 +169,7 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
           <ImpactNumber value={instructorIds.length} label="Instructors" hint="Teaching CIC courses" />
           <ImpactNumber value={hours} label="Hours of learning" hint="Time students spent on lessons" />
           <ImpactNumber value={modulesCompleted} label="Modules completed" hint={`${fmtPct(a.overall.completionPct)} of modules started`} />
-          <ImpactNumber value={a.overall.avgGain ?? 0} label="Avg learning gain" hint={a.overall.avgGain == null ? 'Needs students with a pretest and a post-test' : `${fmtPct(a.overall.avgPre)} → ${fmtPct(a.overall.avgPost)} on tests`} format={(v) => (a.overall.avgGain == null ? '—' : fmtGain(v))} />
+          <ImpactNumber value={a.overall.avgGain ?? 0} label="Avg learning gain" hint={a.overall.avgGain == null ? 'Needs students with a pretest and a post-test' : `${fmtPct(a.overall.avgPre)} → ${fmtPct(a.overall.avgPost)} · ${a.overall.assessmentPairs} matched student/module pairs`} format={(v) => (a.overall.avgGain == null ? '—' : fmtGain(v))} />
         </div>
         {a.selfPaced && a.selfPaced.students > 0 && (
           <p className="mt-5 text-sm text-white">
@@ -226,7 +226,7 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
         <p className="mb-4 mt-1 text-cic-muted">How far students moved from the pretest (before) to the post-test (after) in each module.</p>
         <div className="grid gap-6 lg:grid-cols-5">
           <Card className="lg:col-span-3" title="Before → after, by module">
-            <GrowthRows rows={a.byModule.map((m) => ({ label: m.label, pre: m.avgPre, post: m.avgPost }))} />
+            <GrowthRows rows={a.byModule.map((m) => ({ label: m.label, pre: m.avgPre, post: m.avgPost, pairs: m.assessmentPairs }))} />
           </Card>
           <Card className="lg:col-span-2" title="Learning gain by class" description="Average percentage-point gain.">
             {a.byClass.some((r) => r.avgGain != null) ? (
@@ -333,7 +333,7 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
           <thead>
             <tr>
               <Th>{GROUPS[by]}</Th><Th className="text-right">Students</Th><Th>Completion</Th>
-              <Th className="text-right">Pretest</Th><Th className="text-right">Post-test</Th><Th className="text-right">Gain</Th>
+              <Th className="text-right">Matched pairs</Th><Th className="text-right">Pretest</Th><Th className="text-right">Post-test</Th><Th className="text-right">Gain</Th>
               {by !== 'module' && <><Th className="text-right">Stuck</Th><Th className="text-right">Not started</Th></>}
             </tr>
           </thead>
@@ -345,6 +345,7 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
                 </Td>
                 <Td className="text-right tabular-nums">{r.students}</Td>
                 <Td><Meter value={r.completionPct} label="Completion" /></Td>
+                <Td className="text-right tabular-nums">{r.assessmentPairs}</Td>
                 <Td className="text-right tabular-nums">{fmtPct(r.avgPre)}</Td>
                 <Td className="text-right tabular-nums">{fmtPct(r.avgPost)}</Td>
                 <Td className="text-right font-semibold tabular-nums">{fmtGain(r.avgGain)}</Td>
@@ -386,7 +387,7 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
         <summary className="cursor-pointer font-semibold text-brand">How these numbers are calculated</summary>
         <ul className="mt-3 list-disc space-y-1 pl-5 text-cic-muted">
           <li><strong className="text-black">Pretest</strong>: the student's first pretest attempt in a module. <strong className="text-black">Post-test</strong>: their best post-test attempt.</li>
-          <li><strong className="text-black">Learning gain</strong>: post-test % minus pretest %, in percentage points. Only counted when a student has both.</li>
+          <li><strong className="text-black">Learning gain</strong>: post-test % minus pretest %, in percentage points. Pretest, post-test and gain averages all use the same matched student/module pairs. A student contributes one pair for each module with both scores; unmatched scores are excluded. Matched pairs shows that sample size.</li>
           <li><strong className="text-black">Module completed</strong>: every activity that counts toward unlocking is submitted, and the post-test (best of the tries that count) meets the pass mark the class set for that module.</li>
           <li><strong className="text-black">Stuck</strong>: below a module's pass mark after using all of its post-test tries, or no activity for more than {data.settings.inactive_days} days.</li>
           <li><strong className="text-black">Self-paced learners</strong>: students taking a course on their own, outside any class. A module counts as completed once every activity that counts toward unlocking is submitted.</li>
