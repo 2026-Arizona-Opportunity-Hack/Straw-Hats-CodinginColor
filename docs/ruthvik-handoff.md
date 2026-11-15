@@ -23,9 +23,8 @@ The team plan is in [`plan.md`](../plan.md); the nonprofit brief is linked from 
 | Branch | State | Notes |
 |---|---|---|
 | `main` | Has scaffold, schema 0001, Aryan's admin pages, Ken's instructor UI mounted in the sidebar layout (PR #8) | Deployed source of truth |
-| `ruthvik/class-tabs` | Pushed, **not on `main` yet** | Class tabs, roster tab, block-based assignments, live Supabase data layer, migration 2001, CIC logo. About 2,600 lines. |
-| `ruthvik/instructor-in-app` | Merged (#8) | PR #9 (`ruthvik/class-tabs`) was merged into this branch by mistake, not into `main`. Open a new PR `ruthvik/class-tabs` into `main`. |
-| `ruthvik/schema-2001` | Pushed, no PR | Only migration 2001 plus the seed fixes, branched from `main` (145 lines). Merge this first so `main` matches the hosted database. |
+| `ruthvik/class-tabs` | PR #14 into `main`, open | Class tabs, roster tab, block-based assignments, live Supabase data layer, CIC logo, these docs. About 2,600 lines. Merge after #13. |
+| `ruthvik/schema-2001` | PR #13 into `main`, open | Only migration 2001 plus the seed fixes (145 lines). Merge first so `main` matches the hosted database. |
 | `jacky/student-join-and-player` | Pushed, no PR | Student module player with a renderer per activity type (`src/student/activities.tsx`). |
 | `Shivraj` | 2 commits ahead of `main` | Supabase CLI config (`supabase/config.toml`). Already merged into `ruthvik/class-tabs`. |
 | `Aryan`, `Ken`, `Jacky` | Nothing new beyond `main` | |
@@ -126,6 +125,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-14 5:35 PM, Ruthvik: deleted stale `ruthvik/instructor-in-app` (PR #9 had merged into it; nothing unique on it). Opened #13 (schema) and #14 (UI) into `main`.
 - 2026-11-14 5:25 PM, Ruthvik: pushed `ruthvik/schema-2001` (migration 2001 + seed fixes only) so teammates can get the schema without the UI work.
 - 2026-11-14 5:15 PM, Ruthvik: renamed to `ruthvik-handoff.md` and `ruthvik-handoff-supabase.md`.
 - 2026-11-14 5:05 PM, Ruthvik: created this file.
