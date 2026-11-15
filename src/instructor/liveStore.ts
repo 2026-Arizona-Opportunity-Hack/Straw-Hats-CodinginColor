@@ -231,17 +231,23 @@ function learnersFor(classId: string, roster: Row[], attempts: Row[], activities
 
 /** Supabase returns at most `max_rows` (1000) rows per request; read every page. */
 const PAGE = 1000;
-async function selectAll(supabase: SupabaseClient, table: string, columns: string, orderBy = ['id']): Promise<Row[]> {
+async function selectAll(supabase: SupabaseClient, table: string, columns: string, orderBy = ['id'], classId?: string): Promise<Row[]> {
   const rows: Row[] = [];
   for (let from = 0; ; from += PAGE) {
     // A stable order keeps pages from overlapping or skipping rows.
     let query = supabase.from(table).select(columns);
+    if (classId) query = query.eq('class_id', classId);
     for (const column of orderBy) query = query.order(column);
     const { data, error } = await query.range(from, from + PAGE - 1);
     fail(`load ${table}`, error);
     rows.push(...((data ?? []) as unknown as Row[]));
     if (!data || data.length < PAGE) return rows;
   }
+}
+
+export async function loadLiveClassSubmissions(supabase: SupabaseClient, classId: string): Promise<Submission[]> {
+  const rows = await selectAll(supabase, 'assignment_submissions', '*', ['id'], classId);
+  return rows.map(toSubmission);
 }
 
 const courseColumns = 'id, title, description, level, owner_id, is_library, in_cic_library, copied_from, published, publication_revision, created_at, local_curricula (course_id), modules (id, position, title, concept, published, archived_at, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))';
@@ -524,10 +530,9 @@ export async function saveLiveClass(
     if (same(prevSubmissions.get(submission.id), submission)) continue;
     const result = await supabase.from('assignment_submissions').update({
       manual_scores: submission.manualScores, rubric_scores: submission.rubricScores, feedback: submission.feedback, graded_at: submission.gradedAt, graded_by: submission.gradedAt ? userId : null,
-    }).eq('id', submission.id).select('id');
+    }).eq('id', submission.id).eq('submitted_at', submission.submittedAt).select('id');
     fail('save the grade', result.error);
-    // RLS hides rows instead of erroring, so an update that matched nothing was not allowed.
-    if (!result.data?.length) throw new Error('Could not save the grade: you do not have access to this submission.');
+    if (!result.data?.length) throw new Error('Could not save the grade. Reload to check whether the submission changed or you lost access.');
   }
   const prevAssignments = new Map((prev?.assignments ?? []).map(a => [a.id, a]));
   const assignments = next.assignments ?? [];

@@ -68,6 +68,23 @@ export function InstructorWorkspace({
   const navigation = routes.filter(({ path }) => (profile.role === 'admin' && !embedded)
     || (profile.role === 'reviewer' ? path === 'review' : ['classes', 'curriculum', 'library', 'review'].includes(path)));
   const home = '#/' + homeSection;
+  const readSubmissions = store.loadClassSubmissions;
+  const submissionClass = section === 'classes' && (subpage === 'grades' || (subpage === 'assignments' && !detail))
+    && visibleClasses.some(group => group.id === item) ? item : null;
+
+  useEffect(() => {
+    if (!readSubmissions || !submissionClass) return;
+    let current = true;
+    void readSubmissions(submissionClass).then(submissions => {
+      if (current) setData(latest => ({
+        ...latest,
+        classes: latest.classes.map(group => group.id === submissionClass ? { ...group, submissions } : group),
+      }));
+    }).catch(() => {
+      if (current) setError('Could not refresh student submissions. Reload to try again.');
+    });
+    return () => { current = false; };
+  }, [readSubmissions, submissionClass, subpage]);
 
   useEffect(() => {
     if (embedded) return;

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { enrollInCourse, listModuleAssignments, type ModuleAssignment, type ModuleStatus, type StudentCourse } from '../api/student/index.ts'
+import { listClassQuizzes } from '../api/student/classQuizzes.ts'
 import { joinClass } from '../api/student/auth.ts'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { Button, FormStatus, Input } from '../shared/ui/index.tsx'
@@ -122,12 +123,13 @@ export function ClassRow({ course, modules }: { course: StudentCourse; modules?:
   )
 }
 
-function ClassAssignments({ studentId }: { studentId?: string }) {
+export function ClassAssignments({ studentId }: { studentId?: string }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { data = [], isError } = useQuery({
     queryKey: ['moduleAssignments', studentId], queryFn: listModuleAssignments,
   })
+  const quizzes = useQuery({ queryKey: ['classQuizzes', studentId], queryFn: listClassQuizzes })
   const open = useMutation({
     mutationFn: async (assignment: ModuleAssignment) => {
       if (assignment.needs_enrollment) await enrollInCourse(assignment.course_id)
@@ -136,10 +138,17 @@ function ClassAssignments({ studentId }: { studentId?: string }) {
       navigate('/student/module/' + assignment.module_id)
     },
   })
-  if (!data.length && !isError) return null
+  const quizzesToShow = quizzes.data ?? []
+  if (!data.length && !quizzesToShow.length && !isError && !quizzes.isError) return null
   return <Section title="Class assignments">
-    {isError && <p role="alert">Could not load class assignments. Try reloading.</p>}
-    {!!data.length && <ul className="divide-y divide-divider rounded-2xl bg-white/60">
+    {(isError || quizzes.isError) && <p role="alert">Could not load all class assignments. Try reloading.</p>}
+    {!!(data.length + quizzesToShow.length) && <ul className="divide-y divide-divider rounded-2xl bg-white/60">
+      {quizzesToShow.map(quiz => <li key={quiz.id}>
+        <Link to={'/student/quiz/' + quiz.id} className="flex items-center justify-between gap-4 rounded-lg px-4 py-3 hover:bg-white">
+          <span><span className="block font-semibold">{quiz.title}</span><span className="text-sm text-cic-muted">{quiz.class_name}</span></span>
+          <span className="text-sm font-semibold text-brand">{quiz.graded ? 'Graded' : quiz.submitted ? 'Submitted' : 'Open quiz'}</span>
+        </Link>
+      </li>)}
       {data.map(assignment => <li key={assignment.id} className="flex items-center justify-between gap-4 px-4 py-3">
         <div><p className="font-semibold">{assignment.title}</p><p className="text-sm text-cic-muted">{assignment.class_name}</p></div>
         <Button type="button" disabled={open.isPending} aria-label={'Open ' + assignment.title} onClick={() => open.mutate(assignment)}>
@@ -161,6 +170,7 @@ export function JoinClass() {
       await Promise.all([
         qc.invalidateQueries({ queryKey: ['myCourses'] }),
         qc.invalidateQueries({ queryKey: ['moduleAssignments'] }),
+        qc.invalidateQueries({ queryKey: ['classQuizzes'] }),
       ])
     },
   })

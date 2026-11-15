@@ -17,6 +17,7 @@ export function saveCourseDraft(author: string, course: Course) {
 
 export interface InstructorStore {
   load(): InstructorData;
+  loadClassSubmissions?(classId: string): Promise<NonNullable<ClassGroup['submissions']>>;
   /**
    * Persist `data`. Synchronous stores throw on failure; async stores (Supabase) return a
    * promise and report failures through it. `previous` lets a store write only what changed.
