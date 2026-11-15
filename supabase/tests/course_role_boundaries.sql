@@ -118,17 +118,20 @@ end $$;
 
 set local role authenticated;
 do $$
-declare actor int;
+declare
+  actor int;
+  visible_rows int;
 begin
   foreach actor in array array[1, 2, 3, 5] loop
     perform set_config('request.jwt.claim.sub', pg_temp.fixture_id(1, actor)::text, true);
     perform pg_temp.check_writes(actor, actor in (3,5), actor = 5);
-    -- Published enrolled student content and reviewer previews remain readable.
-    perform pg_temp.expect_rows(format('select * from courses where id = %L', pg_temp.fixture_id(2,actor)), 1);
-    perform pg_temp.expect_rows(format('select * from modules where id = %L', pg_temp.fixture_id(3,actor)), 1);
-    perform pg_temp.expect_rows(format('select * from lessons where id = %L', pg_temp.fixture_id(4,actor)), 1);
-    perform pg_temp.expect_rows(format('select * from activities where id = %L', pg_temp.fixture_id(5,actor)), 1);
-    perform pg_temp.expect_rows(format('select * from activity_keys where activity_id = %L', pg_temp.fixture_id(5,actor)), (actor <> 1)::int);
+    -- The reviewer owns a non-library course, which remains outside their read scope.
+    visible_rows := (actor <> 2)::int;
+    perform pg_temp.expect_rows(format('select * from courses where id = %L', pg_temp.fixture_id(2,actor)), visible_rows);
+    perform pg_temp.expect_rows(format('select * from modules where id = %L', pg_temp.fixture_id(3,actor)), visible_rows);
+    perform pg_temp.expect_rows(format('select * from lessons where id = %L', pg_temp.fixture_id(4,actor)), visible_rows);
+    perform pg_temp.expect_rows(format('select * from activities where id = %L', pg_temp.fixture_id(5,actor)), visible_rows);
+    perform pg_temp.expect_rows(format('select * from activity_keys where activity_id = %L', pg_temp.fixture_id(5,actor)), (actor in (3, 5))::int);
   end loop;
 end $$;
 
