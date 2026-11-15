@@ -608,3 +608,11 @@ body:has(.ic-app) { margin: 0; }
   .ic-drill-title { flex-basis: calc(100% - 24px); }
   .ic-drill summary .ic-bar-track { margin-left: 20px; }
 }
+
+/* Course preview: collapsible lesson list */
+.ic-review-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 14px; }
+.ic-review-bar .ic-push { margin-left: auto; }
+.ic-review { grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); }
+.ic-review.is-collapsed { grid-template-columns: minmax(0, 1fr); }
+.ic-review > [hidden] { display: none; }
+@media (max-width: 890px) { .ic-review { grid-template-columns: minmax(0, 1fr); } }

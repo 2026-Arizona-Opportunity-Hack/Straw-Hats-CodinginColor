@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, Library, Pencil, Copy, Eye, FilePlus2, GripVertical, ImagePlus, Plus, Save, Star, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, ChevronLeft, ChevronRight, Library, ListTree, Pencil, Copy, Eye, FilePlus2, GripVertical, ImagePlus, Plus, Save, Star, Trash2 } from 'lucide-react';
 import { isLocalDemo } from '../shared/supabase.ts';
 import { DemoLesson } from '../student/DemoLesson';
 import { LessonContent } from '../student/LessonContent';
@@ -111,18 +111,38 @@ function LibraryList({ courses, canEdit, heading = true }: { courses: Course[]; 
   </section>;
 }
 
+const lessonListKey = 'cic.reviewer.lessonList';
+
 export function CourseReviewer({ course, back = { label: 'Reviewer library', to: '#/review' } }: { course: Course; back?: { label: string; to: string } }) {
   const modules = course.modules.filter(module => module.published);
   const [active, setActive] = useState(modules[0]?.lessons[0]?.id);
-  const lesson = modules.flatMap(module => module.lessons).find(lesson => lesson.id === active);
+  const lessons = modules.flatMap(module => module.lessons);
+  const index = lessons.findIndex(item => item.id === active);
+  const lesson = lessons[index];
+  // The lesson list starts closed so the lesson gets the full width; the choice is remembered.
+  const [showList, setShowList] = useState(() => { try { return localStorage.getItem(lessonListKey) === 'open'; } catch { return false; } });
+  const listId = useId();
+  function toggleList() {
+    setShowList(open => { try { localStorage.setItem(lessonListKey, open ? 'closed' : 'open'); } catch { /* storage blocked: keep it for this visit */ } return !open; });
+  }
+  const go = (step: number) => { const next = lessons[index + step]; if (next) setActive(next.id); };
   return <>
     <PageHeader title={course.title} description={course.description} back={back} />
-    <div className="ic-builder">
-      <Panel title="Published lessons">
+    {lessons.length > 0 && <div className="ic-review-bar">
+      <button type="button" className="ic-button" aria-expanded={showList} aria-controls={listId} onClick={toggleList}>
+        <ListTree size={16} aria-hidden="true" /> {showList ? 'Hide lessons' : 'Show lessons'}</button>
+      <span className="ic-note" aria-live="polite">Lesson {index + 1} of {lessons.length}{lesson ? ` · ${lesson.title}` : ''}</span>
+      <div className="ic-row ic-push">
+        <button type="button" className="ic-button" disabled={index <= 0} onClick={() => go(-1)}><ChevronLeft size={16} aria-hidden="true" /> Previous</button>
+        <button type="button" className="ic-button" disabled={index >= lessons.length - 1} onClick={() => go(1)}>Next <ChevronRight size={16} aria-hidden="true" /></button>
+      </div>
+    </div>}
+    <div className={'ic-builder ic-review' + (showList ? '' : ' is-collapsed')}>
+      <div id={listId} hidden={!showList}><Panel title="Published lessons">
         {modules.map(module => <div className="ic-review-module" key={module.id}><h3>{module.title}</h3><ul>
           {module.lessons.map(lesson => <li key={lesson.id}><button type="button" className="ic-tree-button" aria-pressed={active === lesson.id} onClick={() => setActive(lesson.id)}>{lesson.title}</button></li>)}
         </ul></div>)}
-      </Panel>
+      </Panel></div>
       {lesson ? <div className="ic-review-lesson"><LessonPreview lesson={lesson} /></div> : <Panel><Empty>No published lessons are available.</Empty></Panel>}
     </div>
   </>;
