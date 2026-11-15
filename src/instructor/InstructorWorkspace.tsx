@@ -13,7 +13,7 @@ import './styles.css';
 
 const routes = [
   { path: 'classes', label: 'Classes', icon: GraduationCap },
-  { path: 'curriculum', label: 'Curriculum', icon: BookOpen },
+  { path: 'curriculum', label: 'CIC library', icon: BookOpen },
   { path: 'review', label: 'Reviewer preview', icon: Eye },
   { path: 'overview', label: 'Program overview', icon: BarChart3 },
   { path: 'access', label: 'Access settings', icon: Settings },
@@ -108,7 +108,7 @@ export function InstructorWorkspace({
     if (!save({ ...current, classes, staff })) return false;
     if (created) {
       setNewClass(group.id);
-      window.location.hash = '/classes/' + group.id;
+      window.location.assign('#/classes/' + group.id);
     }
     return true;
   }
@@ -163,22 +163,39 @@ export function InstructorWorkspace({
     return save({ ...current, savedBlocks: { ...current.savedBlocks, [author]: blocks } });
   }
 
+  /**
+   * A class on a shared library course cannot be edited in place: give the class its own
+   * copy (same module order) and point the class at it.
+   */
+  async function makeClassEditable(group: ClassGroup, source: Course) {
+    const copy = await importCourse(source);
+    const moduleIds = source.modules.flatMap((module, index) => group.moduleIds.includes(module.id) && copy.modules[index] ? [copy.modules[index].id] : []);
+    if (!saveClass({ ...group, courseId: copy.id, moduleIds })) throw new Error('Could not update the class.');
+    window.location.assign(`#/classes/${group.id}/curriculum/edit`);
+  }
+
+  const builderFor = (target: Course, inClass?: { className: string; backTo: string }) => <CourseBuilder key={author + ':' + target.id}
+    initial={data.courseDrafts?.[draftKey(target.id)] ?? target} released={target} localAuthoring={draftsLocal} onSave={saveDraft} onRelease={release}
+    assigned={new Set(data.classes.filter(item => item.courseId === target.id).flatMap(item => item.moduleIds))} draftModule={draftModule}
+    library={library} onSaveLibrary={saveLibrary} inClass={inClass} />;
+
   const group = section === 'classes' ? visibleClasses.find(group => group.id === item) : undefined;
   const course = data.courses.find(course => course.id === (group?.courseId ?? item));
-  const assigned = new Set(data.classes.filter(group => group.courseId === course?.id).flatMap(group => group.moduleIds));
   const content = (() => {
     if (!navigation.some(({ path }) => path === section)) return <PageHeader title="Page unavailable for this role" back={{ label: 'Back to workspace', to: home }} />;
     if (section === 'classes') {
       if (item === 'new') return <ClassSetup courses={data.courses} classes={data.classes} onCreate={group => saveClass(group, true)} onImport={importCourse} />;
-      if (group) return <ClassDashboard key={group.id} group={group} course={course} onSave={saveClass} justCreated={newClass === group.id} tab={isClassTab(subpage) ? subpage : 'dashboard'} detail={detail} otherClasses={visibleClasses} />;
+      if (group) return <ClassDashboard key={group.id} group={group} course={course} onSave={saveClass} justCreated={newClass === group.id} tab={isClassTab(subpage) ? subpage : 'dashboard'} detail={detail} otherClasses={visibleClasses}
+        editor={subpage === 'curriculum' && detail === 'edit' && course && !course.library ? builderFor(course, { className: group.name, backTo: `#/classes/${group.id}/curriculum` }) : undefined}
+        onMakeEditable={course?.library ? () => makeClassEditable(group, course) : undefined} />;
       if (!item) return <ClassList groups={visibleClasses} courses={data.courses} />;
     }
     if (section === 'curriculum') {
-      if (course && (!course.library || profile.role === 'admin')) return <CourseBuilder key={author + ':' + course.id} initial={data.courseDrafts?.[draftKey(course.id)] ?? course}
-        released={course} localAuthoring={draftsLocal} onSave={saveDraft} onRelease={release} assigned={assigned} draftModule={draftModule}
-        library={library} onSaveLibrary={saveLibrary} />;
+      // Instructors edit a course inside its class; only admins open the builder from here (library upkeep).
+      if (course && profile.role === 'admin') return builderFor(course);
+      if (course) return <PageHeader title={course.title} description="Open a class that uses this course and edit it from the class's Curriculum tab." back={{ label: 'CIC library', to: '#/curriculum' }} />;
       if (!item) return <CurriculumList courses={data.courses.map(item => data.courseDrafts?.[draftKey(item.id)] ?? item)} onCreate={createCourse}
-        canEditLibrary={profile.role === 'admin'} />;
+        canEditLibrary={profile.role === 'admin'} libraryOnly={profile.role !== 'admin'} />;
     }
     if (section === 'review') {
       if (course?.modules.some(module => module.published)) return <CourseReviewer key={course.id} course={course} />;

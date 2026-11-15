@@ -153,6 +153,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-15 12:30 AM, Ruthvik: instructors edit curriculum inside the class card (Curriculum tab, Edit curriculum, `#/classes/<id>/curriculum/edit`); the top-level page is now "CIC library" (preview only; admins edit library courses). A class still on a library course gets its own copy via "Edit for this class". Create a class offers library courses only. Instructors' standalone courses are hidden, not deleted. Reviewer preview left the instructor sidebar (library Preview covers it).
 - 2026-11-14 11:30 PM, Ruthvik: organized Curriculum into My courses and CIC library (Preview; admins also Edit). Library courses are picked directly in Create a class step 3 and imported when the class is created; `LibraryImport.tsx` is gone.
 - 2026-11-14 9:00 PM, Ruthvik: import a library course as the instructor's own copy (Create a class and Curriculum), migration 2004 `copy_library_course` (applied 9:10 PM), library courses never written back by `saveLiveData`, tests.
 - 2026-11-14 8:30 PM, Ruthvik: fixes from a code review (ponytail-review checklist). Course saves write only changed rows; attempts load in pages past Supabase's 1000-row cap; first tests (Vitest, 12); gradebook shows "Not due yet" and leaves not-due and ungraded work out of totals; warning when a saved score no longer matches an edited rubric; pages load per section (main bundle is now framework only); gradebook total column stays visible.
