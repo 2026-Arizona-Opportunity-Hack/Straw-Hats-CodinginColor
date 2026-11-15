@@ -1,7 +1,7 @@
 # Ruthvik's handoff: Supabase database, auth and how to change it
 
 Reference for teammates and AI agents working on the backend.
-Current state and open work live in [`ruthvik-handoff.md`](ruthvik-handoff.md).
+Current state and open work live in [`Handoffs/ruthvik-handoff.md`](ruthvik-handoff.md).
 
 ## The project
 
@@ -69,6 +69,9 @@ From `0001_core_schema.sql` (core contract):
 | `activity_attempts` | Student work on curriculum activities: score 0..1, time on task, attempt number |
 | `api_keys` | Hashed keys for the read API (service role only) |
 
+Shivraj's student-side migrations (`1001`, `1002`) are documented in [`Handoffs/shivraj-handoff.md`](shivraj-handoff.md): answer keys in `activity_keys`, `submit_attempt`, unlock rules, self-chosen courses.
+All of 0001, 1001, 1002, 2001, 2002 and 2003 are applied to the hosted project (checked with `migration list` on Nov 14, 7 PM).
+
 From `2001_instructor_workspace.sql`:
 
 | Table / change | What |
@@ -117,7 +120,6 @@ Policies today (minimal, a full permissions pass is still open):
 
 Known gaps for the permissions pass:
 
-- Any signed-in user can read every activity, including answer keys and code solutions.
 - Students cannot read assignments yet (no student policy).
 - Instructors cannot edit library courses owned by the admin.
 

@@ -45,8 +45,29 @@ function questionsFrom(content: Json, concept: string): Question[] {
   return [];
 }
 
+/**
+ * Answer keys live in activity_keys (migration 1002 moves them out of content so students
+ * cannot read them). Put them back into the content shape the builder reads; on save the
+ * trigger moves them out again.
+ */
+function withAnswerKey(content: Json, keyRow: unknown): Json {
+  const keyHolder = (Array.isArray(keyRow) ? keyRow[0] : keyRow) as { key?: Json } | null | undefined;
+  const key = keyHolder?.key;
+  if (!key) return content;
+  const merged: Json = { ...content };
+  if (key.answer !== undefined) merged.answer = key.answer;
+  if (key.solution !== undefined) merged.solution = key.solution;
+  const answers = (key.answers ?? {}) as Record<string, unknown>;
+  if (Array.isArray(content.items)) merged.items = (content.items as Row[]).map(item => (String(item.id) in answers ? { ...item, answer: answers[String(item.id)] } : item));
+  const byPosition = Array.isArray(key.question_answers) ? key.question_answers as unknown[] : null;
+  if (byPosition && Array.isArray(content.questions)) {
+    merged.questions = (content.questions as Row[]).map((q, i) => (byPosition[i] === null || byPosition[i] === undefined ? q : { ...q, answer: byPosition[i] }));
+  }
+  return merged;
+}
+
 function toActivity(row: Row): Activity {
-  const content = (row.content ?? {}) as Json;
+  const content = withAnswerKey((row.content ?? {}) as Json, row.activity_keys);
   const type = (row.type as string) in activityTypes ? row.type as ActivityType : 'content';
   const concept = str(row.concept);
   const questions = ['check', 'worksheet', 'exit', 'pretest', 'posttest'].includes(type) ? questionsFrom(content, concept) : [];
@@ -136,16 +157,36 @@ function toSubmission(row: Row): Submission {
 
 // ---- Progress ----
 
-function learnersFor(classId: string, roster: Row[], attempts: Row[]): Learner[] {
+type ActivityInfo = { type: string; moduleId: string };
+
+/**
+ * Which tries count, matching the database rules in 1001_student_progress.sql
+ * (Shivraj's handoff, "Scoring rules other code must match"):
+ * pretest counts try #1 only; post-test counts the best of the first N tries
+ * (module_rules.max_posttest_tries, default 3); everything else counts the best try.
+ */
+function countedScore(rows: Row[], info: ActivityInfo | undefined, maxTries: number): number | null {
+  const scored = (list: Row[]) => list.map(r => r.score).filter((v): v is number | string => v !== null && v !== undefined).map(Number);
+  const byTry = rows.slice().sort((a, b) => Number(a.attempt_no) - Number(b.attempt_no));
+  if (info?.type === 'pretest') return scored(byTry.slice(0, 1))[0] ?? null;
+  const pool = info?.type === 'posttest' ? byTry.filter(r => Number(r.attempt_no) <= maxTries) : byTry;
+  const scores = scored(pool);
+  return scores.length ? Math.max(...scores) : null;
+}
+
+function learnersFor(classId: string, roster: Row[], attempts: Row[], activities: Map<string, ActivityInfo>, rules: Row[]): Learner[] {
+  const maxTries = (moduleId: string) => Number(rules.find(r => r.class_id === classId && r.module_id === moduleId)?.max_posttest_tries ?? 3);
   return roster.slice().sort((a, b) => str(a.created_at).localeCompare(str(b.created_at))).map(student => {
     const mine = attempts.filter(a => a.class_id === classId && student.profile_id && a.student_id === student.profile_id);
     const byActivity = new Map<string, Row[]>();
     for (const attempt of mine) byActivity.set(String(attempt.activity_id), [...(byActivity.get(String(attempt.activity_id)) ?? []), attempt]);
     const list: Attempt[] = [...byActivity.entries()].map(([activityId, rows]) => {
+      const info = activities.get(activityId);
+      const counted = countedScore(rows, info, info ? maxTries(info.moduleId) : 3);
       const latest = rows.slice().sort((a, b) => Number(b.attempt_no) - Number(a.attempt_no))[0];
       return {
         activityId, count: rows.length, submitted: rows.some(r => r.submitted_at),
-        score: latest.score === null || latest.score === undefined ? null : Number(latest.score) * 100,
+        score: counted === null ? null : counted * 100,
         minutes: Math.round(rows.reduce((sum, r) => sum + Number(r.time_on_task_ms ?? 0), 0) / 60_000),
         response: typeof latest.response === 'string' ? latest.response : undefined,
       };
@@ -158,14 +199,16 @@ function learnersFor(classId: string, roster: Row[], attempts: Row[]): Learner[]
 // ---- Load ----
 
 export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, displayName: string): Promise<InstructorData> {
-  const [courses, classes, attempts] = await Promise.all([
-    supabase.from('courses').select('id, title, description, level, owner_id, created_at, modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content)))').order('created_at'),
+  const [courses, classes, attempts, rules] = await Promise.all([
+    supabase.from('courses').select('id, title, description, level, owner_id, created_at, modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))').order('created_at'),
     supabase.from('classes').select('id, name, school, course_id, join_code, created_at, class_modules (module_id), class_students (id, display_name, passcode, profile_id, created_at), assignments (*), assignment_submissions (*)').order('created_at'),
     supabase.from('activity_attempts').select('student_id, activity_id, class_id, score, submitted_at, time_on_task_ms, attempt_no, response'),
+    supabase.from('module_rules').select('class_id, module_id, max_posttest_tries'),
   ]);
   fail('load courses', courses.error);
   fail('load classes', classes.error);
   fail('load progress', attempts.error);
+  fail('load module rules', rules.error);
 
   const courseList: Course[] = (courses.data as Row[]).map(c => ({
     id: String(c.id), title: str(c.title), description: str(c.description), level: titleCase(str(c.level) || 'beginner'),
@@ -176,10 +219,12 @@ export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, di
       })),
     })),
   }));
+  const activityInfo = new Map<string, ActivityInfo>(courseList.flatMap(course => course.modules.flatMap(m =>
+    m.lessons.flatMap(l => l.activities.map(a => [a.id, { type: a.type, moduleId: m.id }] as const)))));
   const classList: ClassGroup[] = (classes.data as Row[]).map(c => ({
     id: String(c.id), name: str(c.name), school: str(c.school), courseId: String(c.course_id), joinCode: str(c.join_code),
     moduleIds: (arr(c.class_modules) as Row[]).map(m => String(m.module_id)),
-    learners: learnersFor(String(c.id), arr(c.class_students) as Row[], attempts.data as Row[]),
+    learners: learnersFor(String(c.id), arr(c.class_students) as Row[], attempts.data as Row[], activityInfo, rules.data as Row[]),
     assignments: (arr(c.assignments) as Row[]).sort((a, b) => str(a.created_at).localeCompare(str(b.created_at))).map(toAssignment),
     submissions: (arr(c.assignment_submissions) as Row[]).map(toSubmission),
   }));
@@ -195,18 +240,23 @@ export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, di
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-async function deleteMissing(supabase: SupabaseClient, table: string, column: string, parentIds: string[], keep: string[]) {
-  if (!parentIds.length) return;
-  let query = supabase.from(table).delete().in(column, parentIds);
-  if (keep.length) query = query.not('id', 'in', `(${keep.join(',')})`);
-  fail(`remove old ${table}`, (await query).error);
+/**
+ * Deletes only rows this browser loaded and the user then removed (in `before`, not in `after`).
+ * Never "everything not in my list": a browser opened before a teammate added something would
+ * otherwise delete their work on its next save.
+ */
+async function deleteRemoved(supabase: SupabaseClient, table: string, before: string[], after: string[]) {
+  const keep = new Set(after);
+  const removed = before.filter(id => !keep.has(id));
+  if (removed.length) fail(`remove ${table}`, (await supabase.from(table).delete().in('id', removed)).error);
 }
 
 async function upsert(supabase: SupabaseClient, table: string, rows: Row[]) {
   if (rows.length) fail(`save ${table}`, (await supabase.from(table).upsert(rows)).error);
 }
 
-async function syncCourse(supabase: SupabaseClient, userId: string, course: Course, existed: boolean) {
+async function syncCourse(supabase: SupabaseClient, userId: string, course: Course, prev: Course | undefined) {
+  const existed = Boolean(prev);
   const level = course.level.toLowerCase();
   const row: Row = { id: course.id, title: course.title.trim() || 'Untitled course', description: course.description, level: levels.includes(level) ? level : 'beginner' };
   if (!existed) Object.assign(row, { owner_id: userId, published: true });
@@ -215,10 +265,12 @@ async function syncCourse(supabase: SupabaseClient, userId: string, course: Cour
   const modules = course.modules;
   const lessons = modules.flatMap(m => m.lessons.map((l, position) => ({ l, m, position: position + 1 })));
   const activities = lessons.flatMap(({ l }) => l.activities.map((a, position) => ({ a, l, position: position + 1 })));
-  // Remove deleted rows first so their positions are free.
-  await deleteMissing(supabase, 'modules', 'course_id', [course.id], modules.map(m => m.id));
-  await deleteMissing(supabase, 'lessons', 'module_id', modules.map(m => m.id), lessons.map(({ l }) => l.id));
-  await deleteMissing(supabase, 'activities', 'lesson_id', lessons.map(({ l }) => l.id), activities.map(({ a }) => a.id));
+  // Remove rows the user deleted first, so their positions are free.
+  const prevModules = prev?.modules ?? [];
+  const prevLessons = prevModules.flatMap(m => m.lessons);
+  await deleteRemoved(supabase, 'activities', prevLessons.flatMap(l => l.activities.map(a => a.id)), activities.map(({ a }) => a.id));
+  await deleteRemoved(supabase, 'lessons', prevLessons.map(l => l.id), lessons.map(({ l }) => l.id));
+  await deleteRemoved(supabase, 'modules', prevModules.map(m => m.id), modules.map(m => m.id));
   await upsert(supabase, 'modules', modules.map((m, i) => ({
     id: m.id, course_id: course.id, position: i + 1, title: m.title.trim() || 'Untitled module',
     concept: m.lessons.flatMap(l => l.activities).flatMap(a => a.questions).find(q => q.concept.trim())?.concept.trim() || m.title, published: m.published,
@@ -237,13 +289,17 @@ async function syncClass(supabase: SupabaseClient, userId: string, next: ClassGr
     fail('save the class', (await supabase.from('classes').upsert(row)).error);
   }
   if (!prev || !same(prev.moduleIds, next.moduleIds)) {
-    fail('update assigned modules', (await supabase.from('class_modules').delete().eq('class_id', next.id)).error);
-    await upsert(supabase, 'class_modules', next.moduleIds.map(module_id => ({ class_id: next.id, module_id })));
+    const keep = new Set(next.moduleIds);
+    const unassigned = (prev?.moduleIds ?? []).filter(id => !keep.has(id));
+    if (unassigned.length) fail('update assigned modules', (await supabase.from('class_modules').delete().eq('class_id', next.id).in('module_id', unassigned)).error);
+    const before = new Set(prev?.moduleIds ?? []);
+    const added = next.moduleIds.filter(id => !before.has(id)).map(module_id => ({ class_id: next.id, module_id }));
+    if (added.length) fail('update assigned modules', (await supabase.from('class_modules').upsert(added, { ignoreDuplicates: true })).error);
   }
   const prevLearners = new Map((prev?.learners ?? []).map(l => [l.id, l]));
   const learners = next.learners;
   if (!prev || !same(prev.learners.map(l => [l.id, l.name, l.passcode]), learners.map(l => [l.id, l.name, l.passcode]))) {
-    await deleteMissing(supabase, 'class_students', 'class_id', [next.id], learners.map(l => l.id));
+    await deleteRemoved(supabase, 'class_students', (prev?.learners ?? []).map(l => l.id), learners.map(l => l.id));
     await upsert(supabase, 'class_students', learners
       .filter(l => { const old = prevLearners.get(l.id); return !old || old.name !== l.name || old.passcode !== l.passcode; })
       .map(l => ({ id: l.id, class_id: next.id, display_name: l.name, passcode: l.passcode })));
@@ -262,7 +318,7 @@ async function syncClass(supabase: SupabaseClient, userId: string, next: ClassGr
   const prevAssignments = new Map((prev?.assignments ?? []).map(a => [a.id, a]));
   const assignments = next.assignments ?? [];
   if (!prev || !same(prev.assignments ?? [], assignments)) {
-    await deleteMissing(supabase, 'assignments', 'class_id', [next.id], assignments.map(a => a.id));
+    await deleteRemoved(supabase, 'assignments', (prev?.assignments ?? []).map(a => a.id), assignments.map(a => a.id));
     await upsert(supabase, 'assignments', assignments.filter(a => !same(prevAssignments.get(a.id), a)).map(a => assignmentRow(a, next.id)));
   }
 }
@@ -270,7 +326,7 @@ async function syncClass(supabase: SupabaseClient, userId: string, next: ClassGr
 export async function saveLiveData(supabase: SupabaseClient, userId: string, prev: InstructorData, next: InstructorData) {
   const prevCourses = new Map(prev.courses.map(c => [c.id, c]));
   for (const course of next.courses) {
-    if (!same(prevCourses.get(course.id), course)) await syncCourse(supabase, userId, course, prevCourses.has(course.id));
+    if (!same(prevCourses.get(course.id), course)) await syncCourse(supabase, userId, course, prevCourses.get(course.id));
   }
   const prevClasses = new Map(prev.classes.map(c => [c.id, c]));
   for (const group of next.classes) {
