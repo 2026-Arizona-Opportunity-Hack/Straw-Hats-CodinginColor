@@ -79,6 +79,15 @@ From `2001_instructor_workspace.sql`:
 | Position uniqueness | `modules`, `lessons`, `activities` position constraints are `deferrable initially deferred`, so reordering in one upsert does not fail. |
 | Triggers | An instructor who creates a class is added to `class_instructors`. `assignments.updated_at` is maintained. |
 
+From `2002_assignment_submissions.sql`:
+
+| Table | What |
+|---|---|
+| `assignment_submissions` | One row per student per assignment: `responses` (answer per block id), `manual_scores` (instructor points per block id, overriding auto scores), `feedback`, `submitted_at`, `graded_at`, `graded_by`. `class_id` is set from the assignment by a trigger. |
+
+Demo data outside the seed: `supabase/demo/grading_demo.sql` adds two Maryvale assignments and nine fictional submissions (applied to the hosted project on Nov 14).
+Run it with `npx supabase db query --remote --file supabase/demo/grading_demo.sql`; fixed ids make re-runs a no-op.
+
 ## Row Level Security
 
 RLS is enabled on every table.
@@ -90,6 +99,8 @@ Policies today (minimal, a full permissions pass is still open):
 - `classes`: read if you teach it, created it, are enrolled, or are admin; insert by instructors and admins; update and delete if `can_manage_class` (teacher, creator, or admin).
 - `class_modules`, `class_students`, `assignments`: full access if `can_manage_class`.
 - `activity_attempts`: students insert their own; read by the student, their teacher, or admin.
+- `assignment_submissions`: read and update (grade) if `can_manage_class`. No insert or delete policy yet: instructors never create or delete student work, and student inserts wait for student sign-in.
+  RLS hides rows instead of erroring, so `liveStore.ts` treats an update that matched no rows as a permission error.
 - `api_keys`: no policies (service role only).
 
 Known gaps for the permissions pass:
@@ -102,6 +113,7 @@ Known gaps for the permissions pass:
 
 - Supabase keeps `pgcrypto` in the `extensions` schema: call `extensions.crypt(...)` and `extensions.gen_salt(...)`, not the bare names.
 - `INSERT ... RETURNING` on `classes` needs a select policy that matches before triggers run, hence the "creator reads class" policy.
+- In a `union all` insert, string literals are typed as text; cast ids with `::uuid`.
 - `due_at` is stored as a UTC timestamp; the app converts it to and from the browser's local time for the `datetime-local` input (`isoToLocal`, `localToIso` in `liveStore.ts`).
 
 ## Resetting before real data

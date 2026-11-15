@@ -47,6 +47,9 @@ Renaming one of the two branches on GitHub fixes it for everyone.
 - Live data: with Supabase keys set, the instructor workspace loads and saves classes, roster, assigned modules, assignments and course content (`src/instructor/liveStore.ts`).
   Only changed rows are written, one save at a time.
   A failed save shows an error and reloads from the database.
+- Grading (Grades tab, `src/instructor/assignments/Gradebook.tsx`): gradebook of students by published assignments with needs-grading, missing and late states, totals and CSV export.
+  Each cell opens the submission block by block; questions are auto-graded and can be overridden, written and code answers take points, feedback is saved.
+  Previous and next walk through the class.
 - Admin pages (Aryan, `src/admin/`) still read from `src/admin/mocks.ts`, not Supabase.
 
 ### Not done yet (pick these up)
@@ -54,16 +57,17 @@ Renaming one of the two branches on GitHub fixes it for everyone.
 1. **Student sign-in with class code + passcode.**
    Roster rows have passcodes, but nothing checks them.
    Plan: an Edge Function that verifies `classes.join_code` + `class_students.passcode` and signs the student in (creates or reuses an auth user, sets `class_students.profile_id`).
-2. **Assignment submissions.**
-   There is no table for student answers to assignments yet; Submitted and Avg columns show 0.
-   Add `assignment_submissions` (assignment, class student, responses jsonb, score, submitted_at) with RLS.
+2. **Students submitting assignments.**
+   The `assignment_submissions` table exists (migration 2002) and instructors can grade, but students cannot submit yet.
+   Needs student sign-in (item 1) plus an insert policy for the student's own row.
+   The Assignments list's Submitted and Avg columns still read curriculum attempts; switch them to submissions.
 3. **Progress for roster-only students.**
    `activity_attempts.student_id` points at `profiles`, so students without a login have no progress.
    Either give every student a login (item 1) or add `class_student_id` to attempts.
 4. **Permissions pass.**
    RLS is on for every table, but policies are minimal (see [`ruthvik-handoff-supabase.md`](ruthvik-handoff-supabase.md)).
    Instructors cannot edit admin-owned library courses; decide whether they copy the course first.
-5. **Grades tab** only shows curriculum progress, not assignment scores.
+5. **Grades for curriculum activities** (module checks, pre/post tests) live in a separate "Curriculum progress" view; they are not in the assignment gradebook.
 6. **Code runner (Pyodide)** is a placeholder in assignment code blocks and the module player.
 7. **Admin pages on live data** (`src/admin/api.ts` still returns mocks).
 8. **PR hygiene:** `ruthvik/class-tabs` is far over the 400-line guideline.
@@ -125,6 +129,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-14 6:00 PM, Ruthvik: grading. Migration 2002 (`assignment_submissions`) and `supabase/demo/grading_demo.sql` applied to the hosted project; gradebook and grading dialog in the Grades tab, live and mock.
 - 2026-11-14 5:35 PM, Ruthvik: deleted stale `ruthvik/instructor-in-app` (PR #9 had merged into it; nothing unique on it). Opened #13 (schema) and #14 (UI) into `main`.
 - 2026-11-14 5:25 PM, Ruthvik: pushed `ruthvik/schema-2001` (migration 2001 + seed fixes only) so teammates can get the schema without the UI work.
 - 2026-11-14 5:15 PM, Ruthvik: renamed to `ruthvik-handoff.md` and `ruthvik-handoff-supabase.md`.

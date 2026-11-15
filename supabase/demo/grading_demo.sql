@@ -25,14 +25,14 @@ with roster as (
   from class_students where class_id = '20000000-0000-0000-0000-000000000001'
 )
 insert into assignment_submissions (assignment_id, class_id, class_student_id, responses, manual_scores, feedback, submitted_at, graded_at)
-select '50000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', id,
+select '50000000-0000-0000-0000-000000000001'::uuid, '20000000-0000-0000-0000-000000000001'::uuid, id,
   jsonb_build_object('dq1', jsonb_build_array(case when rn % 4 = 3 then 0 else 1 end),
                      'dq2', jsonb_build_array(case when rn % 3 = 1 then 0 else 1 end),
                      'dq3', case when rn % 2 = 0 then 'print' else 'show' end),
   '{}'::jsonb, '', now() - (rn || ' hours')::interval, now()
 from roster where rn <= 6
 union all
-select '50000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000001', id,
+select '50000000-0000-0000-0000-000000000002'::uuid, '20000000-0000-0000-0000-000000000001'::uuid, id,
   case rn
     when 1 then '{"dw1": "My alarm goes off every 5 minutes until I get up.", "dw2": "for snooze in range(5): print(\"wake up\")"}'::jsonb
     when 2 then '{"dw1": "Practicing free throws: shoot, rebound, repeat.", "dw2": "for shot in range(10): shoot()"}'::jsonb
