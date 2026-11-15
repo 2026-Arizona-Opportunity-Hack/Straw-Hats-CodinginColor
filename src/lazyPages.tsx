@@ -15,6 +15,7 @@ export const StudentHome = lazy(() => import('./student/StudentHome.tsx').then(m
 export const StudentCourse = lazy(() => import('./student/StudentCourse.tsx').then(m => ({ default: m.StudentCourse })))
 export const StudentExplore = lazy(() => import('./student/StudentExplore.tsx').then(m => ({ default: m.StudentExplore })))
 export const PublishedDemo = lazy(() => import('./student/PublishedDemo.tsx').then(m => ({ default: m.PublishedDemo })))
+export const StarterQuiz = lazy(() => import('./student/placement/StarterQuiz.tsx').then(m => ({ default: m.StarterQuiz })))
 export const ModulePlayer = lazy(() => import('./student/ModulePlayer.tsx').then(m => ({ default: m.ModulePlayer })))
 
 /** A page for these roles, with a loading message while its code downloads. */
