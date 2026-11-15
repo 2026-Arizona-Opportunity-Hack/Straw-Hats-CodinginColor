@@ -37,7 +37,7 @@ export function CurriculumList({ courses, reviewer = false, onCreate, onImport }
           <div className="ic-class-mark"><BookOpen size={21} /></div>
           <div><h2><a href={`#/${reviewer ? 'review' : 'curriculum'}/${course.id}`}>{course.title}</a></h2>
             {course.description && <p>{course.description}</p>}
-            <span className="ic-note">{course.level} · {published} published{!reviewer && ` · ${course.modules.length - published} draft`}{course.copiedFrom && ' · Your copy of a library course'}</span>
+            <span className="ic-note">{course.level} · {published} published{!reviewer && ` · ${course.modules.length - published} draft`}</span>
           </div><a className="ic-button" href={`#/${reviewer ? 'review' : 'curriculum'}/${course.id}`}>{reviewer ? 'Browse course' : 'Open builder'} <ArrowRight size={16} /></a>
         </article>;
       })}

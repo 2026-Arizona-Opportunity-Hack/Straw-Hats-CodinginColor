@@ -43,7 +43,7 @@ function LiveWorkspace({ role, hash, userId, name }: { role: StaffRole; hash: st
       })
     },
     importCourse: source => importLibraryCourse(client, source.id),
-  } : null, [data, client, userId, queryClient, queryKey, queue])
+  } : null, [data, client, userId, role, queryClient, queryKey, queue])
 
   if (isPending) return <p className="p-6" role="status">Loading your classes…</p>
   if (error || !store) {

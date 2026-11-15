@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Library } from 'lucide-react';
+import { Download, Library } from 'lucide-react';
 import type { Course } from './model';
 
 /**
@@ -25,7 +25,7 @@ export function LibraryImport({ courses, onImport, onImported, headingLevel = 3 
     setError('');
     try {
       const copy = await onImport(source);
-      setStatus(`Imported your own copy of ${source.title}. Edit it any time in Curriculum; the library course stays the same.`);
+      setStatus(`Imported ${source.title}. You can change it any time in Curriculum.`);
       if (copy) onImported?.(copy);
     } catch (problem) {
       setStatus('');
@@ -37,7 +37,7 @@ export function LibraryImport({ courses, onImport, onImported, headingLevel = 3 
 
   return <section className="ic-library" aria-labelledby="ic-library-heading">
     <Heading id="ic-library-heading"><Library size={18} aria-hidden="true" /> Import from library</Heading>
-    <p className="ic-note">Start from a ready-made course. Importing makes your own copy that you can use as is or edit; the library course is not changed.</p>
+    <p className="ic-note">Start from a ready-made course. Use it as is or change it to fit your class.</p>
     <ul className="ic-stack">
       {library.map(course => {
         const modules = course.modules.filter(module => module.published).length;
@@ -47,8 +47,8 @@ export function LibraryImport({ courses, onImport, onImported, headingLevel = 3 
             {course.description && <p>{course.description}</p>}
             <span className="ic-note">{course.level} · {modules} {modules === 1 ? 'module' : 'modules'}</span>
           </div>
-          <button type="button" className="ic-button" disabled={busy !== null} aria-label={`Import a copy of ${course.title}`} onClick={() => void importCourse(course)}>
-            <Copy size={15} aria-hidden="true" /> {busy === course.id ? 'Importing…' : 'Import a copy'}
+          <button type="button" className="ic-button" disabled={busy !== null} aria-label={`Import ${course.title}`} onClick={() => void importCourse(course)}>
+            <Download size={15} aria-hidden="true" /> {busy === course.id ? 'Importing…' : 'Import'}
           </button>
         </li>;
       })}
