@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { BarChart3, BookOpen, Eye, GraduationCap, Library, Pencil, Settings } from 'lucide-react';
 import { ClassSetup } from './ClassSetup';
-import { ClassDashboard, ClassList } from './Classes';
+import { ClassDashboard, ClassList, type ClassProgressSource } from './Classes';
 import { copiedModuleIds } from './classCurriculum';
 import { isClassTab } from './classTabIds';
 import { CourseBuilder, CourseReviewer, CurriculumList } from './Curriculum';
@@ -38,12 +38,13 @@ function initialProfile() {
  * main app's sidebar layout; the signed-in role picks the profile and the router supplies the hash.
  */
 export function InstructorWorkspace({
-  store = browserInstructorStore, role, hash, authorId,
+  store = browserInstructorStore, role, hash, authorId, progressSource,
 }: {
   store?: InstructorStore;
   role?: StaffRole;
   hash?: string;
   authorId?: string;
+  progressSource?: ClassProgressSource;
 }) {
   const embedded = role !== undefined;
   const draftsLocal = store === browserInstructorStore;
@@ -287,12 +288,13 @@ export function InstructorWorkspace({
     if (section === 'classes') {
       if (item === 'new') return <ClassSetup courses={data.courses} classes={data.classes} onCreate={createClass} onImport={importCourse} />;
       if (group) return <ClassDashboard key={group.id} group={group} course={course} onSave={saveClass} justCreated={newClass === group.id} tab={isClassTab(subpage) ? subpage : 'dashboard'} detail={detail} otherClasses={visibleClasses}
+        progressSource={progressSource}
         onAddStudents={students => addRosterStudents(group.id, students)}
         editor={subpage === 'curriculum' && detail === 'edit' && course && !course.library
           ? builderFor(course.id, { inClass: { className: group.name, backTo: `#/classes/${group.id}/curriculum/view` } }) : undefined}
         blockActions={activity => comments(activity, group.id)}
         onMakeEditable={course?.library ? () => makeClassEditable(group, course) : undefined} />;
-      if (!item) return <ClassList groups={visibleClasses} courses={data.courses} />;
+      if (!item) return <ClassList groups={visibleClasses} courses={data.courses} showProgress={!progressSource} />;
     }
     if (section === 'curriculum') {
       if (!item) return catalogPage();

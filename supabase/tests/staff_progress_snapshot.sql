@@ -6,8 +6,9 @@ declare
   student uuid := gen_random_uuid(); exhausted uuid := gen_random_uuid(); other_student uuid := gen_random_uuid();
   solo uuid := gen_random_uuid(); reviewer uuid := gen_random_uuid();
   course uuid := gen_random_uuid(); classroom uuid := gen_random_uuid(); other_class uuid := gen_random_uuid();
+  empty_class uuid := gen_random_uuid(); missing_class uuid := gen_random_uuid();
   m uuid := gen_random_uuid(); next_m uuid := gen_random_uuid(); l uuid := gen_random_uuid();
-  pre uuid := gen_random_uuid(); post uuid := gen_random_uuid(); report jsonb; rows jsonb; who uuid;
+  pre uuid := gen_random_uuid(); post uuid := gen_random_uuid(); report jsonb; rows jsonb; expected jsonb; who uuid;
 begin
   insert into auth.users (id) values (teacher), (other_teacher), (admin_id), (student), (exhausted), (other_student), (solo), (reviewer);
   update profiles set role = 'instructor' where id in (teacher, other_teacher);
@@ -20,8 +21,13 @@ begin
   insert into lessons (id, module_id, position, title) values (l, m, 1, 'First');
   insert into activities (id, lesson_id, position, type, concept) values (pre, l, 1, 'pretest', 'A'), (post, l, 2, 'posttest', 'A');
   insert into classes (id, name, school, course_id, join_code, created_by) values
-    (classroom, 'Mine', 'School', course, classroom::text, teacher), (other_class, 'Other', 'School', course, other_class::text, other_teacher);
+    (classroom, 'Mine', 'School', course, classroom::text, teacher),
+    (other_class, 'Other', 'School', course, other_class::text, other_teacher),
+    (empty_class, 'Empty', 'School', course, empty_class::text, other_teacher);
+  insert into class_instructors (class_id, instructor_id) values (empty_class, teacher);
   insert into enrollments (class_id, student_id) values (classroom, student), (classroom, exhausted), (other_class, other_student);
+  -- A later enrollment in the same library course does not move the student's canonical class.
+  insert into enrollments (class_id, student_id, joined_at) values (other_class, student, now() + interval '1 day');
   insert into course_enrollments (student_id, course_id) values (solo, course);
   insert into module_rules (class_id, module_id, max_posttest_tries) values (classroom, m, 2);
   insert into activity_attempts (student_id, activity_id, class_id, attempt_no, score) values
@@ -36,6 +42,11 @@ begin
     raise exception 'Anonymous caller accepted';
   exception when insufficient_privilege then null;
   end;
+  begin
+    perform public.staff_class_progress(classroom);
+    raise exception 'Anonymous class progress caller accepted';
+  exception when insufficient_privilege then null;
+  end;
   reset role;
   set local role authenticated;
   foreach who in array array[student, reviewer] loop
@@ -43,6 +54,11 @@ begin
     begin
       perform public.staff_progress_snapshot();
       raise exception 'Non-staff caller accepted';
+    exception when insufficient_privilege then null;
+    end;
+    begin
+      perform public.staff_class_progress(classroom);
+      raise exception 'Non-staff class progress caller accepted';
     exception when insufficient_privilege then null;
     end;
   end loop;
@@ -58,6 +74,18 @@ begin
   if not rows @> jsonb_build_array(jsonb_build_object('student_id', exhausted, 'module_id', m, 'state', 'completed', 'posttest_best', 0.4)) then
     raise exception 'Exhausted counted attempts reported incomplete';
   end if;
+  if public.staff_class_progress(classroom) is distinct from report then
+    raise exception 'Scoped instructor report differs from canonical snapshot';
+  end if;
+  if public.staff_class_progress(empty_class) is distinct from '{"modules":[]}'::jsonb then
+    raise exception 'Assigned instructor received an invalid empty-class report';
+  end if;
+  begin
+    perform public.staff_class_progress(other_class);
+    raise exception 'Instructor retrieved progress from an unmanaged class';
+  exception when insufficient_privilege then null;
+  end;
+
   perform set_config('request.jwt.claim.sub', admin_id::text, true);
   rows := public.staff_progress_snapshot()->'modules';
   if jsonb_array_length(rows) <> 8 or not rows @> jsonb_build_array(jsonb_build_object('student_id', solo, 'class_id', null)) then
@@ -69,15 +97,39 @@ begin
   if not rows @> jsonb_build_array(jsonb_build_object('student_id', solo, 'module_id', next_m, 'state', 'locked')) then
     raise exception 'Sequential lock lost';
   end if;
-  reset role;
-  update profiles set archived_at = now() where id = teacher;
-  set local role authenticated;
-  perform set_config('request.jwt.claim.sub', teacher::text, true);
+  select jsonb_agg(entry order by position) into expected
+  from jsonb_array_elements(rows) with ordinality as filtered(entry, position)
+  where entry->>'class_id' = other_class::text;
+  if public.staff_class_progress(other_class) is distinct from jsonb_build_object('modules', expected) then
+    raise exception 'Scoped admin report differs from the requested class in the canonical snapshot';
+  end if;
   begin
-    perform public.staff_progress_snapshot();
-    raise exception 'Archived teacher accepted';
+    perform public.staff_class_progress(missing_class);
+    raise exception 'Missing class accepted';
   exception when insufficient_privilege then null;
   end;
+  begin
+    perform public.staff_class_progress(null);
+    raise exception 'Class progress accepted a null class';
+  exception when invalid_parameter_value then null;
+  end;
+
+  reset role;
+  update profiles set archived_at = now() where id in (teacher, admin_id);
+  set local role authenticated;
+  foreach who in array array[teacher, admin_id] loop
+    perform set_config('request.jwt.claim.sub', who::text, true);
+    begin
+      perform public.staff_progress_snapshot();
+      raise exception 'Archived staff accepted';
+    exception when insufficient_privilege then null;
+    end;
+    begin
+      perform public.staff_class_progress(classroom);
+      raise exception 'Archived staff class progress caller accepted';
+    exception when insufficient_privilege then null;
+    end;
+  end loop;
   reset role;
 end $$;
 select 'staff_progress_snapshot: all checks passed' as result;

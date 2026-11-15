@@ -1,10 +1,28 @@
 // Curriculum progress for one class. Every threshold (pass mark, post-test tries, inactive days)
 // comes from the class's rules, loaded from the database (migration 2006), never from constants.
 import type { Attempt, ClassGroup, Course, Learner } from './model';
+import type { StaffModuleProgress } from '../shared/staffProgress';
 
 export const statuses = ['Complete', 'In progress', 'Stuck', 'Not started'] as const;
 
 const DAY = 86_400_000;
+
+export function withClassProgress(group: ClassGroup, rows: StaffModuleProgress[]): ClassGroup {
+  const byStudent = new Map<string, StaffModuleProgress[]>();
+  for (const row of rows) {
+    if (row.class_id !== group.id || row.course_id !== group.courseId) continue;
+    const progress = byStudent.get(row.student_id) ?? [];
+    progress.push(row);
+    byStudent.set(row.student_id, progress);
+  }
+  return {
+    ...group,
+    learners: group.learners.map(learner => ({
+      ...learner,
+      moduleProgress: byStudent.get(learner.profileId ?? '') ?? [],
+    })),
+  };
+}
 
 export function assignedModules(group: ClassGroup, course?: Course) {
   const ids = group.progressModuleIds ?? group.moduleIds;
