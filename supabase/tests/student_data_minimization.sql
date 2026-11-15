@@ -1,5 +1,7 @@
 -- Run against a disposable migrated Supabase database as postgres.
 begin;
+-- Exercise deferred INSERT validation before changing the simulated request role.
+set constraints auth.guard_student_creation immediate;
 create function pg_temp.expect_denied(q text, expected text) returns void
 language plpgsql as $$
 begin

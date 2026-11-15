@@ -1,6 +1,8 @@
 -- Disposable migrated database only. Simulate PostgREST and Auth worker sessions,
 -- not just SET ROLE under postgres (which is intentionally trusted for seeds).
 begin;
+-- Exercise deferred INSERT validation before changing the simulated request role.
+set constraints auth.guard_student_creation immediate;
 create function pg_temp.expect_denied(q text, expected text) returns void
 language plpgsql as $$
 begin

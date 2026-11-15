@@ -188,6 +188,12 @@ This is the database prerequisite for the separate completion-reporting UI PR.
 Validate with `supabase/tests/staff_progress_snapshot.sql` on a migrated disposable database.
 Migration 3008 has not been applied to hosted.
 
+## Migration 3014: roster Auth metadata timing (not applied)
+
+Live card-login verification exposed a Supabase Auth ordering issue: `admin.createUser` inserts `auth.users` before applying its trusted `app_metadata` in the same transaction ([Auth source](https://github.com/supabase/auth/blob/master/internal/api/admin.go)). Migration 3014 retains the immediate email guard and permits only an existing roster's exact `@students.cic.invalid` address to await a deferred final-row check. That check still requires the server-owned roster marker; client metadata never authorizes an identity. Personal email signup and student email changes remain immediately rejected. This matters because [Auth signup](https://github.com/supabase/auth/blob/master/internal/api/signup.go) can send confirmation mail before transaction commit.
+
+Run `supabase/tests/roster_auth_metadata_timing.sql` plus the existing privacy suites against a disposable migrated database. They use the actual Auth worker session and force deferred validation before changing roles. Migration 3014 requires review and hosted application before the live card-login retry; this commit does not change hosted data.
+
 ## Gotchas we already hit
 
 - Supabase keeps `pgcrypto` in the `extensions` schema: call `extensions.crypt(...)` and `extensions.gen_salt(...)`, not the bare names.
@@ -216,3 +222,5 @@ Delete demo auth users and rows (or create a fresh project), apply migrations wi
 
 - 2026-11-15, Codex: added migrations 2010 and 3009 with local RLS regressions for course/content/answer-key writes and class access after staff demotion or archiving; not applied to hosted.
 - 2026-11-15, Codex: reconciled 2010 with 2011 isolation and added 2013 for legitimate course creation; fresh/late migration-order tests preserve co-teacher/private scope and cover upsert/RETURNING under actual RLS.
+
+- 2026-11-15, Codex: added 3014 to accommodate the supported Auth create-user transaction without allowing unmarked synthetic identities or delaying personal-email rejection. Added two-stage privacy regressions; hosted application and successful live card retry remain pending.
