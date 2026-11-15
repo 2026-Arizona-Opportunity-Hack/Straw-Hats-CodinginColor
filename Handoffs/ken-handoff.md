@@ -185,3 +185,5 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 - 2026-11-14, Codex: added reviewed proposal conversion with approved references and editable article blocks.
 
 - 2026-11-14, Codex: added PowerPoint text, speaker notes, and opt-in image analysis to the converter.
+
+- 2026-11-15, Codex: corrected the [README startup commands](../README.md#run-it-locally) and verified them in a fresh clone.

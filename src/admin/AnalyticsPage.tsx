@@ -176,7 +176,7 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
             Plus {a.selfPaced.students} self-paced {a.selfPaced.students === 1 ? 'learner' : 'learners'} taking courses on their own: {a.selfPaced.modulesDone} {a.selfPaced.modulesDone === 1 ? 'module' : 'modules'} completed ({fmtPct(a.selfPaced.completionPct)}), {fmtMinutes(a.selfPaced.timeOnTaskMs)} of learning, average gain {fmtGain(a.selfPaced.avgGain)}.
           </p>
         )}
-        <p className="mt-5 text-sm text-sidebar-muted">Every number is calculated from real student work in CIC Learn. Nothing is entered by hand.</p>
+        <p className="mt-5 text-sm text-sidebar-muted">Learning gain reflects {a.overall.assessmentPairs} matched student/module pairs. Every number is calculated from real student work in CIC Learn. Nothing is entered by hand.</p>
       </section>
 
       {/* Overall progress */}
@@ -224,9 +224,10 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
       <section id="growth" aria-labelledby="growth-h" className="scroll-mt-32">
         <h2 id="growth-h" className="text-2xl">Learning growth</h2>
         <p className="mb-4 mt-1 text-cic-muted">How far students moved from the pretest (before) to the post-test (after) in each module.</p>
+        <p className="mb-4 text-sm text-cic-muted">Pretest, post-test and gain averages use the same matched student/module pairs. A student contributes one pair for each module with both scores; unmatched scores are excluded.</p>
         <div className="grid gap-6 lg:grid-cols-5">
           <Card className="lg:col-span-3" title="Before → after, by module">
-            <GrowthRows rows={a.byModule.map((m) => ({ label: m.label, pre: m.avgPre, post: m.avgPost }))} />
+            <GrowthRows rows={a.byModule.map((m) => ({ label: m.label, pre: m.avgPre, post: m.avgPost, pairs: m.assessmentPairs }))} />
           </Card>
           <Card className="lg:col-span-2" title="Learning gain by class" description="Average percentage-point gain.">
             {a.byClass.some((r) => r.avgGain != null) ? (
@@ -333,7 +334,7 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
           <thead>
             <tr>
               <Th>{GROUPS[by]}</Th><Th className="text-right">Students</Th><Th>Completion</Th>
-              <Th className="text-right">Pretest</Th><Th className="text-right">Post-test</Th><Th className="text-right">Gain</Th>
+              <Th className="text-right">Matched pairs</Th><Th className="text-right">Pretest</Th><Th className="text-right">Post-test</Th><Th className="text-right">Gain</Th>
               {by !== 'module' && <><Th className="text-right">Stuck</Th><Th className="text-right">Not started</Th></>}
             </tr>
           </thead>
@@ -345,6 +346,7 @@ function Report({ data, a, by, setBy }: { data: OrgData; a: ReturnType<typeof an
                 </Td>
                 <Td className="text-right tabular-nums">{r.students}</Td>
                 <Td><Meter value={r.completionPct} label="Completion" /></Td>
+                <Td className="text-right tabular-nums">{r.assessmentPairs}</Td>
                 <Td className="text-right tabular-nums">{fmtPct(r.avgPre)}</Td>
                 <Td className="text-right tabular-nums">{fmtPct(r.avgPost)}</Td>
                 <Td className="text-right font-semibold tabular-nums">{fmtGain(r.avgGain)}</Td>
