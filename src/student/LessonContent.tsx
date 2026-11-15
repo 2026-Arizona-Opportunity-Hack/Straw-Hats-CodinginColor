@@ -159,6 +159,9 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
         if (payload.lab?.verifier === 'cat-photo-v1') {
           return <CodeLab payload={payload} verifyWeb={verifyLab ?? previewCatPhotoChecks} storageKey={labStorageKey} completed={status?.submitted} />
         }
+        if (payload.lab?.verifier === 'web-practice-v1') {
+          return <><CodeLab payload={payload} storageKey={labStorageKey} allowSubmit={false} />{!done && complete}</>
+        }
         const { starter_code, prompt } = payload
         return <>{starter_code && <pre className="overflow-auto"><code>{starter_code}</code></pre>}
           {responseForm([{ id: 'code', prompt: prompt || 'Write your code' }])}</>

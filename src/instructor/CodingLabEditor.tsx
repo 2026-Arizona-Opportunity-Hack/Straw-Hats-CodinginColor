@@ -11,6 +11,7 @@ const Editor = lazy(() => import('../shared/ui/SourceEditor.tsx').then(module =>
 export function CodingLabEditor({ activity, onChange }: { activity: Activity; onChange: (code: NonNullable<Activity['code']>) => void }) {
   const payload = labPayload(activity)
   const config = payload.lab
+  const webPractice = config.verifier === 'web-practice-v1'
   const [tryStarter, setTryStarter] = useState(false)
   const defaults = { starter: '', tests: '', solution: '', ...activity.code }
   const setLab = (lab: CodingLabSettings) => onChange({ ...defaults, lab })
@@ -20,9 +21,9 @@ export function CodingLabEditor({ activity, onChange }: { activity: Activity; on
     setLab({ ...config, language, checks: [] })
   }
   return <div className="ic-stack">
-    <label>Language<select value={config.language} onChange={event => changeLanguage(event.target.value as CodingLabSettings['language'])}>
+    {!webPractice && <label>Language<select value={config.language} onChange={event => changeLanguage(event.target.value as CodingLabSettings['language'])}>
       <option value="python">Python</option><option value="web">HTML/CSS</option>
-    </select></label>
+    </select></label>}
     <div><strong>{config.language === 'web' ? 'Starter HTML' : 'Starter Python'}</strong>
       <Suspense fallback={<p>Loading code editor…</p>}><Editor label="Starter code" language={config.language === 'web' ? 'html' : 'python'}
         value={payload.starter_code} onChange={starter => onChange({ ...defaults, starter, lab: config })} /></Suspense>
@@ -31,7 +32,9 @@ export function CodingLabEditor({ activity, onChange }: { activity: Activity; on
       <Suspense fallback={<p>Loading code editor…</p>}><Editor label="Starter CSS" language="css" value={config.starterCss ?? ''}
         onChange={starterCss => setLab({ ...config, starterCss })} /></Suspense>
     </div>}
-    <fieldset className="ic-stack"><legend>Practice checks</legend>
+    {webPractice ? <section><h4>Practice checks</h4><ul>
+      {config.checks.map((check, index) => <li key={index}>{check.name}</li>)}
+    </ul></section> : <fieldset className="ic-stack"><legend>Practice checks</legend>
       <p className="ic-note">{config.language === 'python' ? 'Compare the printed output to the expected result.' : 'Check whether an element exists and optionally match its text.'}</p>
       {config.checks.map((check, index) => {
         const update = (patch: Partial<typeof check>) => setLab({ ...config, checks: config.checks.map((item, i) => i === index ? { ...item, ...patch } : item) })
@@ -43,10 +46,10 @@ export function CodingLabEditor({ activity, onChange }: { activity: Activity; on
         </fieldset>
       })}
       <button type="button" className="ic-button ic-fit" onClick={() => setLab({ ...config, checks: [...config.checks, { name: '', expected: '' }] })}>Add practice check</button>
-    </fieldset>
+    </fieldset>}
     <button type="button" className="ic-button ic-fit" onClick={() => setTryStarter(true)}>Try starter code</button>
     {tryStarter && <Dialog wide title="Try the coding lab" onClose={() => setTryStarter(false)}>
-      <CodeLab payload={payload} enabled={isLocalDemo} />
+      <CodeLab payload={payload} enabled={isLocalDemo || webPractice} />
     </Dialog>}
   </div>
 }

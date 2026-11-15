@@ -1,3 +1,4 @@
+import { parseWebPracticeChecks } from '../shared/labs/webPracticeChecks';
 // Supabase-backed data for the instructor workspace. Loads courses, classes, rosters,
 // assignments and progress, and writes back only what changed. Row Level Security decides
 // what the signed-in person can read or change (supabase/migrations/2001_instructor_workspace.sql).
@@ -84,6 +85,10 @@ function toActivity(row: Row): Activity {
   if (type === 'code') {
     const lab = content.lab as Json | undefined;
     activity.code = { starter: str(content.starter_code), tests, solution: str(content.solution) };
+    if (lab?.verifier === 'web-practice-v1') {
+      const checks = parseWebPracticeChecks(lab.checks);
+      if (checks) activity.code.lab = { language: 'web', verifier: 'web-practice-v1', starterCss: str(lab.starterCss), checks };
+    }
     if (lab?.verifier === 'cat-photo-v1') activity.code.lab = {
       language: 'web', verifier: 'cat-photo-v1', starterCss: str(lab.starterCss), checks: [],
     };
@@ -124,7 +129,7 @@ export function activityContent(activity: Activity): Json {
       ...base, prompt: activity.markdown, markdown: activity.markdown, starter_code: activity.code?.starter ?? '',
       tests: (activity.code?.tests ?? '').split('\n').filter(line => line.trim()).map((assertion, i) => ({ name: 'Test ' + (i + 1), assertion })),
       solution: activity.code?.solution ?? '',
-      ...(activity.code?.lab?.verifier === 'cat-photo-v1' ? { lab: activity.code.lab } : {}),
+      ...(activity.code?.lab?.verifier ? { lab: activity.code.lab } : {}),
     };
   }
 }

@@ -191,7 +191,7 @@ export function unresolvedModuleContent(module: Module): string | null {
       if (activity.type === 'code' && activity.code?.lab) {
         const { starter, lab } = activity.code;
         if (starter.length > 48_000 || (lab.starterCss?.length ?? 0) > 48_000) return 'Starter files must be at most 48,000 characters.';
-        if (lab.checks.some(check => !check.name.trim() || (lab.language === 'web' && !check.selector?.trim()))) {
+        if (lab.checks.some(check => !check.name.trim() || (lab.language === 'web' && check.kind !== 'stylesheet' && !check.selector?.trim()))) {
           return 'Name each lab check and provide a selector for each HTML/CSS check.';
         }
       }

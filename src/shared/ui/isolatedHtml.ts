@@ -9,7 +9,7 @@ export const heightScript = '(function(){var last=0;function send(){var h=Math.c
 export const heightScriptHash = 'sha256-A+9TKsFjXCSZ+Y4HYuKNLoSKSfwL8/huYcspDogRJdw='
 const removedTags = new Set(['base', 'link', 'iframe', 'frame', 'frameset', 'object', 'embed', 'portal', 'fencedframe'])
 
-export function isolatedHtml(source: string, scripts: boolean, css = '') {
+export function isolatedHtml(source: string, scripts: boolean, css = '', reportHeight = true) {
   const document = parse(source)
   const root = document.childNodes.find(node => node.nodeName === 'html') as DefaultTreeAdapterTypes.Element
   const head = root.childNodes.find(node => node.nodeName === 'head') as DefaultTreeAdapterTypes.Element
@@ -17,7 +17,7 @@ export function isolatedHtml(source: string, scripts: boolean, css = '') {
     "default-src 'none'", "connect-src 'none'", "form-action 'none'", "base-uri 'none'",
     "object-src 'none'", "frame-src 'none'", "worker-src 'none'", "img-src data:",
     "media-src data:", "font-src data:", "style-src 'unsafe-inline'",
-    scripts ? "script-src 'unsafe-inline'" : "script-src '" + heightScriptHash + "'",
+    scripts ? "script-src 'unsafe-inline'" : reportHeight ? "script-src '" + heightScriptHash + "'" : "script-src 'none'",
   ].join('; ')
   const settings = parseFragment(
     '<meta http-equiv="Content-Security-Policy" content="' + policy + '">' +
@@ -39,9 +39,12 @@ export function isolatedHtml(source: string, scripts: boolean, css = '') {
   }
 
   strip(root)
-  const height = parseFragment('<script></script>').childNodes[0] as DefaultTreeAdapterTypes.Element
-  height.childNodes.push({ nodeName: '#text', value: heightScript, parentNode: height })
-  head.childNodes.unshift(...settings.childNodes, height)
+  if (reportHeight) {
+    const height = parseFragment('<script></script>').childNodes[0] as DefaultTreeAdapterTypes.Element
+    height.childNodes.push({ nodeName: '#text', value: heightScript, parentNode: height })
+    head.childNodes.unshift(height)
+  }
+  head.childNodes.unshift(...settings.childNodes)
   if (css) {
     const style = parseFragment('<style></style>').childNodes[0] as DefaultTreeAdapterTypes.Element
     style.childNodes.push({ nodeName: '#text', value: css.replace(/<\/style/gi, '<\\/style'), parentNode: style })
