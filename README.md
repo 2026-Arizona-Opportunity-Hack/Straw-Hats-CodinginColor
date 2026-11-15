@@ -51,6 +51,8 @@ Judges score **Scope, Documentation, Polish and Security**, plus a separate **Ac
 
 <!-- Two or three sentences: the problem, who it helps, what the nonprofit can do now that they couldn't before -->
 
+The public homepage at `/` introduces AI Academy and Responsive Web Development, with links to the existing login and student sign-up forms. Remaining subject cards highlight planned courses.
+
 ## Tech stack
 
 - Frontend: React 19, Vite, TypeScript, Tailwind CSS 4, React Router, TanStack Query

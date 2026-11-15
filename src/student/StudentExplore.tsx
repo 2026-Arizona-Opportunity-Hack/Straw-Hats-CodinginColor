@@ -18,7 +18,7 @@ export function StudentExplore() {
   const { profile } = useAuth()
   const [params, setParams] = useSearchParams()
   const lang = params.get('lang') ?? ''
-  const [search, setSearch] = useState('')
+  const search = params.get('search') ?? ''
   const [openId, setOpenId] = useState<string | null>(null)
   const { data: catalog = [], isLoading, isError } = useQuery({ queryKey: ['catalog'], queryFn: listCatalog })
   const { data: modules = [] } = useQuery({ queryKey: ['catalogModules'], queryFn: listCatalogModules })
@@ -39,7 +39,14 @@ export function StudentExplore() {
     .filter((c) => !q || c.title.toLowerCase().includes(q) || blurb(c).toLowerCase().includes(q))
     .sort((a, b) => Number(isShowcase(a.id)) - Number(isShowcase(b.id)))
   const openCourse = courses.find((c) => c.id === openId)
-  const pick = (key: string) => setParams(key ? { lang: key } : {}, { replace: true })
+  function setFilter(name: 'lang' | 'search', value: string) {
+    setParams(previous => {
+      const next = new URLSearchParams(previous)
+      if (value) next.set(name, value)
+      else next.delete(name)
+      return next
+    }, { replace: true, preventScrollReset: true })
+  }
 
   return (
     <>
@@ -47,13 +54,13 @@ export function StudentExplore() {
         <h1 className="text-3xl font-bold sm:text-4xl" style={{ color: '#fff' }}>Explore courses</h1>
         <p className="mt-2 text-lg text-white/85">Open a course to see what you'll learn, then add it to your courses.</p>
         <label htmlFor="explore-search" className="sr-only">Search courses</label>
-        <input id="explore-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search courses…"
+        <input id="explore-search" type="search" value={search} onChange={(e) => setFilter('search', e.target.value)} placeholder="Search courses…"
           className="mx-auto mt-6 block h-12 w-full max-w-md rounded-full border-0 bg-white px-5 text-black shadow-lg outline-none focus:ring-4 focus:ring-[#9fe0bd]" />
       </header>
 
       <div role="group" aria-label="Filter by subject" className="mt-8 flex flex-wrap gap-2">
         {[{ key: '', label: 'All' }, ...languages.map((l) => ({ key: l.key, label: l.key }))].map((chip) => (
-          <button key={chip.key} type="button" aria-pressed={lang === chip.key} onClick={() => pick(chip.key)} className="ex-chip">
+          <button key={chip.key} type="button" aria-pressed={lang === chip.key} onClick={() => setFilter('lang', chip.key)} className="ex-chip">
             {chip.label}
           </button>
         ))}

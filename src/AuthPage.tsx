@@ -6,6 +6,7 @@ import { isMockMode, supabase } from './shared/supabase.ts'
 import type { Role } from './shared/types/db.ts'
 import { Button, Card, Field, FormStatus, Input, PageHeader } from './shared/ui/index.tsx'
 import { signInStudent, signInWithGoogle, signInWithRoster } from './api/student/auth.ts'
+import { featuredCoursePath } from './home/featuredCourses.ts'
 import { StudentSignupForm } from './student/auth/StudentSignupForm.tsx'
 
 function GoogleIcon() {
@@ -148,15 +149,26 @@ export function AuthPage({ signup = false }: { signup?: boolean }) {
   const { profile, loading, signInAsMock } = useAuth()
   const [params, setParams] = useSearchParams()
   const audience: Audience = params.get('audience') === 'educator' ? 'educator' : 'student'
-  const otherPage = `${signup ? '/login' : '/signup'}${audience === 'educator' ? '?audience=educator' : ''}`
+  const course = params.get('course')
+  const coursePath = featuredCoursePath(course)
+  const accountParams = new URLSearchParams()
+  if (course && coursePath) accountParams.set('course', course)
+  if (audience === 'educator') accountParams.set('audience', audience)
+  const otherPage = (signup ? '/login' : '/signup') + (accountParams.size ? '?' + accountParams.toString() : '')
 
-  if (profile) return <Navigate to={homePathFor(profile.role)} replace />
+  function chooseAudience(next: Audience) {
+    if (next === 'educator') accountParams.set('audience', next)
+    else accountParams.delete('audience')
+    setParams(accountParams, { replace: true })
+  }
+
+  if (profile) return <Navigate to={(profile.role === 'student' && coursePath) || homePathFor(profile.role)} replace />
 
   return (
     <main className="mx-auto max-w-md px-4 py-16">
-      <span className="mb-5 inline-grid size-18 place-items-center rounded-2xl border border-black/5 bg-white p-2 shadow-sm">
+      <Link to="/" aria-label="CIC Learn home" className="mb-5 inline-grid size-18 place-items-center rounded-2xl border border-black/5 bg-white p-2 shadow-sm">
         <img src="/cic-logo.png" alt="Coding in Color" width={56} height={56} className="size-14 object-contain" />
-      </span>
+      </Link>
       <PageHeader title={signup ? 'Create an account' : 'Sign in'} subtitle="CIC Learn" />
       {loading ? (
         <p role="status" className="text-sm text-cic-muted">Checking your sign-in…</p>
@@ -165,7 +177,7 @@ export function AuthPage({ signup = false }: { signup?: boolean }) {
           <div role="group" aria-label="Account type" className="mb-4 grid grid-cols-2 gap-1 rounded-xl bg-brand-tint p-1">
             {(['student', 'educator'] as const).map((option) => (
               <button key={option} type="button" aria-pressed={audience === option}
-                onClick={() => setParams(option === 'educator' ? { audience: option } : {}, { replace: true })}
+                onClick={() => chooseAudience(option)}
                 className={`min-h-11 rounded-lg text-sm font-semibold ${
                   audience === option ? 'bg-white text-brand shadow-sm' : 'text-cic-muted hover:text-brand'
                 }`}>
