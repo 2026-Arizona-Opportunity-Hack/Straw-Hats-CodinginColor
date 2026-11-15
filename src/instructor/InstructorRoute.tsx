@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { supabase } from '../shared/supabase.ts'
 import { InstructorWorkspace } from './InstructorWorkspace.tsx'
-import { addLiveCourseToLibrary, importLibraryCourse, loadLiveClassSubmissions, loadLiveData, manageLiveModule, publishLiveCourse, saveLiveClass, saveLiveData } from './liveStore.ts'
+import { addLiveCourseToLibrary, createLiveSchoolClass, importLibraryCourse, loadLiveCurriculumSnapshot, loadLiveClassSubmissions, loadLiveData, manageLiveModule, publishLiveCourse, saveLiveClass, saveLiveData } from './liveStore.ts'
 import type { InstructorData, StaffRole } from './model.ts'
 import type { InstructorStore } from './store.ts'
 
@@ -60,6 +60,8 @@ function LiveWorkspace({ role, hash, userId, name }: { role: StaffRole; hash: st
         queue.run(() => manageLiveModule(client, courseId, moduleId, expectedRevision, action)).then(refreshProgress),
       addToLibrary: courseId => queue.run(() => addLiveCourseToLibrary(client, courseId)),
       importCourse: source => importLibraryCourse(client, source.id),
+      createSchoolClass: request => queue.run(() => createLiveSchoolClass(client, request)).then(refreshProgress),
+      loadCurriculumSnapshot: id => loadLiveCurriculumSnapshot(client, id),
     }
   }, [data, client, userId, role, queryClient, queryKey, progressKey, queue])
 

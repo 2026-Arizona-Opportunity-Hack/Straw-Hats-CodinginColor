@@ -234,6 +234,17 @@ Teacher module completion shows the share of enrolled learners who completed the
 Reload a report to refresh its database snapshot. Missing or denied snapshots show an error instead of estimated completion.
 Mock fixtures keep their local reporting behavior. The staff snapshot is private to active authorized staff and is separate from the organization's aggregate read API.
 
+#### Set up Salt River's ALA curriculum
+
+1. Apply [migration 3021](supabase/migrations/3021_school_curriculum.sql) after migrations through 3020, then deploy the app. Use the existing hosted curriculum and instructor accounts.
+2. In **Admin → Schools & classes → School curriculum**, select or add the verified Salt River school record. Grant access to the instructors approved to maintain ALA. School membership gives access to the shared template and school curriculum history. Class roster access follows class membership.
+3. Under **Existing class**, choose the Salt River class that holds the approved, published ALA curriculum. Under **Global original**, select the published CIC template ALA was adapted from. Choose **Create school template**. This copies the published modules and their answer keys, and links the source class to the school while preserving its existing enrollment and progress. Use **Link class to school** for additional verified classes.
+4. As a Salt River instructor, open **Curriculum → Salt River → ALA** and check the published module and lesson titles. In **Create a class**, choose Salt River and confirm ALA is preselected. Choose **Use global original** to verify the alternative module choices.
+
+In **Curriculum**, open the school template and publish changes there for future classes. Class setup preselects the school's published template when available. **Use global original** switches the course and module choices to the CIC template. Each class gets its own copy and retains its student activity history.
+
+The **Archive** action saves the class's published assigned curriculum under the school in **Curriculum → Archived curriculum**. Term-ended classes can use that action to capture their current curriculum. Earlier archives without a saved snapshot cannot be reconstructed. The local demo includes a sample Salt River ALA template and a sample archive.
+
 **Database needs.** On a real Supabase project the admin pages need admin policies that `0001` doesn't have yet: read `class_instructors`, `enrollments` and `class_modules`; manage `class_instructors` and `api_keys`; update `classes`. Archiving needs an `archived_at` column on `classes` and `profiles`, and the Overview cards need `instructor_issues` and `job_applications` tables. Until they exist, the pages say what's missing instead of showing zeros.
 
 **Demo data.** `supabase/seed.sql` adds 3 schools, 3 classes, 2 instructors and 16 students with realistic progress. Logins use password `cic-learn-demo`: `admin@cic.demo`, `teacher@cic.demo`, `ana.lopez@cic.demo`, `reviewer@cic.demo`.

@@ -129,6 +129,7 @@ interface NewClass {
   course_id: string
   join_code?: string
   instructor_id?: string
+  template?: { schoolId: string; classId: string; revision: number; moduleIds: string[] }
 }
 
 /** e.g. "Maryvale Period 3" → "MP3-482". Students type this to join. */
@@ -139,6 +140,16 @@ function makeJoinCode(name: string) {
 }
 
 export async function createClass(input: NewClass, adminId: string): Promise<{ join_code: string }> {
+  if (input.template) {
+    const { schoolId, classId, revision, moduleIds } = input.template
+    const { data, error } = await db().rpc('create_school_class', {
+      p_class_id: classId, p_school_id: schoolId, p_name: input.name, p_join_code: input.join_code || null,
+      p_source_course_id: input.course_id, p_source_revision: revision, p_module_ids: moduleIds,
+      p_instructor_id: input.instructor_id || null,
+    })
+    if (error) throw error.code === '23505' ? new Error('That join code is taken. Pick another.') : friendly(error, 'creating the class')
+    return { join_code: data.join_code }
+  }
   const join_code = (input.join_code?.trim() || makeJoinCode(input.name)).toUpperCase()
   const { data, error } = await db()
     .from('classes')
@@ -148,6 +159,55 @@ export async function createClass(input: NewClass, adminId: string): Promise<{ j
   if (error) throw error.code === '23505' ? new Error(`Join code ${join_code} is taken. Pick another.`) : friendly(error, 'creating the class')
   if (input.instructor_id) await addInstructor(data.id, input.instructor_id)
   return { join_code }
+}
+
+export const SCHOOL_CURRICULUM_KEY = ['school-curriculum-admin'] as const
+
+export async function loadSchoolCurriculumAdmin() {
+  const client = db()
+  const [schools, memberships, templates, courses] = await Promise.all([
+    client.from('schools').select('id, name').order('name'),
+    client.from('school_instructors').select('school_id, instructor_id'),
+    client.from('school_curricula').select('school_id, course_id, global_course_id'),
+    client.from('courses').select('id, title, is_library, copied_from, publication_revision').eq('published', true).order('title'),
+  ])
+  if (['PGRST205', '42P01'].includes(schools.error?.code ?? '')) return null
+  for (const result of [schools, memberships, templates, courses])
+    if (result.error) throw friendly(result.error, 'loading school curriculum')
+  return {
+    schools: schools.data!,
+    memberships: memberships.data!,
+    templates: templates.data!,
+    courses: courses.data!,
+    globals: courses.data!.filter(course => course.is_library && !course.copied_from),
+  }
+}
+
+export type SchoolCurriculumAdminData = NonNullable<Awaited<ReturnType<typeof loadSchoolCurriculumAdmin>>>
+
+export async function addSchool(name: string) {
+  const { data, error } = await db().from('schools').insert({ name }).select('id').single()
+  if (error) throw friendly(error, 'creating a school')
+  return data.id as string
+}
+
+export async function setSchoolInstructor(schoolId: string, instructorId: string, add: boolean) {
+  const membership = { school_id: schoolId, instructor_id: instructorId }
+  const { error } = add
+    ? await db().from('school_instructors').insert(membership)
+    : await db().from('school_instructors').delete().match(membership)
+  if (error) throw friendly(error, add ? 'adding the school instructor' : 'removing school access')
+}
+
+export async function seedSchoolCurriculum(schoolId: string, classId: string, globalCourseId: string) {
+  const { error } = await db().rpc('seed_school_curriculum', {
+    p_school_id: schoolId, p_class_id: classId, p_global_course_id: globalCourseId,
+  })
+  if (error) throw friendly(error, 'creating the school template')
+}
+
+export async function linkClassToSchool(classId: string, schoolId: string) {
+  await updateOne('classes', classId, { school_id: schoolId }, 'linking the class to the school')
 }
 
 export async function addInstructor(classId: string, instructorId: string): Promise<void> {

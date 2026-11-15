@@ -1,5 +1,5 @@
 // Owner: Aryan. Every class across partner schools, who teaches it, and how it's doing.
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Copy, Plus, School as SchoolIcon, Search } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
@@ -7,13 +7,15 @@ import { useAuth } from '../shared/auth/AuthContext.tsx'
 import {
   Badge, Button, Card, DataTable, EmptyState, Field, FormStatus, Input, Meter, PageHeader, Select, Td, Th,
 } from '../shared/ui/index.tsx'
-import { addInstructor, createClass, removeInstructor } from './api.ts'
+import { addInstructor, createClass, loadSchoolCurriculumAdmin, removeInstructor, SCHOOL_CURRICULUM_KEY, type SchoolCurriculumAdminData } from './api.ts'
 import { AdminDialog, ArchiveButton, LoadState } from './common.tsx'
 import { ORG_KEY, useOrg } from './hooks.ts'
 import { analyze, archivedReason, fmtGain, termOf, type OrgData } from './metrics.ts'
+import { SchoolCurriculumSettings } from './SchoolCurriculumSettings.tsx'
 
 export function ClassesPage() {
   const { data, isLoading, error } = useOrg()
+  const schoolCurriculum = useQuery({ queryKey: SCHOOL_CURRICULUM_KEY, queryFn: loadSchoolCurriculumAdmin })
   const [params, setParams] = useSearchParams()
   const q = params.get('q') ?? ''
   const school = params.get('school') ?? ''
@@ -43,8 +45,11 @@ export function ClassesPage() {
       <PageHeader
         title="Schools & classes"
         subtitle="Partner schools, their classes, and who teaches them."
-        actions={<NewClassDialog data={data} schools={a.schoolOptions} />}
+        actions={<NewClassDialog data={data} schools={a.schoolOptions} config={schoolCurriculum.data}
+          disabled={schoolCurriculum.isPending || schoolCurriculum.isError} />}
       />
+      <FormStatus error={schoolCurriculum.error?.message} />
+      {schoolCurriculum.data && <SchoolCurriculumSettings config={schoolCurriculum.data} data={data} />}
 
       <section aria-labelledby="classes-heading" className="mb-10">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -122,7 +127,7 @@ export function ClassesPage() {
                     </Td>
                     <Td className="text-right">
                       {reason && <p className="mb-1 whitespace-nowrap text-xs text-cic-muted">{reason}</p>}
-                      {(!reason || c.archived_at) && <ArchiveButton table="classes" id={c.id} name={c.name} archived={Boolean(reason)} />}
+                      {(!reason || c.archived_at || schoolCurriculum.data) && <ArchiveButton table="classes" id={c.id} name={c.name} archived={Boolean(c.archived_at)} />}
                     </Td>
                   </tr>
                 )
@@ -221,7 +226,9 @@ function InstructorCell({ classId, className, assigned, available }: {
   )
 }
 
-function NewClassDialog({ data, schools }: { data: OrgData; schools: string[] }) {
+function NewClassDialog({ data, schools, config, disabled }: {
+  data: OrgData; schools: string[]; config?: SchoolCurriculumAdminData | null; disabled: boolean
+}) {
   const qc = useQueryClient()
   const { profile } = useAuth()
   const { hash } = useLocation()
@@ -229,6 +236,19 @@ function NewClassDialog({ data, schools }: { data: OrgData; schools: string[] })
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<{ name: string; join_code: string } | null>(null)
   const [copied, setCopied] = useState(false)
+  const [schoolId, setSchoolId] = useState('')
+  const [pickedCourse, setPickedCourse] = useState('')
+  const [pickedModules, setPickedModules] = useState<string[] | null>(null)
+  const schoolAttempt = useRef<{ key: string; id: string } | null>(null)
+  const schoolRecord = config?.schools.find(school => school.id === schoolId)
+  const templates = config?.templates.filter(template => template.school_id === schoolRecord?.id) ?? []
+  const schoolCourses = config?.courses.filter(course => templates.some(template => template.course_id === course.id)) ?? []
+  const courses = schoolRecord ? [...schoolCourses, ...(config?.globals ?? [])]
+    : data.courses.filter(course => !config?.templates.some(template => template.course_id === course.id))
+  const courseId = courses.some(course => course.id === pickedCourse) ? pickedCourse : courses[0]?.id ?? ''
+  const originalId = templates.find(template => template.course_id === courseId)?.global_course_id
+  const modules = data.modules.filter(module => module.course_id === courseId && module.published).sort((a, b) => a.position - b.position)
+  const moduleIds = pickedModules ?? modules.map(module => module.id)
   const create = useMutation({
     mutationFn: (input: Parameters<typeof createClass>[0]) => createClass(input, profile!.id),
     onSuccess: ({ join_code }, input) => {
@@ -240,26 +260,43 @@ function NewClassDialog({ data, schools }: { data: OrgData; schools: string[] })
 
   // The command bar's "Create a class" links to #new-class.
   useEffect(() => {
-    if (hash === '#new-class' && !dialog.current?.open) dialog.current?.showModal()
-  }, [hash])
+    if (hash === '#new-class' && !disabled && !dialog.current?.open) dialog.current?.showModal()
+  }, [hash, disabled])
+
+  function chooseCourse(id: string) {
+    setPickedCourse(id)
+    setPickedModules(null)
+  }
 
   function reset() {
     setDone(null)
     setError(null)
     setCopied(false)
+    setSchoolId('')
+    chooseCourse('')
+    schoolAttempt.current = null
   }
 
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
     const name = String(f.get('name') ?? '').trim()
-    const school = String(f.get('school') ?? '').trim()
+    const school = schoolRecord?.name ?? String(f.get('school') ?? '').trim()
     const join_code = String(f.get('join_code') ?? '').trim().toUpperCase()
+    const instructor_id = String(f.get('instructor_id') ?? '') || undefined
     setError(null)
     if (name.length < 2) return setError('Class name needs at least 2 characters.')
     if (school.length < 2) return setError('Enter the school name.')
     if (join_code && !/^[A-Z0-9-]{3,20}$/.test(join_code)) return setError('Join code: 3–20 letters, numbers or dashes.')
-    create.mutate({ name, school, course_id: String(f.get('course_id')), join_code, instructor_id: String(f.get('instructor_id') ?? '') || undefined })
+    if (!courseId) return setError('Choose a course.')
+    const input = { name, school, course_id: courseId, join_code, instructor_id }
+    if (!schoolRecord) return create.mutate(input)
+    const revision = config?.courses.find(course => course.id === courseId)?.publication_revision
+    if (revision == null || !moduleIds.length) return setError('Choose at least one published module.')
+    const key = JSON.stringify([input, schoolRecord.id, moduleIds, revision])
+    const classId = schoolAttempt.current?.key === key ? schoolAttempt.current.id : crypto.randomUUID()
+    schoolAttempt.current = { key, id: classId }
+    create.mutate({ ...input, template: { schoolId: schoolRecord.id, classId, revision, moduleIds } })
   }
 
   async function copy(code: string) {
@@ -269,7 +306,7 @@ function NewClassDialog({ data, schools }: { data: OrgData; schools: string[] })
 
   return (
     <>
-      <Button onClick={() => dialog.current?.showModal()}>
+      <Button disabled={disabled} onClick={() => dialog.current?.showModal()}>
         <Plus aria-hidden="true" /> New class
       </Button>
       <AdminDialog dialogRef={dialog} id="new-class-title" title={done ? 'Class created' : 'New class'} onClose={reset}>
@@ -288,19 +325,32 @@ function NewClassDialog({ data, schools }: { data: OrgData; schools: string[] })
             <button type="button" onClick={reset} className="self-center text-sm font-semibold text-brand hover:underline">Create another class</button>
           </div>
         ) : (
-          <form onSubmit={submit} noValidate className="flex flex-col gap-4 p-6">
+          <form onSubmit={submit} noValidate className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto p-6">
             <Field id="class-name" label="Class name">
               <Input id="class-name" name="name" required minLength={2} placeholder="e.g. Maryvale Period 3" />
             </Field>
-            <Field id="class-school" label="School">
+            {!!config?.schools.length && <Field id="class-school-record" label="School">
+              <Select id="class-school-record" value={schoolId} onChange={event => {
+                setSchoolId(event.target.value)
+                chooseCourse('')
+              }}>
+                <option value="">Other school</option>
+                {config.schools.map(entry => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+              </Select>
+            </Field>}
+            {!schoolRecord && <Field id="class-school" label={config?.schools.length ? 'School name' : 'School'}>
               <Input id="class-school" name="school" required list="school-options" placeholder="Pick or type a school" />
               <datalist id="school-options">{schools.map((s) => <option key={s} value={s} />)}</datalist>
-            </Field>
+            </Field>}
             <div className="grid gap-4 sm:grid-cols-2">
               <Field id="class-course" label="Course">
-                <Select id="class-course" name="course_id" required>
-                  {data.courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+                <Select id="class-course" value={courseId} onChange={event => chooseCourse(event.target.value)} required>
+                  {schoolRecord ? <>
+                    {!!schoolCourses.length && <optgroup label="School templates">{schoolCourses.map(course => <option key={course.id} value={course.id}>{course.title}</option>)}</optgroup>}
+                    <optgroup label="Global templates">{config?.globals.map(course => <option key={course.id} value={course.id}>{course.title}</option>)}</optgroup>
+                  </> : courses.map(course => <option key={course.id} value={course.id}>{course.title}</option>)}
                 </Select>
+                {originalId && <Button type="button" size="sm" variant="ghost" onClick={() => chooseCourse(originalId)}>Use global original</Button>}
               </Field>
               <Field id="class-instructor" label="Instructor" optional>
                 <Select id="class-instructor" name="instructor_id" defaultValue="">
@@ -309,6 +359,14 @@ function NewClassDialog({ data, schools }: { data: OrgData; schools: string[] })
                 </Select>
               </Field>
             </div>
+            {schoolRecord && <fieldset>
+              <legend className="mb-1 font-semibold">Modules</legend>
+              {modules.length ? modules.map(module => <label className="flex items-center gap-2 py-1" key={module.id}>
+                <input type="checkbox" className="accent-brand" checked={moduleIds.includes(module.id)} onChange={event =>
+                  setPickedModules(event.target.checked ? [...moduleIds, module.id] : moduleIds.filter(id => id !== module.id))} />
+                {module.title}
+              </label>) : <p className="text-sm text-cic-muted">No published modules are available.</p>}
+            </fieldset>}
             <Field id="class-code" label="Join code" optional>
               <Input id="class-code" name="join_code" className="font-mono uppercase tracking-wider placeholder:font-sans placeholder:normal-case placeholder:tracking-normal" placeholder="Leave blank to generate one" />
             </Field>
