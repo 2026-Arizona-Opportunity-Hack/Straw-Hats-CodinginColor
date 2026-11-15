@@ -115,7 +115,10 @@ The reply never contains the right answer.
 
 1. **Swap `src/api/student/index.ts` from mocks to the RPCs above** (Shivraj, next).
 2. ~~Placement quiz~~: done in 1008. Next: CIC reviews the 12 questions.
-3. **Roster passcodes** (`class_students`) are not linked to sign-up yet; revisit once sign-up is live.
+3. **Roster passcodes** now use the `roster-login` Edge Function and migration `3007_roster_student_login.sql`.
+   Provisioning uses the Auth admin API and a marked synthetic identity, then links the existing roster before enrollment; no direct Auth table writes.
+   Both RPCs are service-only, the binder rechecks the card under a row lock, and direct client identity relinking is blocked.
+   Apply the migration and deploy the function before enabling login cards on hosted; local SQL and handler tests cover access, retries, throttling and existing accounts.
 4. **Ruthvik:** the course builder now loads activities without answers.
    Select `activity_keys (key)` with each activity and put answers back: `content.answer = key.answer`, `items[i].answer = key.answers[items[i].id]`, `questions[i].answer = key.question_answers[i]`, `solution = key.solution`.
    Saving needs no change.
@@ -149,6 +152,8 @@ Keep it short; link to code instead of copying it.
 Put each sentence on its own line.
 
 ## Log
+
+- 2026-11-15, Codex: connected imported login cards to student Auth sessions and their original roster rows; hosted activation remains pending.
 
 - 2026-11-15, Shivraj: added the module-complete banner on the course page (touches Jacky's `StudentCourse.tsx`).
 - 2026-11-15, Shivraj: added check explanations and right-answer reveal (1011) and merged the 1009 and 2006 versions of `_course_state` (2009).
