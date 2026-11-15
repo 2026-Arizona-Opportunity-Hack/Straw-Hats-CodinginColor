@@ -1,8 +1,9 @@
-# Handoff: current state of CIC Learn
+# Ruthvik's handoff: current state of CIC Learn
 
 Read this first if you are a teammate or an AI coding agent picking up work.
 It says what exists, where it lives, what is half done, and what to watch out for.
 Update it in the same branch as your change (see "How to update this file" at the bottom).
+Other teammates can keep their own `docs/<name>-handoff.md` in the same format.
 
 Last updated: Sat Nov 14 2026, 5:05 PM MST, by Ruthvik (with Claude Code).
 
@@ -60,7 +61,7 @@ Renaming one of the two branches on GitHub fixes it for everyone.
    `activity_attempts.student_id` points at `profiles`, so students without a login have no progress.
    Either give every student a login (item 1) or add `class_student_id` to attempts.
 4. **Permissions pass.**
-   RLS is on for every table, but policies are minimal (see [`SUPABASE.md`](SUPABASE.md)).
+   RLS is on for every table, but policies are minimal (see [`ruthvik-handoff-supabase.md`](ruthvik-handoff-supabase.md)).
    Instructors cannot edit admin-owned library courses; decide whether they copy the course first.
 5. **Grades tab** only shows curriculum progress, not assignment scores.
 6. **Code runner (Pyodide)** is a placeholder in assignment code blocks and the module player.
@@ -101,7 +102,7 @@ npm run build && npm run lint   # run before every PR
 
 Demo logins (password `cic-learn-demo`): `admin@cic.demo`, `teacher@cic.demo` (Maryvale), `ana.lopez@cic.demo` (Desert Edge, Carl Hayden), `reviewer@cic.demo`.
 
-Supabase details, migrations and gotchas: [`docs/SUPABASE.md`](SUPABASE.md).
+Supabase details, migrations and gotchas: [`docs/ruthvik-handoff-supabase.md`](ruthvik-handoff-supabase.md).
 
 ## Team agreements that bite
 
@@ -124,6 +125,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-14 5:15 PM, Ruthvik: renamed to `ruthvik-handoff.md` and `ruthvik-handoff-supabase.md`.
 - 2026-11-14 5:05 PM, Ruthvik: created this file.
   Live Supabase data for the instructor workspace, migration 2001 and demo seed applied to the hosted project, block-based assignments, CIC logo.
   PR #9 merged into the wrong base; `main` still needs `ruthvik/class-tabs`.

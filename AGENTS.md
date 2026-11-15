@@ -3,10 +3,11 @@
 You are helping **Straw Hats** build a project for **Coding in Color** at
 [ASU Fall Hackathon 2026 | Phoenix Hackathon for Nonprofits: Nov 14-15](https://www.ohack.dev/hack/fall-2026). Read this before suggesting or making changes.
 
-## Start here: the handoff file
+## Start here: the handoff files
 
-Before you change anything, read [`docs/HANDOFF.md`](docs/HANDOFF.md) (current state, branches, what is half done) and, for database work, [`docs/SUPABASE.md`](docs/SUPABASE.md).
-When you finish a change, update `docs/HANDOFF.md` in the same branch: the sections your change affects plus one line in its Log.
+Before you change anything, read the handoff files in `docs/`: [`docs/ruthvik-handoff.md`](docs/ruthvik-handoff.md) (current state, branches, what is half done) and, for database work, [`docs/ruthvik-handoff-supabase.md`](docs/ruthvik-handoff-supabase.md).
+Teammates may add their own `docs/<name>-handoff.md`; read those too.
+When you finish a change, update the handoff file you own (or the one covering that area) in the same branch: the sections your change affects plus one line in its Log.
 Teammates work with different AI tools; this file is how context carries between them.
 
 ## The one repository rule (most important)

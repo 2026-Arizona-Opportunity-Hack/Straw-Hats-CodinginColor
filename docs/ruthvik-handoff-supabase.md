@@ -1,7 +1,7 @@
-# Supabase: database, auth and how to change it
+# Ruthvik's handoff: Supabase database, auth and how to change it
 
 Reference for teammates and AI agents working on the backend.
-Current state and open work live in [`HANDOFF.md`](HANDOFF.md).
+Current state and open work live in [`ruthvik-handoff.md`](ruthvik-handoff.md).
 
 ## The project
 
