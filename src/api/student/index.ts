@@ -39,6 +39,12 @@ export interface AttemptInput {
 export type CatalogCourse = Pick<Course, 'id' | 'title' | 'description' | 'level' | 'delivery_mode'>
 /** A course the student is in: through a class (`class_name` set) or chosen on their own. */
 export type StudentCourse = CatalogCourse & { source: 'class' | 'self'; class_name: string | null }
+export type ModuleAssignment = { id: string; title: string; class_name: string; module_id: string; course_id: string; needs_enrollment: boolean }
+
+export async function listModuleAssignments(): Promise<ModuleAssignment[]> {
+  return curriculumBackend ? result(curriculumBackend.rpc('my_module_assignments')) : []
+}
+
 export type ActivityStatus = { activity_id: string; submitted: boolean; best_score: number | null }
 type AttemptResult = { is_correct: boolean | null; score: number | null }
 

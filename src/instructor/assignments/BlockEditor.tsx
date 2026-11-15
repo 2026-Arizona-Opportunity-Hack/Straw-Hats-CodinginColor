@@ -12,7 +12,7 @@ import {
   type Block, type BlockType, type FileTypeGroup, type QuestionKind, type QuizQuestion,
 } from './model';
 
-type AddOption = { label: string; icon: typeof Type; type: BlockType; questionKind?: QuestionKind };
+type AddOption = { label: string; icon: typeof Type; type: Exclude<BlockType, 'completion'>; questionKind?: QuestionKind };
 
 const contentOptions: AddOption[] = [
   { label: 'Text', icon: AlignLeft, type: 'text' },
@@ -64,8 +64,8 @@ export function BlockEditor({ blocks, title, onChange }: { blocks: Block[]; titl
         <span className="ic-row ic-push">
           <button type="button" className="ic-icon" aria-label={`Move ${blockName(blocks, index)} up`} disabled={index === 0} onClick={() => move(index, index - 1)}><ArrowUp size={16} /></button>
           <button type="button" className="ic-icon" aria-label={`Move ${blockName(blocks, index)} down`} disabled={index === blocks.length - 1} onClick={() => move(index, index + 1)}><ArrowDown size={16} /></button>
-          <button type="button" className="ic-icon" aria-label={`Duplicate ${blockName(blocks, index)}`} onClick={() => onChange([...blocks.slice(0, index + 1), cloneBlock(block), ...blocks.slice(index + 1)])}><Copy size={16} /></button>
-          <button type="button" className="ic-icon" aria-label={`Delete ${blockName(blocks, index)}`} onClick={() => onChange(blocks.filter((_, i) => i !== index))}><Trash2 size={16} /></button>
+          <button type="button" className="ic-icon" disabled={block.type === 'completion'} aria-label={`Duplicate ${blockName(blocks, index)}`} onClick={() => onChange([...blocks.slice(0, index + 1), cloneBlock(block), ...blocks.slice(index + 1)])}><Copy size={16} /></button>
+          <button type="button" className="ic-icon" disabled={block.type === 'completion'} aria-label={`Delete ${blockName(blocks, index)}`} onClick={() => onChange(blocks.filter((_, i) => i !== index))}><Trash2 size={16} /></button>
         </span>
       </div>
       <BlockFields block={block} title={title} onChange={next => set(index, next)} />
@@ -98,6 +98,7 @@ function QuestionTypeSelect({ question: q, onChange }: { question: QuizQuestion;
 
 function BlockFields({ block, title, onChange }: { block: Block; title: string; onChange: (block: Block) => void }) {
   switch (block.type) {
+    case 'completion': return <p className="ic-note">Awarded automatically when the student completes {block.title.toLowerCase()} in the linked lesson.</p>;
     case 'text': return <label>Text<textarea rows={4} value={block.text} maxLength={20_000} placeholder="Explain, give context, or set up the next part." onChange={event => onChange({ ...block, text: event.target.value })} /></label>;
     case 'link': return <LinkFields block={block} title={title} onChange={onChange} />;
     case 'html': return <HtmlFields block={block} title={title} onChange={onChange} />;

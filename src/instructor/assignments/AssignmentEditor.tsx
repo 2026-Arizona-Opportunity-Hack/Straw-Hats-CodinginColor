@@ -92,8 +92,11 @@ function Settings({ draft, course, update }: { draft: Assignment; course?: Cours
       {[1, 2, 3, 5].map(n => <option key={n} value={n}>{n}</option>)}<option value="unlimited">Unlimited</option>
     </select></label>
     <label>Time limit (minutes)<input type="number" min={1} max={600} placeholder="No limit" value={draft.timeLimit ?? ''} onChange={event => update({ timeLimit: event.target.value ? Math.max(1, Number(event.target.value)) : null })} /></label>
-    <label>Linked module<select value={draft.moduleId ?? ''} onChange={event => update({ moduleId: event.target.value || null })}>
-      <option value="">None</option>{course?.modules.map(module => <option key={module.id} value={module.id}>{module.title}</option>)}
+    <label>Linked module<select disabled={draft.blocks.some(block => block.type === 'completion')} value={draft.moduleId ?? ''} onChange={event => update({ moduleId: event.target.value || null })}>
+      <option value="">None</option>
+      {draft.moduleId && !course?.modules.some(module => module.id === draft.moduleId)
+        && <option value={draft.moduleId}>Module from another course</option>}
+      {course?.modules.map(module => <option key={module.id} value={module.id}>{module.title}</option>)}
     </select></label>
     {draft.blocks.some(block => block.type === 'question') && <>
       <label className="ic-checkbox"><input type="checkbox" checked={draft.shuffle} onChange={event => update({ shuffle: event.target.checked })} />Shuffle question order</label>
