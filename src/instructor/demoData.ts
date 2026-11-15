@@ -51,6 +51,30 @@ const Web: Course = {
     activities: [{ ...article, id: 'html-article', title: 'Give your page structure', markdown: 'Use an **h1** element for the page title and a **p** element for a paragraph.\n\n```html\n<h1>My first page</h1>\n<p>Welcome!</p>\n```' }],
   }] }],
 };
+export const BuilderDemo: Course = {
+  id: 'builder-demo', title: 'Try the curriculum builder', description: 'Practice with quizzes, a custom activity, and two coding labs.', level: 'Beginner',
+  modules: [{
+    id: 'builder-demo-module', title: 'Make a score counter', published: true, revision: 1,
+    lessons: [{
+      id: 'builder-demo-lesson', title: 'From a variable to a web page', activities: [
+        { ...check, id: 'builder-quiz', title: 'Quick quiz' },
+        { ...check, id: 'builder-reflection', type: 'worksheet', title: 'In your own words', format: 'open-ended',
+          questions: [{ prompt: 'Where could a scoreboard be useful?', choices: [], answer: null, concept: 'Variables' }] },
+        { ...article, id: 'builder-widget', type: 'interactive_html', title: 'Try the score widget', markdown: '', interactiveHtml: {
+          reports_score: true,
+          instructions: 'Add a point. The widget will report completion.',
+          html: '<!doctype html><html lang="en"><title>Score widget</title><p>Score: <output id="score">0</output></p><button id="add">Add a point</button><script>document.querySelector("#add").addEventListener("click", () => { document.querySelector("#score").textContent = "1"; parent.postMessage({ type: "cic:complete", score: 1 }, "*"); });</script></html>',
+        } },
+        { ...article, id: 'builder-python', type: 'code', title: 'Python lab', markdown: 'Print the updated score. The output should be 3.',
+          code: { starter: 'score = 1\nprint(score)\n', tests: '', solution: '',
+            lab: { language: 'python', checks: [{ name: 'Print the updated score', expected: '3' }] } } },
+        { ...article, id: 'builder-web', type: 'code', title: 'Web lab', markdown: 'Add a level-one heading that says Scoreboard.',
+          code: { starter: '<main><p>Score: 3</p></main>', tests: '', solution: '',
+            lab: { language: 'web', starterCss: 'main { padding: 16px; }', checks: [{ name: 'Scoreboard heading', selector: 'main h1', expected: 'Scoreboard' }] } } },
+      ],
+    }],
+  }],
+};
 const names = ['Sofía Rivera', 'Mateo Hill', 'Amina Brooks', 'Jordan Vega', 'Priya Nair', 'Camila Moreno', 'Ellis Chen', 'Nico Flores'];
 const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();
 const learners: Learner[] = names.map((name, index) => {
@@ -176,7 +200,7 @@ const maryvaleSubmissions: Submission[] = learners.slice(0, 7).flatMap((learner,
 });
 
 export const demoData: InstructorData = {
-  courses: [Python, Web],
+  courses: [Python, Web, BuilderDemo],
   staff: [
     { id: 'instructor', name: 'Demo instructor', role: 'instructor', classIds: ['maryvale', 'desert-edge'] },
     { id: 'admin', name: 'Demo program manager', role: 'admin', classIds: [] },

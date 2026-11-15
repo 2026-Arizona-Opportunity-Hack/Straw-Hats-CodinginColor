@@ -78,6 +78,9 @@ function toActivity(row: Row): Activity {
     url: str(content.url), questions,
   };
   if (type === 'code') activity.code = { starter: str(content.starter_code), tests, solution: str(content.solution) };
+  if (type === 'interactive_html') activity.interactiveHtml = {
+    html: str(content.html), instructions: str(content.instructions), reports_score: Boolean(content.reports_score),
+  };
   if (content.format === 'open-ended') activity.format = 'open-ended';
   return activity;
 }
@@ -105,6 +108,7 @@ function activityContent(activity: Activity): Json {
       ...base, markdown: activity.markdown,
       items: activity.questions.map((q, i) => ({ id: 'q' + i, concept: q.concept, prompt: q.prompt, choices: choices(q), answer: answerId(q) })),
     };
+    case 'interactive_html': return { ...base, ...activity.interactiveHtml };
     case 'code': return {
       ...base, prompt: activity.markdown, markdown: activity.markdown, starter_code: activity.code?.starter ?? '',
       tests: (activity.code?.tests ?? '').split('\n').filter(line => line.trim()).map((assertion, i) => ({ name: 'Test ' + (i + 1), assertion })),

@@ -1,3 +1,4 @@
+import type { CodingLabSettings, InteractiveHtmlPayload } from '../shared/types/activities.ts';
 import type { Submission } from './assignments/grading';
 import type { Assignment } from './assignments/model';
 
@@ -5,6 +6,7 @@ export const activityTypes = {
   content: 'Article',
   video: 'Video',
   slides: 'Slides',
+  interactive_html: 'Custom HTML',
   check: 'Knowledge check',
   worksheet: 'Worksheet',
   code: 'Code exercise',
@@ -22,11 +24,12 @@ export type Activity = {
   markdown: string;
   url: string;
   questions: Question[];
-  code?: { starter: string; tests: string; solution: string };
+  code?: { starter: string; tests: string; solution: string; lab?: CodingLabSettings };
   format?: 'open-ended';
+  interactiveHtml?: InteractiveHtmlPayload;
 };
-export type Lesson = { id: string; title: string; activities: Activity[] };
-export type Module = { id: string; title: string; published: boolean; lessons: Lesson[] };
+export type Lesson = { id: string; title: string; activities: Activity[]; htmlFirst?: boolean };
+export type Module = { id: string; title: string; published: boolean; revision?: number; lessons: Lesson[] };
 export type Course = { id: string; title: string; description: string; level: string; modules: Module[] };
 export type Attempt = {
   activityId: string;
@@ -61,7 +64,32 @@ export type ClassGroup = {
 };
 export type StaffRole = 'instructor' | 'admin' | 'reviewer';
 export type StaffProfile = { id: string; name: string; role: StaffRole; classIds: string[] };
-export type InstructorData = { courses: Course[]; classes: ClassGroup[]; staff: StaffProfile[] };
+export type InstructorData = {
+  courses: Course[];
+  classes: ClassGroup[];
+  staff: StaffProfile[];
+  courseDrafts?: Record<string, Course>;
+  savedBlocks?: Record<string, Activity[]>;
+};
+
+export function copyBlock(block: Activity): Activity {
+  return { ...structuredClone(block), id: id() };
+}
+
+// Replace only the selected release. Draft changes in other modules stay private.
+export function publishModule(catalog: Course, draft: Course, selected: Module | null, moduleId: string): Course {
+  const releases = new Map(catalog.modules.map(module => [module.id, module]));
+  const previous = releases.get(moduleId);
+  if (selected) {
+    const revision = (previous?.revision ?? (previous?.published ? 1 : 0)) + 1;
+    releases.set(moduleId, { ...structuredClone(selected), published: true, revision });
+  } else if (previous) {
+    releases.set(moduleId, { ...previous, published: false, revision: previous.revision ?? 1 });
+  }
+  const ids = new Set([...draft.modules.map(module => module.id), ...releases.keys()]);
+  const modules = [...ids].flatMap(id => releases.get(id) ?? []);
+  return { ...draft, modules };
+}
 
 export const id = () => globalThis.crypto.randomUUID();
 export const blankQuestion = (): Question => ({ prompt: '', choices: [], answer: null, concept: '' });
@@ -97,6 +125,9 @@ export function unresolvedModuleContent(module: Module): string | null {
   for (const lesson of module.lessons) {
     if (!lesson.title.trim() || !lesson.activities.length) return 'Give each lesson a title and at least one activity.';
     for (const activity of lesson.activities) {
+      if (activity.type === 'interactive_html' && (!activity.interactiveHtml?.html.trim() || new TextEncoder().encode(activity.interactiveHtml.html).length > 256 * 1024)) {
+        return 'Add HTML source up to 256 KB to each Custom HTML block.';
+      }
       if (!activity.title.trim()) return 'Give each activity a title.';
       if (activity.type === 'video' && !embedUrl(activity.url)) return 'Add a valid YouTube, Vimeo, or Google Drive link to each video.';
       if (activity.type === 'slides' && !slidesUrl(activity.url)) return 'Add a valid Google Slides or Google Drive link to each slide deck.';
@@ -106,6 +137,13 @@ export function unresolvedModuleContent(module: Module): string | null {
       if (gradedTypes.has(activity.type)) {
         if (activity.questions.some(q => q.choices.filter(choice => choice.trim()).length < 2 || q.answer === null || !q.choices[q.answer]?.trim())) {
           return 'Give assessment questions at least two choices and mark a correct answer.';
+        }
+      }
+      if (activity.type === 'code' && activity.code?.lab) {
+        const { starter, lab } = activity.code;
+        if (starter.length > 48_000 || (lab.starterCss?.length ?? 0) > 48_000) return 'Starter files must be at most 48,000 characters.';
+        if (lab.checks.some(check => !check.name.trim() || (lab.language === 'web' && !check.selector?.trim()))) {
+          return 'Name each lab check and provide a selector for each HTML/CSS check.';
         }
       }
       if ((activity.type === 'content' || activity.type === 'code') && !activity.markdown.trim()) return 'Fill in each article and coding exercise.';

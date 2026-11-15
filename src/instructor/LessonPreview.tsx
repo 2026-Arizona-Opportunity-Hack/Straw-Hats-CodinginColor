@@ -1,4 +1,8 @@
 import { useId } from 'react';
+import { isLocalDemo } from '../shared/supabase.ts';
+import { CodeLab } from '../shared/labs/CodeLab';
+import { labPayload } from './labPayload';
+import { HtmlActivityPreview } from './HtmlActivity';
 import Markdown, { defaultUrlTransform } from 'react-markdown';
 import { activityTypes, embedUrl, slidesUrl, type Activity, type Lesson } from './model';
 
@@ -16,8 +20,12 @@ export function ActivityPreview({ activity, interactive = false }: { activity: A
       h1: 'h4', h2: 'h4', h3: 'h4',
       img: props => <img src={props.src} alt={props.alt || ''} loading="lazy" />,
     }}>{activity.markdown}</Markdown>}
+    {activity.type === 'interactive_html' && activity.interactiveHtml &&
+      <HtmlActivityPreview activity={activity.interactiveHtml} title={activity.title || 'HTML activity'} scripts={isLocalDemo} />}
     {embed && <iframe className="ic-video" src={embed} title={activity.title || activityTypes[activity.type]} allowFullScreen loading="lazy" referrerPolicy="strict-origin-when-cross-origin" />}
-    {activity.type === 'code' && activity.code?.starter && <pre><code>{activity.code.starter}</code></pre>}
+    {activity.type === 'code' && (interactive
+      ? <CodeLab payload={{ ...labPayload(activity), prompt: '' }} enabled={isLocalDemo} />
+      : activity.code?.starter && <pre><code>{activity.code.starter}</code></pre>)}
     {activity.questions.map((question, index) => question.prompt && <div key={index} className="ic-preview-question">
       <p id={previewId + '-prompt-' + index}>{question.prompt}</p>
       {question.choices.some(choice => choice.trim()) ? <ul className={interactive ? 'ic-preview-options' : undefined}

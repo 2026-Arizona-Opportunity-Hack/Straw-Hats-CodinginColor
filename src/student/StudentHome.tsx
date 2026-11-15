@@ -2,10 +2,17 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { listModuleStatus, listMyCourses } from '../api/student/index.ts'
+import { PublishedDemoList } from './PublishedDemo'
+import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { Card, PageHeader, TodoPanel } from '../shared/ui/index.tsx'
 
-function CourseModules({ courseId }: { courseId: string }) {
-  const { data: modules = [] } = useQuery({ queryKey: ['moduleStatus', courseId], queryFn: () => listModuleStatus(courseId) })
+function CourseModules({ courseId, studentId }: { courseId: string; studentId?: string }) {
+  const { data: modules = [], isLoading, isError } = useQuery({
+    queryKey: ['moduleStatus', studentId, courseId], queryFn: () => listModuleStatus(courseId),
+  })
+  if (isLoading) return <p role="status">Loading modules…</p>
+  if (isError) return <p role="alert">Could not load these modules. Try reloading.</p>
+  if (!modules.length) return <p>There are no released modules yet.</p>
   return (
     <ol className="space-y-2">
       {modules.map((m) => (
@@ -25,20 +32,26 @@ function CourseModules({ courseId }: { courseId: string }) {
 }
 
 export function StudentHome() {
-  const { data: courses = [], isLoading } = useQuery({ queryKey: ['myCourses'], queryFn: listMyCourses })
+  const { profile } = useAuth()
+  const { data: courses = [], isLoading, isError } = useQuery({
+    queryKey: ['myCourses', profile?.id], queryFn: listMyCourses,
+  })
 
   return (
     <>
       <PageHeader title="My courses" subtitle="Pick up where you left off." />
-      {isLoading && <p>Loading…</p>}
+      {isLoading && <p role="status">Loading courses…</p>}
+      {isError && <p role="alert">Could not load your courses. Try reloading.</p>}
+      {!isLoading && !isError && !courses.length && <p>You have no enrolled courses yet.</p>}
       <div className="grid gap-4 md:grid-cols-2">
         {courses.map((c) => (
           <Card key={c.id} title={c.title}>
             <p className="mb-3 text-sm text-slate-600">{c.description}</p>
-            <CourseModules courseId={c.id} />
+            <CourseModules courseId={c.id} studentId={profile?.id} />
           </Card>
         ))}
       </div>
+      <PublishedDemoList />
       <div className="mt-6">
         <TodoPanel
           owner="Jacky"

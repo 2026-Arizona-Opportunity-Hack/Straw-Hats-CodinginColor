@@ -55,9 +55,22 @@ export interface CodeTest {
   assertion: string
 }
 
+export interface LabCheck {
+  name: string
+  expected: string
+  selector?: string
+}
+
+export interface CodingLabSettings {
+  language: 'python' | 'web'
+  starterCss?: string
+  checks: LabCheck[]
+}
+
 export interface CodePayload {
   prompt: string
   starter_code: string
+  lab?: CodingLabSettings
   tests: CodeTest[]
   /** Hidden from students by RLS. */
   solution?: string
