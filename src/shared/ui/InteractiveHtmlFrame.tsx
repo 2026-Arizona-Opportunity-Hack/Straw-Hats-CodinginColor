@@ -10,7 +10,7 @@ interface Props {
   height?: number
 }
 
-export function InteractiveHtmlFrame({ html, css, title, allowScripts = false, onComplete, height = 480 }: Props) {
+export function InteractiveHtmlFrame({ html, css, title, allowScripts = false, onComplete, height = 640 }: Props) {
   const srcDoc = useMemo(() => isolatedHtml(html, allowScripts, css), [html, css, allowScripts])
   // A new document needs a new browsing context so late messages from a prior run are rejected.
   return <IsolatedFrame key={srcDoc} srcDoc={srcDoc} title={title} allowScripts={allowScripts} onComplete={onComplete} height={height} />

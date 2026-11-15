@@ -12,6 +12,7 @@ The live instructor workspace keeps its existing Supabase save flow.
 
 PR #12 adds inline HTML blocks and an HTML-first lesson canvas.
 Use the explicit preview to run self-contained HTML.
+Without scripts (live data), previews embed the page right away instead; the Run step is only for the local demo, where authored scripts execute.
 Authored scripts run only in the loopback mock demo, in a frame with an opaque origin.
 Keep real student data out of the demo while outbound navigation is under review.
 
