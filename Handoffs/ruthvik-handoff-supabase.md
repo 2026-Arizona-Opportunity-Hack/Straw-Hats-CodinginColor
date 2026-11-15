@@ -148,4 +148,5 @@ Delete demo auth users and rows (or create a fresh project), apply migrations wi
 
 ## Log
 
+- 2026-11-15 12:45 AM, Ruthvik: set `is_library = true` on the hosted "Web Development Foundations" course (owner Dana Whitfield, no classes) so it shows in the CIC library. Data-only change, not in a migration or seed.
 - 2026-11-14 9:00 PM, Ruthvik: added and applied migration 2004 `copy_library_course`. Also loaded `supabase/curriculum/ai-academy.sql` (AI Academy library courses).
