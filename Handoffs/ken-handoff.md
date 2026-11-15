@@ -51,10 +51,12 @@ Run `supabase/tests/student_curriculum_access.sql` against a migrated developmen
 
 Class setup and existing classes share the same CSV and manual-entry controls.
 Both require confirmation before passing validated names to the existing save flow.
-The roster mapping endpoint checks the signed-in Supabase profile and uses Vercel AI Gateway's Jev Decisions API.
+The roster mapping endpoint checks the signed-in Supabase profile and calls Jev through OpenRouter when `OPENROUTER_API_KEY` is set. Otherwise it uses Vercel AI Gateway.
 Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
 
 ## Log
+
+- 2026-11-14, Ken: added optional OpenRouter support to the Jev roster mapping endpoint.
 
 - 2026-11-14, Ken: added CSV column previews and Jev suggestions, manual entry, and Enter-to-advance navigation.
 

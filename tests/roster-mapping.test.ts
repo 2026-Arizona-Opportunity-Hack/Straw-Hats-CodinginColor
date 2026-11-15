@@ -12,6 +12,7 @@ const headers = [
 ];
 const token = 'fictional-user-token';
 const gatewayUrl = 'https://ai-gateway.vercel.sh/v1/decisions';
+const openRouterUrl = 'https://openrouter.ai/api/alpha/decisions';
 
 function post(body: unknown = { headers }, authorization = `Bearer ${token}`) {
   return handler.fetch(new Request('http://localhost/api/roster-mapping', {
@@ -53,17 +54,27 @@ function mockServices({ role = 'instructor', authorized = true, gatewayOk = true
     if (url.pathname === '/rest/v1/profiles') return Response.json([{ role }]);
     throw new Error(`Unexpected path ${url.pathname}`);
   });
+  const openRouter = vi.fn(async (_url: URL, _options?: RequestInit) => Response.json({
+    answers: {
+      full: { type: 'choice', choice: 'no_match' },
+      first: { type: 'choice', choice: 'column_2', probabilities: { column_0: 0.01, column_2: 0.77, column_4: 0.17, no_match: 0.05 } },
+      last: { type: 'choice', choice: 'column_5', probabilities: { column_5: 0.98, no_match: 0.02 } },
+    },
+  }));
   vi.stubGlobal('fetch', (input: Parameters<typeof fetch>[0], options?: RequestInit) => {
     const url = new URL(String(input));
-    return url.href === gatewayUrl ? gateway(url, options) : supabase(url, options);
+    if (url.href === gatewayUrl) return gateway(url, options);
+    if (url.href === openRouterUrl) return openRouter(url, options);
+    return supabase(url, options);
   });
-  return { gateway, supabase };
+  return { gateway, supabase, openRouter };
 }
 
 describe('roster mapping API', () => {
   beforeEach(() => {
     vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'fixture-public-key');
+    vi.stubEnv('OPENROUTER_API_KEY', '');
     vi.stubEnv('AI_GATEWAY_API_KEY', 'fixture-gateway-key');
     vi.stubEnv('VERCEL_OIDC_TOKEN', '');
     vi.stubEnv('VERCEL', '');
@@ -101,6 +112,25 @@ describe('roster mapping API', () => {
     const { gateway } = mockServices({ role });
     expect((await post()).status).toBe(403);
     expect(gateway).not.toHaveBeenCalled();
+  });
+
+  it('uses the configured OpenRouter key and ranks its named choice probabilities', async () => {
+    vi.stubEnv('OPENROUTER_API_KEY', 'fixture-openrouter-key');
+    const { gateway, openRouter } = mockServices();
+    const response = await post();
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ suggestions: { full: [], first: [2, 4], last: [5] } });
+    expect(gateway).not.toHaveBeenCalled();
+    const request = openRouter.mock.calls[0][1];
+    expect(new Headers(request?.headers).get('Authorization')).toBe('Bearer fixture-openrouter-key');
+    const body = JSON.parse(String(request?.body));
+    expect(body.model).toBe('typesafe/jev-1.14');
+    expect(body.state).toEqual({ headers: headers.filter(({ label }) => label).map(({ column, label }) => ({
+      value: `column_${column}`, label,
+    })) });
+    expect(Object.keys(body.questions)).toEqual(['full', 'first', 'last']);
+    expect(body.questions.first.criteria).toMatchObject({ column_2: 'Pupil Forename', no_match: expect.any(String) });
   });
 
   it('checks credentials before calling Jev', async () => {

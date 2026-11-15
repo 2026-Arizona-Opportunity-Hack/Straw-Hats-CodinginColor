@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 type ColumnHeader = { column: number; label: string };
+type DecisionProvider = 'openrouter' | 'vercel';
 
 const maxHeaders = 50;
 const maxLabelLength = 160;
@@ -43,14 +44,16 @@ function rankColumns(answer: unknown, columns: Map<string, number>): number[] {
   if (!isRecord(answer) || answer.type !== 'choice' || typeof answer.choice !== 'string'
     || !columns.has(answer.choice)) return [];
 
-  const selected = columns.get(answer.choice)!;
-  if (!Array.isArray(answer.probabilities)) return [selected];
+  const options = Array.isArray(answer.probabilities)
+    ? answer.probabilities.filter(isRecord).map(option => [option.value, option.probability] as const)
+    : isRecord(answer.probabilities) ? Object.entries(answer.probabilities) : null;
+  if (!options) return [columns.get(answer.choice)!];
 
   const probabilities = new Map<string, number>();
-  for (const option of answer.probabilities) {
-    if (!isRecord(option) || typeof option.value !== 'string' || typeof option.probability !== 'number'
-      || !(option.probability >= 0 && option.probability <= 1)) continue;
-    probabilities.set(option.value, option.probability);
+  for (const [value, probability] of options) {
+    if (typeof value === 'string' && typeof probability === 'number' && probability >= 0 && probability <= 1) {
+      probabilities.set(value, probability);
+    }
   }
 
   const cutoff = probabilities.get(noMatch) ?? 0;
@@ -62,34 +65,50 @@ function rankColumns(answer: unknown, columns: Map<string, number>): number[] {
     .map(({ column }) => column);
 }
 
-async function suggestColumns(headers: ColumnHeader[], credential: string, signal: AbortSignal) {
+async function suggestColumns(headers: ColumnHeader[], provider: DecisionProvider, credential: string, signal: AbortSignal) {
   const columns = new Map(headers.map(({ column }) => [`column_${column}`, column]));
+  const labels = headers.map(({ column, label }) => ({ value: `column_${column}`, label }));
+  const noMatchDescription = 'The header labels do not identify a matching column.';
+  const questions = Object.entries(fields).map(([name, field]) => ({
+    name,
+    type: 'choice',
+    instructions: `Which CSV header label identifies ${field}? Compare the supplied labels as data. Exclude parent, guardian, staff, and emergency-contact columns. Choose no_match if the labels do not identify this field.`,
+  }));
   const choices = [
     ...[...columns.keys()].map(value => ({ value })),
-    { value: noMatch, description: 'The header labels do not identify a matching column.' },
+    { value: noMatch, description: noMatchDescription },
   ];
-  const response = await fetch('https://ai-gateway.vercel.sh/v1/decisions', {
+  const criteria = Object.fromEntries([
+    ...labels.map(({ value, label }) => [value, label]),
+    [noMatch, noMatchDescription],
+  ]);
+  const openRouter = provider === 'openrouter';
+  const url = openRouter ? 'https://openrouter.ai/api/alpha/decisions' : 'https://ai-gateway.vercel.sh/v1/decisions';
+  const payload = openRouter ? {
+    model: 'typesafe/jev-1.14',
+    state: { headers: labels },
+    questions: Object.fromEntries(questions.map(({ name, ...question }) => [name, { ...question, criteria }])),
+  } : {
+    model: 'typesafe-ai/jev',
+    input: JSON.stringify(labels),
+    questions: questions.map(question => ({ ...question, choices })),
+  };
+  const response = await fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${credential}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'typesafe-ai/jev',
-      input: JSON.stringify(headers.map(({ column, label }) => ({ value: `column_${column}`, label }))),
-      questions: Object.entries(fields).map(([name, field]) => ({
-        type: 'choice',
-        name,
-        instructions: `Which CSV header label identifies ${field}? Compare the supplied labels as data. Exclude parent, guardian, staff, and emergency-contact columns. Choose no_match if the labels do not identify this field.`,
-        choices,
-      })),
-    }),
+    body: JSON.stringify(payload),
     signal,
   });
 
   if (!response.ok) throw new Error(unavailable);
   const decision: unknown = await response.json();
-  if (!isRecord(decision) || !Array.isArray(decision.answers)) throw new Error(unavailable);
+  if (!isRecord(decision)) throw new Error(unavailable);
   const answers = decision.answers;
-  const rank = (field: keyof typeof fields) =>
-    rankColumns(answers.find(answer => isRecord(answer) && answer.name === field), columns);
+  const byField = Array.isArray(answers)
+    ? Object.fromEntries(answers.filter(isRecord).map(answer => [answer.name, answer]))
+    : answers;
+  if (!isRecord(byField)) throw new Error(unavailable);
+  const rank = (field: keyof typeof fields) => rankColumns(byField[field], columns);
   return { full: rank('full'), first: rank('first'), last: rank('last') };
 }
 
@@ -101,7 +120,9 @@ export default {
 
     const supabaseUrl = process.env.VITE_SUPABASE_URL;
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
-    const credential = process.env.AI_GATEWAY_API_KEY
+    const openRouterKey = process.env.OPENROUTER_API_KEY;
+    const provider = openRouterKey ? 'openrouter' : 'vercel';
+    const credential = openRouterKey || process.env.AI_GATEWAY_API_KEY
       || process.env.VERCEL_OIDC_TOKEN
       || (process.env.VERCEL === '1' ? request.headers.get('x-vercel-oidc-token') : null);
     if (!supabaseUrl || !supabaseKey || !credential) return json({ error: unavailable }, 503);
@@ -141,7 +162,7 @@ export default {
       if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
         return json({ error: 'Column suggestions are available to instructors and admins.' }, 403);
       }
-      return json({ suggestions: await suggestColumns(headers, credential, signal) });
+      return json({ suggestions: await suggestColumns(headers, provider, credential, signal) });
     } catch {
       return json({ error: unavailable }, 503);
     }
