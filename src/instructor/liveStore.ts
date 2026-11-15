@@ -317,7 +317,7 @@ export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, di
   const [courses, classes, attempts, moduleSettings, programSettings, progress] = await Promise.all([
     // Includes published library courses (RLS "read published courses") so instructors can import them.
     supabase.from('courses').select(courseColumns).order('created_at'),
-    supabase.from('classes').select('id, name, school, course_id, join_code, created_at, class_modules (module_id, released_at), class_students (id, display_name, passcode, profile_id, created_at), assignments (*), assignment_submissions (*)').order('created_at'),
+    supabase.from('classes').select('id, name, school, course_id, join_code, created_at, class_modules (module_id, released_at), class_students (id, display_name, passcode, profile_id, created_at), assignments (*), assignment_submissions (*)').not('class_students.passcode', 'is', null).order('created_at'),
     selectAll(supabase, 'activity_attempts', 'id, student_id, activity_id, class_id, score, submitted_at, time_on_task_ms, attempt_no, response'),
     selectAll(supabase, 'class_module_settings', 'class_id, module_id, pass_mark, max_posttest_tries', ['class_id', 'module_id']),
     supabase.from('program_settings').select('inactive_days, low_score_pct'),

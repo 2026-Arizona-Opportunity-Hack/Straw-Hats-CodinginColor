@@ -6,7 +6,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import type { Role } from '../shared/types/db.ts'
 import { Button, DataTable, EmptyState, Field, FormStatus, Input, PageHeader, Select, Td, Th } from '../shared/ui/index.tsx'
-import { addInstructor, addPerson, changeRole, enrollStudent, type NewPerson } from './api.ts'
+import { addInstructor, addPerson, changeRole, enrollStudent, removeStudent, type NewPerson } from './api.ts'
 import { AdminDialog, ArchiveButton, LoadState } from './common.tsx'
 import { ORG_KEY, useOrg } from './hooks.ts'
 import { archivedReason } from './metrics.ts'
@@ -23,7 +23,7 @@ export function PeoplePage() {
   const showArchived = params.get('archived') === '1'
   if (!data) return <><PageHeader title="People & roles" /><LoadState isLoading={isLoading} error={error} /></>
 
-  const className = new Map(data.classes.map((c) => [c.id, c.name]))
+  const classById = new Map(data.classes.map((c) => [c.id, c]))
   const openClasses = data.classes.filter((c) => !archivedReason(c))
   const active = data.people.filter((p) => !p.archived_at)
   const archivedCount = data.people.length - active.length
@@ -36,12 +36,11 @@ export function PeoplePage() {
     r === 'instructor'
       ? data.classInstructors.some((x) => x.class_id === classId && x.instructor_id === id)
       : data.enrollments.some((x) => x.class_id === classId && x.student_id === id)
-  const classesFor = (id: string, r: Role) =>
-    r === 'instructor'
-      ? data.classInstructors.filter((x) => x.instructor_id === id).map((x) => className.get(x.class_id))
-      : r === 'student'
-        ? data.enrollments.filter((x) => x.student_id === id).map((x) => className.get(x.class_id))
-        : []
+  const classesFor = (id: string, r: Role) => {
+    const ids = r === 'instructor' ? data.classInstructors.filter((x) => x.instructor_id === id)
+      : r === 'student' ? data.enrollments.filter((x) => x.student_id === id) : []
+    return ids.map((x) => classById.get(x.class_id)).filter((c) => c !== undefined)
+  }
 
   function applyFilters(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -106,16 +105,21 @@ export function PeoplePage() {
             <thead><tr><Th>Name</Th><Th>School</Th><Th>Classes</Th><Th>Role</Th></tr></thead>
             <tbody>
               {list.map((p) => {
-                const cls = classesFor(p.id, p.role).filter(Boolean)
+                const cls = classesFor(p.id, p.role)
                 return (
                   <tr key={p.id}>
                     <Td className="font-semibold">{p.display_name}{p.username && <span className="block font-mono text-xs font-normal text-cic-muted">@{p.username}</span>}</Td>
                     <Td>{p.school ?? <span className="text-cic-muted">CIC</span>}</Td>
                     <Td className="max-w-72">
                       <div className="flex flex-col items-start gap-1.5">
-                        {cls.length ? cls.join(', ') : <span className="text-cic-muted">—</span>}
+                        {cls.length ? <ul>{cls.map((c) => <li key={c.id}>{classLabel(c)}</li>)}</ul>
+                          : <span className="text-cic-muted">—</span>}
                         {(p.role === 'student' || p.role === 'instructor') && !p.archived_at && (
-                          <AddToClass personId={p.id} name={p.display_name} role={p.role} classes={openClasses.filter((c) => !inClass(p.id, p.role, c.id))} />
+                          <ClassPicker personId={p.id} name={p.display_name} actionKey={p.role}
+                            classes={openClasses.filter((c) => !inClass(p.id, p.role, c.id))} />
+                        )}
+                        {p.role === 'student' && (
+                          <ClassPicker personId={p.id} name={p.display_name} actionKey="remove" classes={cls} />
                         )}
                       </div>
                     </Td>
@@ -157,7 +161,13 @@ const ADD_ROLES = [
   { value: 'reviewer', label: 'Reviewer', icon: Eye },
 ] as const
 
-function AddPersonDialog({ classes }: { classes: { id: string; name: string }[] }) {
+type ClassOption = { id: string; name: string; school: string }
+
+function classLabel({ name, school }: ClassOption) {
+  return `${name}, ${school}`
+}
+
+function AddPersonDialog({ classes }: { classes: ClassOption[] }) {
   const qc = useQueryClient()
   const dialog = useRef<HTMLDialogElement>(null)
   const [role, setRole] = useState<NewPerson['role']>('instructor')
@@ -264,7 +274,7 @@ function AddPersonDialog({ classes }: { classes: { id: string; name: string }[] 
                 <Field id="add-class" label="Class" optional>
                   <Select id="add-class" name="class_id" defaultValue="">
                     <option value="">None yet</option>
-                    {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {classes.map((c) => <option key={c.id} value={c.id}>{classLabel(c)}</option>)}
                   </Select>
                 </Field>
               )}
@@ -280,43 +290,67 @@ function AddPersonDialog({ classes }: { classes: { id: string; name: string }[] 
   )
 }
 
-// Students are enrolled in a class; instructors are assigned to teach it.
 const CLASS_ACTION = {
-  student: { label: '+ Add to class', done: 'Added to', verb: 'Add', run: (personId: string, classId: string) => enrollStudent(personId, classId) },
-  instructor: { label: '+ Assign to class', done: 'Now teaching', verb: 'Assign', run: (personId: string, classId: string) => addInstructor(classId, personId) },
+  student: { label: '+ Add to class', done: 'Added to', prompt: 'Add', preposition: 'to', run: enrollStudent },
+  instructor: { label: '+ Assign to class', done: 'Now teaching', prompt: 'Assign', preposition: 'to',
+    run: (personId: string, classId: string) => addInstructor(classId, personId) },
+  remove: { label: 'Remove from class', done: 'Removed from', prompt: 'Remove', preposition: 'from', run: removeStudent },
 }
 
-/** Class picker on a student's or instructor's row: picking a class adds them right away. */
-function AddToClass({ personId, name, role, classes }: { personId: string; name: string; role: keyof typeof CLASS_ACTION; classes: { id: string; name: string }[] }) {
+function ClassPicker({ personId, name, actionKey, classes }: {
+  personId: string; name: string; actionKey: keyof typeof CLASS_ACTION; classes: ClassOption[]
+}) {
   const qc = useQueryClient()
-  const action = CLASS_ACTION[role]
+  const action = CLASS_ACTION[actionKey]
+  const dialog = useRef<HTMLDialogElement>(null)
+  const [confirmClass, setConfirmClass] = useState<ClassOption | null>(null)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
-  const add = useMutation({
-    mutationFn: (c: { id: string; name: string }) => action.run(personId, c.id),
-    onSuccess: (_, c) => {
-      setMsg({ ok: true, text: `${action.done} ${c.name}` })
-      return qc.invalidateQueries({ queryKey: ORG_KEY })
+  const change = useMutation({
+    mutationFn: (c: ClassOption) => action.run(personId, c.id),
+    onSuccess: async (_, c) => {
+      await qc.invalidateQueries({ queryKey: ORG_KEY })
+      setMsg({ ok: true, text: `${action.done} ${classLabel(c)}` })
     },
     onError: (e) => setMsg({ ok: false, text: e.message }),
   })
-  if (!classes.length) return null
-  const id = `class-${personId}`
+  if (!classes.length && !msg) return null
+  const id = `class-${actionKey}-${personId}`
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <label htmlFor={id} className="sr-only">{action.verb} {name} to a class</label>
-      <Select
-        id={id}
-        value=""
-        disabled={add.isPending}
-        onChange={(e) => {
-          const c = classes.find((x) => x.id === e.target.value)
-          if (c) { setMsg(null); add.mutate(c) }
-        }}
-        className="h-8 w-40 border-dashed px-2 text-xs font-semibold text-brand"
-      >
-        <option value="" disabled>{add.isPending ? 'Saving…' : action.label}</option>
-        {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-      </Select>
+      {classes.length > 0 && <>
+        <label htmlFor={id} className="sr-only">{action.prompt} {name} {action.preposition} a class</label>
+        <Select
+          id={id}
+          value=""
+          disabled={change.isPending}
+          onChange={(e) => {
+            const c = classes.find((x) => x.id === e.target.value)
+            if (!c) return
+            setMsg(null)
+            if (actionKey === 'remove') {
+              setConfirmClass(c)
+              dialog.current?.showModal()
+            } else change.mutate(c)
+          }}
+          className="h-8 w-40 border-dashed px-2 text-xs font-semibold text-brand"
+        >
+          <option value="" disabled>{change.isPending ? 'Saving…' : action.label}</option>
+          {classes.map((c) => <option key={c.id} value={c.id}>{classLabel(c)}</option>)}
+        </Select>
+      </>}
+      {actionKey === 'remove' && <AdminDialog dialogRef={dialog} id={id + '-confirm'} title="Remove student from class"
+        onClose={() => { if (!dialog.current?.open) setConfirmClass(null) }}>
+        {confirmClass && <div className="space-y-4 p-6">
+          <p>Remove <strong>{name}</strong> from <strong>{classLabel(confirmClass)}</strong>? They will lose class access and keep their past work.</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => dialog.current?.close()}>Cancel</Button>
+            <Button variant="danger" onClick={() => {
+              dialog.current?.close()
+              change.mutate(confirmClass)
+            }}>Remove from class</Button>
+          </div>
+        </div>}
+      </AdminDialog>}
       <span role="status" className="text-xs">{msg && <span className={msg.ok ? 'text-brand' : 'text-danger'}>{msg.text}</span>}</span>
     </div>
   )
