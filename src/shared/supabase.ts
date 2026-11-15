@@ -10,3 +10,5 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 export const supabase: SupabaseClient | null = url && anonKey ? createClient(url, anonKey) : null
 
 export const isMockMode = supabase === null
+
+export const isLocalDemo = isMockMode && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)

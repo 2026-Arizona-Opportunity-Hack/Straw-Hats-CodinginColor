@@ -1,3 +1,4 @@
+import type { InteractiveHtmlPayload } from '../shared/types/activities.ts';
 import type { Submission } from './assignments/grading';
 import type { Assignment } from './assignments/model';
 
@@ -5,6 +6,7 @@ export const activityTypes = {
   content: 'Article',
   video: 'Video',
   slides: 'Slides',
+  interactive_html: 'Custom HTML',
   check: 'Knowledge check',
   worksheet: 'Worksheet',
   code: 'Code exercise',
@@ -24,8 +26,9 @@ export type Activity = {
   questions: Question[];
   code?: { starter: string; tests: string; solution: string };
   format?: 'open-ended';
+  interactiveHtml?: InteractiveHtmlPayload;
 };
-export type Lesson = { id: string; title: string; activities: Activity[] };
+export type Lesson = { id: string; title: string; activities: Activity[]; htmlFirst?: boolean };
 export type Module = { id: string; title: string; published: boolean; revision?: number; lessons: Lesson[] };
 export type Course = { id: string; title: string; description: string; level: string; modules: Module[] };
 export type Attempt = {
@@ -122,6 +125,9 @@ export function unresolvedModuleContent(module: Module): string | null {
   for (const lesson of module.lessons) {
     if (!lesson.title.trim() || !lesson.activities.length) return 'Give each lesson a title and at least one activity.';
     for (const activity of lesson.activities) {
+      if (activity.type === 'interactive_html' && (!activity.interactiveHtml?.html.trim() || new TextEncoder().encode(activity.interactiveHtml.html).length > 256 * 1024)) {
+        return 'Add HTML source up to 256 KB to each Custom HTML block.';
+      }
       if (!activity.title.trim()) return 'Give each activity a title.';
       if (activity.type === 'video' && !embedUrl(activity.url)) return 'Add a valid YouTube, Vimeo, or Google Drive link to each video.';
       if (activity.type === 'slides' && !slidesUrl(activity.url)) return 'Add a valid Google Slides or Google Drive link to each slide deck.';

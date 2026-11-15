@@ -1,49 +1,41 @@
-import { useEffect, useRef } from 'react'
-import type { InteractiveCompleteMessage } from '../types/activities.ts'
+import { useLayoutEffect, useMemo, useRef } from 'react'
+import { isolatedHtml, readFrameCompletion } from './isolatedHtml.ts'
 
 interface Props {
   html: string
+  css?: string
   title: string
-  /** Called when the page posts { type: 'cic:complete', score }. */
+  allowScripts?: boolean
   onComplete?: (score: number | undefined) => void
   height?: number
 }
 
-/**
- * Renders instructor-authored HTML.
- *
- * SECURITY: the sandbox deliberately omits `allow-same-origin`, so the page runs
- * in an opaque origin. It can run scripts and load CDN libraries, but it cannot
- * read the app's cookies, localStorage, Supabase session or DOM. Do not add
- * `allow-same-origin` or `allow-top-navigation`: together with `allow-scripts`
- * that removes the sandbox entirely.
- */
-export function InteractiveHtmlFrame({ html, title, onComplete, height = 480 }: Props) {
-  const frameRef = useRef<HTMLIFrameElement>(null)
+export function InteractiveHtmlFrame({ html, css, title, allowScripts = false, onComplete, height = 480 }: Props) {
+  const srcDoc = useMemo(() => isolatedHtml(html, allowScripts, css), [html, css, allowScripts])
+  // A new document needs a new browsing context so late messages from a prior run are rejected.
+  return <IsolatedFrame key={srcDoc} srcDoc={srcDoc} title={title} allowScripts={allowScripts} onComplete={onComplete} height={height} />
+}
 
-  useEffect(() => {
-    function handleMessage(event: MessageEvent) {
-      // Only accept messages from this exact frame. Origin is "null" for sandboxed frames.
-      if (event.source !== frameRef.current?.contentWindow) return
-      const data = event.data as Partial<InteractiveCompleteMessage> | null
-      if (data?.type !== 'cic:complete') return
-      const score =
-        typeof data.score === 'number' && data.score >= 0 && data.score <= 1 ? data.score : undefined
-      onComplete?.(score)
+function IsolatedFrame({ srcDoc, title, allowScripts, onComplete, height }: {
+  srcDoc: string; title: string; allowScripts: boolean; height: number; onComplete?: Props['onComplete']
+}) {
+  const frame = useRef<HTMLIFrameElement>(null)
+  const completed = useRef(false)
+
+  useLayoutEffect(() => {
+    if (!onComplete || !allowScripts) return
+    function receive(event: MessageEvent) {
+      if (completed.current) return
+      const result = readFrameCompletion(event, frame.current?.contentWindow)
+      if (!result) return
+      completed.current = true
+      onComplete?.(result.score)
     }
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
-  }, [onComplete])
+    window.addEventListener('message', receive)
+    return () => window.removeEventListener('message', receive)
+  }, [allowScripts, onComplete])
 
-  return (
-    <iframe
-      ref={frameRef}
-      title={title}
-      srcDoc={html}
-      sandbox="allow-scripts allow-forms"
-      referrerPolicy="no-referrer"
-      className="w-full rounded-lg border border-slate-300 bg-white"
-      style={{ height }}
-    />
-  )
+  return <iframe ref={frame} title={title} srcDoc={srcDoc} sandbox={allowScripts ? 'allow-scripts' : ''}
+    referrerPolicy="no-referrer" allow="camera 'none'; microphone 'none'; geolocation 'none'; payment 'none'; clipboard-read 'none'; clipboard-write 'none'"
+    className="w-full rounded-lg border border-slate-300 bg-white" style={{ width: '100%', height }} />
 }

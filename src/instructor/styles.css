@@ -323,6 +323,12 @@ body:has(.ic-app) { margin: 0; }
 .ic-quiz-choice { display: flex; align-items: end; gap: 6px; }
 .ic-quiz-choice label { flex: 1; }
 
+.ic-html-editor { display: grid; gap: 16px; align-items: start; }
+.ic-html-editor > * { min-width: 0; }
+.ic-html-lesson .ic-article { max-width: none; }
+@media (min-width: 1200px) {
+  .ic-html-lesson .ic-html-editor { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 /* ---- Class tabs (Dashboard, Modules, Grades, ...) ------------------------ */
 .ic-class-tabs { display: flex; gap: 4px 28px; margin: 4px 0 22px; border-bottom: 1px solid var(--ic-border); overflow-x: auto; scrollbar-width: none; }
 .ic-class-tabs a { flex-shrink: 0; padding: 10px 2px 12px; border-bottom: 3px solid transparent; margin-bottom: -1px; color: var(--ic-muted); font-size: 16px; font-weight: 700; text-decoration: none; }
