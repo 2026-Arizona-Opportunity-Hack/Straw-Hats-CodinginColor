@@ -61,6 +61,7 @@ export const percent = (n: number | null) => n === null ? '—' : Math.round(n) 
 export const points = (n: number | null) => {
   if (n === null) return '—';
   const rounded = Math.round(n);
-  return (rounded > 0 ? '+' : '') + rounded + ' pp';
+  // Percentage points: post-test % minus pretest %. "pts" reads clearer to teachers than "pp".
+  return (rounded > 0 ? '+' : '') + rounded + ' pts';
 };
 export const attemptFor = (learner: Learner, activityId: string) => learner.attempts.find(attempt => attempt.activityId === activityId);
