@@ -1,7 +1,7 @@
 // Tabbed pages inside a class: Dashboard, Modules, Grades, Assignments, Curriculum, Syllabus.
 // Each tab is its own URL (#/classes/<id>/<tab>) so back, reload and links work.
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowRight, BookOpen, Printer, Search, Trash2, Upload, UserPlus } from 'lucide-react';
+import { ArrowRight, Pencil, Printer, Search, Trash2, Upload, UserPlus } from 'lucide-react';
 import { makeLearners, type ClassGroup, type Course } from './model';
 import { assignedModules, classProgress, percent, points, statuses } from './progress';
 import { classTabs, type ClassTabId } from './classTabIds';
@@ -178,15 +178,32 @@ function CurriculumProgress({ group, course, onSelect }: { group: ClassGroup; co
   </div>;
 }
 
-export function CurriculumTab({ group, course, onEditAssignment }: { group: ClassGroup; course?: Course; onEditAssignment: () => void }) {
+export function CurriculumTab({ group, course, onEditAssignment, onMakeEditable }: {
+  group: ClassGroup; course?: Course; onEditAssignment: () => void; onMakeEditable?: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState('');
   if (!course) return <div className="ic-tab-page"><section className="ic-tile"><Empty>This class has no course yet.</Empty></section></div>;
   const modules = assignedModules(group, course);
+  const hasProgress = group.learners.some(learner => learner.attempts.length > 0);
+  async function makeEditable() {
+    if (!onMakeEditable) return;
+    if (hasProgress && !window.confirm('Students have already started this course. Their saved work stays in the database, but it will not show for the editable version. Continue?')) return;
+    setBusy(true);
+    setProblem('');
+    try { await onMakeEditable(); } catch (error) { setProblem(error instanceof Error ? error.message : 'Could not make the course editable.'); } finally { setBusy(false); }
+  }
+  const editAction = onMakeEditable
+    ? <button type="button" className="ic-button ic-primary" disabled={busy} onClick={() => void makeEditable()}><Pencil size={16} aria-hidden="true" /> {busy ? 'Preparing…' : 'Edit for this class'}</button>
+    : <a className="ic-button ic-primary" href={`#/classes/${group.id}/curriculum/edit`}><Pencil size={16} aria-hidden="true" /> Edit curriculum</a>;
   return <div className="ic-tab-page">
     <Tile title="Modules in this class" note="Completion, scores and who is stuck, per assigned module."
       actions={<div className="ic-row">
         <button type="button" className="ic-button" onClick={onEditAssignment}>Choose modules</button>
-        <a className="ic-button" href={`#/curriculum/${course.id}`}><BookOpen size={16} /> Open course builder</a>
+        {editAction}
       </div>}>
+      {onMakeEditable && <p className="ic-note">This class uses the shared CIC library version. Choose Edit for this class to get a version you can change; other classes are not affected.</p>}
+      {problem && <p className="ic-error" role="alert">{problem}</p>}
       {modules.length ? <div className="ic-module-cards">{modules.map((module, index) => {
         const stats = moduleStats(group, course, module.id);
         const healthy = stats.stuck === 0;

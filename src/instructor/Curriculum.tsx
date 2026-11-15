@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { ArrowDown, ArrowRight, ArrowUp, BookOpen, Library, Pencil, Copy, Eye, FilePlus2, GripVertical, ImagePlus, Plus, Save, Star, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, Library, Pencil, Copy, Eye, FilePlus2, GripVertical, ImagePlus, Plus, Save, Star, Trash2 } from 'lucide-react';
 import { isLocalDemo } from '../shared/supabase.ts';
 import { CodingLabEditor } from './CodingLabEditor';
 import { HtmlActivityEditor, HtmlActivityPreview } from './HtmlActivity';
@@ -16,13 +16,19 @@ type View = { moduleId?: string; lessonId?: string; activityId?: string };
 type OutlineKind = 'module' | 'lesson' | 'block';
 type DragItem = { kind: OutlineKind; index: number; parent: string };
 
-export function CurriculumList({ courses, reviewer = false, onCreate, canEditLibrary = false }: {
+export function CurriculumList({ courses, reviewer = false, onCreate, canEditLibrary = false, libraryOnly = false }: {
   courses: Course[]; reviewer?: boolean; onCreate?: (course: Course) => void; canEditLibrary?: boolean;
+  /** Instructors: only the CIC library here; they edit a course inside the class that uses it. */
+  libraryOnly?: boolean;
 }) {
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
   const [level, setLevel] = useState('Beginner');
   const visible = reviewer ? courses.filter(course => course.modules.some(module => module.published)) : courses.filter(course => !course.library);
+  if (libraryOnly) return <>
+    <PageHeader title="CIC library" description="Ready-made courses from Coding in Color. Preview them here, then add one to a class from Create a class or the class's Curriculum tab, where you can change it for that class." />
+    <LibraryList courses={courses.filter(course => course.library)} canEdit={canEditLibrary} heading={false} />
+  </>;
   return <>
     <PageHeader title={reviewer ? 'Curriculum reviewer' : 'Curriculum'} description={reviewer
       ? 'Browse published courses and article-style lessons in the read-only preview.'
@@ -63,16 +69,16 @@ function CourseHeading({ reviewer, children }: { reviewer: boolean; children: Re
 }
 
 /** Ready-made CIC courses. Instructors preview them here and pick one when they create a class. */
-function LibraryList({ courses, canEdit }: { courses: Course[]; canEdit: boolean }) {
-  if (!courses.length) return null;
-  return <section className="ic-stack ic-section-gap" aria-labelledby="ic-library-heading">
-    <div><h2 className="ic-section-title" id="ic-library-heading">CIC library</h2>
-      <p className="ic-note">Ready-made courses from Coding in Color. Pick one when you create a class; it becomes yours to change.</p></div>
+function LibraryList({ courses, canEdit, heading = true }: { courses: Course[]; canEdit: boolean; heading?: boolean }) {
+  if (!courses.length) return heading ? null : <Panel><Empty>No library courses yet.</Empty></Panel>;
+  return <section className={'ic-stack' + (heading ? ' ic-section-gap' : '')} aria-labelledby={heading ? 'ic-library-heading' : undefined} aria-label={heading ? undefined : 'Library courses'}>
+    {heading && <div><h2 className="ic-section-title" id="ic-library-heading">CIC library</h2>
+      <p className="ic-note">Ready-made courses from Coding in Color. Pick one when you create a class; it becomes yours to change.</p></div>}
     {courses.map(course => {
       const modules = course.modules.filter(module => module.published).length;
       return <article className="ic-panel ic-course-row" key={course.id}>
         <div className="ic-class-mark ic-library-mark"><Library size={21} aria-hidden="true" /></div>
-        <div><h3><a href={`#/review/${course.id}`}>{course.title}</a></h3>
+        <div>{heading ? <h3><a href={`#/review/${course.id}`}>{course.title}</a></h3> : <h2><a href={`#/review/${course.id}`}>{course.title}</a></h2>}
           {course.description && <p className="ic-clamp-2">{course.description}</p>}
           <span className="ic-note">{course.level} · {modules} {modules === 1 ? 'module' : 'modules'} ready</span>
         </div>
@@ -102,7 +108,9 @@ export function CourseReviewer({ course }: { course: Course }) {
   </>;
 }
 
-export function CourseBuilder({ initial, released, localAuthoring, onSave, onRelease, assigned, draftModule, library, onSaveLibrary }: {
+export function CourseBuilder({ initial, released, localAuthoring, onSave, onRelease, assigned, draftModule, library, onSaveLibrary, inClass }: {
+  /** Set when the builder opens inside a class card: a compact header that returns to the class. */
+  inClass?: { className: string; backTo: string };
   initial: Course;
   released: Course;
   localAuthoring: boolean;
@@ -294,12 +302,21 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
   }
 
   return <>
-    <PageHeader title={course.title || 'Untitled course'} description="Course builder" back={{ label: 'Curriculum', to: '#/curriculum' }}>
-      {localAuthoring && <button type="button" className="ic-button" onClick={() => setManageBlocks(true)}><Star size={16} /> My blocks</button>}
-      <button type="button" className="ic-button" onClick={() => setImporter('converter')}><FilePlus2 size={16} /> Draft from materials</button>
-      <button type="button" className="ic-button" disabled={!module?.lessons.length} onClick={() => setPreview(true)}><Eye size={16} /> Preview module</button>
-      <button type="button" className="ic-button ic-primary" onClick={saveDraft}><Save size={16} /> {localAuthoring ? 'Save draft' : 'Save changes'}</button>
-    </PageHeader>
+    {(() => {
+      const actions = <>
+        {localAuthoring && <button type="button" className="ic-button" onClick={() => setManageBlocks(true)}><Star size={16} /> My blocks</button>}
+        <button type="button" className="ic-button" onClick={() => setImporter('converter')}><FilePlus2 size={16} /> Draft from materials</button>
+        <button type="button" className="ic-button" disabled={!module?.lessons.length} onClick={() => setPreview(true)}><Eye size={16} /> Preview module</button>
+        <button type="button" className="ic-button ic-primary" onClick={saveDraft}><Save size={16} /> {localAuthoring ? 'Save draft' : 'Save changes'}</button>
+      </>;
+      return inClass
+        ? <div className="ic-class-builder-head">
+          <div><a className="ic-back" href={inClass.backTo}><ArrowLeft size={15} aria-hidden="true" /> Back to {inClass.className} curriculum</a>
+            <h2>Edit curriculum</h2><p className="ic-note">Changes apply to this class only. The CIC library stays the same.</p></div>
+          <div className="ic-row">{actions}</div>
+        </div>
+        : <PageHeader title={course.title || 'Untitled course'} description="Course builder" back={{ label: 'Curriculum', to: '#/curriculum' }}>{actions}</PageHeader>;
+    })()}
     <div className="ic-builder-status">
       <span>{unsaved ? 'Unsaved changes' : localAuthoring ? 'Draft saved locally' : 'Changes saved'}</span>
       <span role="status">{message}</span>

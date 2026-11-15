@@ -81,8 +81,9 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
   courses: Course[]; classes: ClassGroup[]; onCreate: (group: ClassGroup) => void; onImport: (source: Course) => Promise<Course>;
 }) {
   const library = publishedCourses(courses.filter(course => course.library));
-  const own = assignableCourses(courses);
-  // Library courses first: picking one imports it into the instructor's courses when the class is created.
+  // Classes start from the CIC library; each class gets its own copy when it is created.
+  // Without library courses (for example a fresh database), fall back to the instructor's own courses.
+  const own = library.length ? [] : assignableCourses(courses);
   const available = [...library, ...own];
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState(0);
@@ -162,7 +163,7 @@ export function ClassSetup({ courses, classes, onCreate, onImport }: {
         <div hidden={step !== 1}><RosterUpload rows={rows} setRows={next => { setRows(next); setError(''); }} /></div>
         {step === 2 && <div className="ic-stack ic-section-gap">
           {!available.length ? <p>Publish a module in <a href="#/curriculum">Curriculum</a> before assigning it.</p> : <>
-            {[['CIC library', library, 'Ready-made by Coding in Color. It is added to your courses so you can change it later.'], ['My courses', own, '']].map(([label, group, hint]) => (group as Course[]).length > 0 &&
+            {[['CIC library', library, 'Ready-made by Coding in Color. This class gets its own version, which you can change from its Curriculum tab.'], ['My courses', own, '']].map(([label, group, hint]) => (group as Course[]).length > 0 &&
               <fieldset key={label as string} className="ic-course-pick"><legend>{label as string}</legend>
                 {hint && <p className="ic-note">{hint as string}</p>}
                 {(group as Course[]).map(option => <label key={option.id} className="ic-pick-card">

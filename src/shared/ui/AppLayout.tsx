@@ -7,7 +7,6 @@ import {
   GraduationCap,
   KeyRound,
   LayoutDashboard,
-  Eye,
   LogOut,
   Menu,
   School,
@@ -35,8 +34,7 @@ const NAV: Record<Role, NavItem[]> = {
   student: [{ to: '/student', label: 'My courses', icon: GraduationCap }],
   instructor: [
     { to: '/instructor', section: 'classes', defaultSection: true, label: 'Classes', icon: LayoutDashboard },
-    { to: '/instructor', section: 'curriculum', label: 'Curriculum', icon: BookOpen },
-    { to: '/instructor', section: 'review', label: 'Reviewer preview', icon: Eye },
+    { to: '/instructor', section: 'curriculum', label: 'CIC library', icon: BookOpen },
   ],
   admin: [
     { to: '/admin', label: 'Overview', icon: LayoutDashboard },

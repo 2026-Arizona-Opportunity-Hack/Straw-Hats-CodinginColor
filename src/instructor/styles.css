@@ -568,3 +568,10 @@ body:has(.ic-app) { margin: 0; }
 .ic-pick-card input { margin-top: 10px; }
 .ic-pick-card strong { display: block; }
 .ic-app .ic-pick-card .ic-note { display: -webkit-box; margin-top: 2px; font-weight: 400; }
+
+/* Course builder opened inside a class card */
+.ic-class-builder-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; margin: 8px 0 14px; }
+.ic-class-builder-head h2 { margin-top: 6px; }
+.ic-class-builder-head .ic-back { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: var(--ic-green); text-decoration: none; }
+.ic-class-builder-head .ic-back:hover { text-decoration: underline; }
+.ic-class-builder-head + .ic-builder-status { margin-top: 0; }
