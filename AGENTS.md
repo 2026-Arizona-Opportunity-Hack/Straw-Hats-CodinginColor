@@ -3,6 +3,12 @@
 You are helping **Straw Hats** build a project for **Coding in Color** at
 [ASU Fall Hackathon 2026 | Phoenix Hackathon for Nonprofits: Nov 14-15](https://www.ohack.dev/hack/fall-2026). Read this before suggesting or making changes.
 
+## Start here: the handoff file
+
+Before you change anything, read [`docs/HANDOFF.md`](docs/HANDOFF.md) (current state, branches, what is half done) and, for database work, [`docs/SUPABASE.md`](docs/SUPABASE.md).
+When you finish a change, update `docs/HANDOFF.md` in the same branch: the sections your change affects plus one line in its Log.
+Teammates work with different AI tools; this file is how context carries between them.
+
 ## The one repository rule (most important)
 
 **All code lives in this repository and nowhere else.** Never suggest, scaffold or
