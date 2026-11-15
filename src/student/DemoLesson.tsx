@@ -4,6 +4,7 @@ import { labPayload } from '../instructor/labPayload'
 import type { Activity, Lesson } from '../instructor/model'
 import { practiceAttempt, previewActivity } from '../instructor/studentPreview'
 import { CodeLab } from '../shared/labs/CodeLab'
+import { previewCatPhotoChecks } from '../shared/labs/catPhoto'
 import { Card } from '../shared/ui/index.tsx'
 import { ActivityBlock } from './LessonContent'
 
@@ -34,7 +35,12 @@ function StudentBlock({ activity, lessonId, index, storageKey }: { activity: Act
     } catch { setError('Could not save completion in this browser.') }
   }
   if (activity.type === 'code') return <section className="ic-article-activity">
-    <h3>{activity.title}</h3><CodeLab payload={labPayload(activity)} storageKey={storageKey ? storageKey + ':lab' : undefined} allowSubmit />
+    <h3>{activity.title}</h3><CodeLab payload={labPayload(activity)} storageKey={storageKey ? storageKey + ':lab' : undefined} allowSubmit
+      completed={!!result} verifyWeb={activity.code?.lab?.verifier === 'cat-photo-v1' ? async source => {
+        const verified = await previewCatPhotoChecks(source)
+        if (verified.completed) finish()
+        return verified
+      } : undefined} />
   </section>
   if (activity.type === 'interactive_html' && activity.interactiveHtml) return <section className="ic-article-activity ic-article-exercise">
     <h3>{activity.title}</h3>

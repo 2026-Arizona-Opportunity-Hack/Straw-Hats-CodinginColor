@@ -64,6 +64,7 @@ export interface LabCheck {
 
 export interface CodingLabSettings {
   language: 'python' | 'web'
+  verifier?: 'cat-photo-v1'
   starterCss?: string
   checks: LabCheck[]
 }

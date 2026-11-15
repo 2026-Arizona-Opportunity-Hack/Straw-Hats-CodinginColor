@@ -39,6 +39,11 @@ The demo keeps student edits and submissions locally per published revision.
 Practice results stay out of the live reporting pipeline.
 The seeded course **Try the curriculum builder** includes both labs, a quiz, a written response, and an HTML widget.
 
+The Cat Photo App lab previews HTML and CSS in the scriptless frame.
+Migration 1005 and the `cat-photo-check` Edge Function record completion only when all three checks pass.
+Run `supabase/demo/cat_photo_lab.sql` to add the optional lab to the hosted Cat Photo App.
+The provided `cat.jpg` matches the photo in the freeCodeCamp Cat Photo App project.
+
 ## Supabase student curriculum
 
 Migration 1004 restricts module, lesson, and activity reads using the existing enrollment and unlock rules.
@@ -48,6 +53,8 @@ Published snapshots, My blocks, and executable labs remain browser-local.
 Run `supabase/tests/student_curriculum_access.sql` against a migrated development database to check both access and grading.
 
 ## Log
+
+- 2026-11-14, Ken: added the verified Cat Photo App lab and its local demo.
 
 - 2026-11-14, Ken: added the Read & check template for new courses and empty lessons.
 

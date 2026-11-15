@@ -3,6 +3,8 @@ import { useId, useState, type FormEvent } from 'react'
 import Markdown, { defaultUrlTransform } from 'react-markdown'
 import type { ActivityStatus, AttemptInput, recordAttempt } from '../api/student/index.ts'
 import { slidesUrl } from '../instructor/model.ts'
+import { CodeLab, type VerifyWebLab } from '../shared/labs/CodeLab.tsx'
+import { previewCatPhotoChecks } from '../shared/labs/catPhoto.ts'
 import type { Choice } from '../shared/types/activities.ts'
 import type { Activity, Lesson } from '../shared/types/db.ts'
 import { curriculumUrl } from '../shared/ui/curriculumUrl.ts'
@@ -27,8 +29,9 @@ function AnswerField({ id, prompt, choices }: { id: string; prompt: string; choi
   )
 }
 
-export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScripts = false }: {
+export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScripts = false, verifyLab, labStorageKey }: {
   activity: Activity; status?: ActivityStatus; onAttempt: SubmitActivity; onSaved?: () => void; allowScripts?: boolean
+  verifyLab?: VerifyWebLab; labStorageKey?: string
 }) {
   const [started, setStarted] = useState(() => performance.now())
   const formId = useId()
@@ -92,7 +95,11 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
       case 'content':
         return !done && complete
       case 'code': {
-        const { starter_code, prompt } = (activity as Activity<'code'>).content
+        const payload = (activity as Activity<'code'>).content
+        if (payload.lab?.verifier === 'cat-photo-v1') {
+          return <CodeLab payload={payload} verifyWeb={verifyLab ?? previewCatPhotoChecks} storageKey={labStorageKey} completed={status?.submitted} />
+        }
+        const { starter_code, prompt } = payload
         return <>{starter_code && <pre className="overflow-auto"><code>{starter_code}</code></pre>}
           {responseForm([{ id: 'code', prompt: prompt || 'Write your code' }])}</>
       }
@@ -114,18 +121,25 @@ export function ActivityBlock({ activity, status, onAttempt, onSaved, allowScrip
   </div>
 }
 
-export function LessonContent({ lesson, statuses, onAttempt, onSaved, allowScripts }: {
+export function LessonContent({ lesson, statuses, onAttempt, onSaved, allowScripts, checkLab, studentId }: {
   lesson: Lesson & { activities: Activity[] }
   statuses?: ReadonlyMap<string, ActivityStatus>
   onAttempt: (activity: Activity, input: AttemptInput) => ReturnType<SubmitActivity>
   onSaved?: () => void
   allowScripts?: boolean
+  checkLab?: (activityId: string, source: string, signal: AbortSignal) => ReturnType<VerifyWebLab>
+  studentId?: string
 }) {
   return <section className="space-y-3">
     <h2 className="text-xl">{lesson.title}</h2>
     {lesson.activities.map(activity => <Card key={activity.id}>
       <ActivityBlock activity={activity} status={statuses?.get(activity.id)} onAttempt={input => onAttempt(activity, input)}
-        onSaved={onSaved} allowScripts={allowScripts} />
+        onSaved={onSaved} allowScripts={allowScripts} labStorageKey={studentId ? 'cic-learn.live-lab:' + studentId + ':' + activity.id : undefined}
+        verifyLab={checkLab && (async (source, signal) => {
+          const verified = await checkLab(activity.id, source, signal)
+          if (verified.completed) onSaved?.()
+          return verified
+        })} />
     </Card>)}
   </section>
 }
