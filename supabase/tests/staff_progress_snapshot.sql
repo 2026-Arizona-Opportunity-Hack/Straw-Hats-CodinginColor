@@ -13,7 +13,8 @@ begin
   update profiles set role = 'instructor' where id in (teacher, other_teacher);
   update profiles set role = 'admin' where id = admin_id;
   update profiles set role = 'reviewer' where id = reviewer;
-  insert into courses (id, title, owner_id, published) values (course, 'Canonical report fixture', teacher, true);
+  -- This intentionally shared curriculum is global; local copies belong to one class (2011).
+  insert into courses (id, title, owner_id, published, is_library) values (course, 'Canonical report fixture', teacher, true, true);
   insert into modules (id, course_id, position, title, concept, published) values
     (m, course, 1, 'First', 'A', true), (next_m, course, 2, 'Empty second', 'B', true);
   insert into lessons (id, module_id, position, title) values (l, m, 1, 'First');
