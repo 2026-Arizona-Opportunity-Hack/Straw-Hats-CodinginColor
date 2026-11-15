@@ -18,6 +18,8 @@ export interface ModuleStatus {
 
 export interface AttemptInput {
   activity_id: string
+  /** Accepted from existing players. The server resolves the student's enrollment. */
+  class_id?: string
   response: unknown
   /** Practice score for the local demo. The live server scores assessed answers. */
   client_score?: number
@@ -79,7 +81,7 @@ export async function listActivityStatus(moduleId: string): Promise<ActivityStat
 export async function recordAttempt(input: AttemptInput): Promise<AttemptResult> {
   if (curriculumBackend) return result(curriculumBackend.rpc('submit_attempt', {
     p_activity_id: input.activity_id,
-    p_response: input.response,
+    p_response: input.response ?? {},
     p_time_on_task_ms: input.time_on_task_ms,
   }))
   return mockDelay({ is_correct: null, score: input.client_score ?? null })

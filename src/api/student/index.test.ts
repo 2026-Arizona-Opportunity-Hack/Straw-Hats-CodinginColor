@@ -15,7 +15,7 @@ test('uses the student RPCs without a client grade or class override', async () 
   const student = await import('./index.ts')
 
   const score = await student.recordAttempt({
-    activity_id: 'check-1', response: { choice_id: 'a' }, client_score: 0, time_on_task_ms: 100,
+    activity_id: 'check-1', class_id: 'ignored', response: { choice_id: 'a' }, client_score: 0, time_on_task_ms: 100,
   })
   expect(rpc).toHaveBeenCalledWith('submit_attempt', {
     p_activity_id: 'check-1', p_response: { choice_id: 'a' }, p_time_on_task_ms: 100,
