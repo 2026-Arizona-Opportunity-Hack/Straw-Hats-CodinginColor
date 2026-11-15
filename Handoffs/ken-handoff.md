@@ -29,6 +29,8 @@ PPTX extraction runs in the browser, and only selected image previews go to the 
 GPT-6.1 Terra is the default. Claude Opus 5.5 is available under High quality.
 Both use the same five-minute function runtime and a dedicated capped OpenRouter key.
 The review dialog reports lookup, model wait, and validation stages with elapsed time.
+**Add a coding lab** gives Sol the source text and article draft for an optional HTML/CSS practice block.
+The reference solution and review notes stay in the draft review. Adding the module keeps only the starter and checks.
 See the [README](../README.md#draft-curriculum-from-materials) for preview configuration.
 
 ## Student preview
@@ -96,6 +98,8 @@ The roster mapping endpoint checks the signed-in Supabase profile and calls Jev 
 Only reviewed header labels and column positions go to the mapping endpoint. Use fictional rosters for demo and preview verification.
 
 ## Log
+
+- 2026-11-15, Codex: added optional Sol coding lab generation and preview to curriculum draft review.
 
 - 2026-11-15, Codex: added reusable HTML/CSS practice checks and kept them in saved coding lab blocks.
 
