@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { createClient } from '@supabase/supabase-js'
-import { maxDraftRequest, maxSourceText } from '../../src/shared/curriculum/draft.ts'
+import { maxDraftRequest } from '../../src/shared/curriculum/draft.ts'
+import { parseSource } from '../../server/curriculum/source.ts'
 import { DraftError, generateDraft } from '../../server/curriculum/generate.ts'
 
 export async function POST(request: Request) {
@@ -24,11 +25,11 @@ export async function POST(request: Request) {
     const bytes = await request.arrayBuffer()
     if (bytes.byteLength > maxDraftRequest) return reply(413, { error: 'Use a smaller lesson source.' })
     let body
-    try { body = JSON.parse(new TextDecoder().decode(bytes)) } catch { return reply(400, { error: 'Send a valid lesson proposal.' }) }
-    if (body?.kind !== 'lesson_plan' || typeof body.text !== 'string' || !body.text.trim() || body.text.length > maxSourceText
-      || typeof body.audience !== 'string' || body.audience.length > 180) return reply(400, { error: 'Provide a lesson proposal of up to 80,000 characters.' })
+    try { body = JSON.parse(new TextDecoder().decode(bytes)) } catch { return reply(400, { error: 'Send valid lesson materials.' }) }
+    const source = parseSource(body)
+    if (!source) return reply(400, { error: 'Check the materials. Use up to 80,000 characters, 60 slides, and six embedded images.' })
     const guide = await readFile(new URL('../../docs/lesson-style-guide.md', import.meta.url), 'utf8')
-    const draft = await generateDraft({ kind: 'lesson_plan', text: body.text, audience: body.audience }, guide, key, signal)
+    const draft = await generateDraft(source, guide, key, signal)
     return reply(200, draft)
   } catch (error) {
     if (error instanceof DraftError) return reply(error.status, { error: error.message })

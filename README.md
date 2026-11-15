@@ -131,7 +131,9 @@ Metric definitions live in `src/admin/metrics.ts` and on the Impact page. Learni
 
 ### Draft curriculum from materials
 
-In an instructor's course builder, choose **Draft from materials**, paste a proposal or upload a text or Markdown file, then review the generated module before adding it. The module starts unpublished and its article, practice, and exit blocks are editable. The [lesson style guide](docs/lesson-style-guide.md) is included in the server prompt. Verified references are selected from the approved catalog in `server/curriculum/references.ts`.
+In an instructor's course builder, choose **Draft from materials**, paste a proposal or upload a text, Markdown, or PowerPoint file, then review the generated module before adding it. The module starts unpublished and its article, practice, and exit blocks are editable. The [lesson style guide](docs/lesson-style-guide.md) is included in the server prompt. Verified references are selected from the approved catalog in `server/curriculum/references.ts`.
+
+PowerPoint import extracts visible slide text and speaker notes in presentation order in the browser. Select up to six PNG or JPEG previews to ask for teaching suggestions about those images. Unselected images stay in the browser. Charts, slide shapes, and unsupported assets are flagged for instructor review. Export Google Slides to `.pptx` to use this flow.
 
 For a preview, configure the existing Supabase project variables and a dedicated, capped `OPENROUTER_API_KEY` in the Vercel server environment. Set the OpenRouter key's workspace privacy policy to **ZDR only**, excluding Safety Retention endpoints for Google and other providers. Use `vercel dev` to run the API locally alongside the app. Plain Vite in mock mode offers a local preview without calling OpenRouter. The two server model overrides in `.env.example` can be used to compare drafts.
 
