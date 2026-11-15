@@ -1,7 +1,7 @@
 // Owner: Jacky. One course: its modules as rows of step dots, with real progress.
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type CSSProperties, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { enrollInCourse, getModule, listActivityStatus, listCatalog, listModuleStatus, listMyCourses, type CatalogCourse } from '../api/student/index.ts'
 import { joinClass } from '../api/student/auth.ts'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
@@ -9,6 +9,7 @@ import type { ActivityType } from '../shared/types/activities.ts'
 import type { Activity } from '../shared/types/db.ts'
 import { Button, FormStatus, Input } from '../shared/ui/index.tsx'
 import { languageOf } from './languages.ts'
+import { ModuleFinished } from './ModuleFinished.tsx'
 import { isShowcase, withShowcase } from './showcase.ts'
 import './student.css'
 
@@ -39,6 +40,10 @@ export function StudentCourse() {
   const contents = useQueries({ queries: openModules.map((m) => ({ queryKey: ['module', profile?.id, m.module_id], queryFn: () => getModule(m.module_id) })) })
   const statuses = useQueries({ queries: openModules.map((m) => ({ queryKey: ['moduleActivities', profile?.id, m.module_id], queryFn: () => listActivityStatus(m.module_id) })) })
   const [popover, setPopover] = useState<string | null>(null)
+  // "Finish module" in the player lands here with the module id; keep it until the student closes the banner.
+  const location = useLocation()
+  const navigate = useNavigate()
+  const finishedModule = (location.state as { finishedModule?: string } | null)?.finishedModule
 
   if (!course) return <p role="status">{isLoading ? 'Loading…' : <>This course isn't available. <Link className="underline" to="/student/explore">Browse subjects</Link></>}</p>
   const lang = languageOf(course.title)
@@ -71,6 +76,11 @@ export function StudentCourse() {
             <div className="mt-6"><Action course={course} enrolled={enrolled} nextModuleId={next?.module_id} /></div>
           </div>
         </header>
+
+        {enrolled && modules && finishedModule && (
+          <ModuleFinished modules={modules} moduleId={finishedModule} hue={lang.hue}
+            onClose={() => navigate(location.pathname, { replace: true, state: null })} />
+        )}
 
         {enrolled && modules && (
           <section className="mt-6 rounded-2xl bg-white p-6" aria-label="Your progress">

@@ -2,37 +2,18 @@
 // code.org lesson, so students never face a wall of questions. ?step=N (1-based) opens a card;
 // the sidebar uses it. Next unlocks once the card is finished; readings can always continue.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { checkCatPhotoLab, getActivityResponse, getCheckAnswer, getClassmateNotes, getModule, listActivityStatus, recordAttempt } from '../api/student/index.ts'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { isLocalDemo } from '../shared/supabase.ts'
 import { Button } from '../shared/ui/index.tsx'
+import { Celebration } from './Celebration.tsx'
 import { ActivityBlock } from './LessonContent.tsx'
 import { needsSubmission, stepTitle, STEP_LABEL } from './steps.ts'
 import './stepper.css'
 
-const CONFETTI = ['#00a850', '#007a3d', '#ffc83d', '#2b5b9e', '#ff7a59', '#9fe0bd']
 const CHEERS = ['Nice!', 'You got it!', 'Correct!', 'Great job!', 'Nailed it!']
-
-/** 18 confetti pieces flying out in a circle; positions are fixed so renders stay stable. */
-function Celebration({ cheer }: { cheer: string }) {
-  return (
-    <>
-      <div className="sp-party" aria-hidden="true">
-        {Array.from({ length: 18 }, (_, i) => {
-          const angle = (i / 18) * Math.PI * 2
-          const dist = 140 + (i % 3) * 50
-          return <i key={i} style={{
-            '--c': CONFETTI[i % CONFETTI.length], '--d': `${(i % 4) * 40}ms`, '--r': `${(i % 2 ? 1 : -1) * (200 + i * 20)}deg`,
-            '--x': `${Math.round(Math.cos(angle) * dist)}px`, '--y': `${Math.round(Math.sin(angle) * dist * 0.7)}px`,
-          } as CSSProperties} />
-        })}
-      </div>
-      <p className="sp-badge" role="status">{cheer}</p>
-    </>
-  )
-}
 
 export function ModulePlayer() {
   const { moduleId = '' } = useParams()
@@ -144,7 +125,7 @@ export function ModulePlayer() {
         <div className="flex items-center gap-3">
           {canSkip && !last && <button type="button" className="text-sm font-semibold text-cic-muted underline-offset-2 hover:underline" onClick={() => go(current + 1)}>Skip for now</button>}
           {last
-            ? <Button type="button" disabled={!allDone} onClick={() => navigate(`/student/course/${mod.course_id}`, { state: { finished: mod.title } })}>Finish module</Button>
+            ? <Button type="button" disabled={!allDone} onClick={() => navigate(`/student/course/${mod.course_id}`, { state: { finishedModule: mod.id } })}>Finish module</Button>
             : <Button type="button" disabled={!done} onClick={() => go(current + 1)}>{done ? 'Next ›' : 'Finish this step to continue'}</Button>}
         </div>
       </div>

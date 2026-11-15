@@ -24,6 +24,8 @@ export interface ModuleStatus {
   /** Final-check tries used, and how many count (class courses only). */
   posttest_tries?: number
   max_tries?: number | null
+  /** Final-check score needed to unlock the next class module. */
+  pass_mark?: number | null
 }
 
 export interface AttemptInput {
@@ -93,8 +95,8 @@ export async function listModuleStatus(courseId: string): Promise<ModuleStatus[]
     const rows = await result<(Omit<ModuleStatus, 'title'> & { module_title: string })[]>(
       curriculumBackend.rpc('my_course_progress', { p_course_id: courseId }),
     )
-    return rows.map(({ module_id, module_title, state, tested_out, pretest_score, posttest_best, posttest_tries, max_tries }) => ({
-      module_id, title: module_title, state, tested_out, pretest_score, posttest_best, posttest_tries, max_tries,
+    return rows.map(({ module_id, module_title, state, tested_out, pretest_score, posttest_best, posttest_tries, max_tries, pass_mark }) => ({
+      module_id, title: module_title, state, tested_out, pretest_score, posttest_best, posttest_tries, max_tries, pass_mark,
     }))
   }
   const modules = MOCK_MODULES.filter((m) => m.course_id === courseId).sort((a, b) => a.position - b.position)
