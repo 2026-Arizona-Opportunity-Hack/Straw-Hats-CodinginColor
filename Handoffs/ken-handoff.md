@@ -23,6 +23,8 @@ Use the [CIC Learn lesson style guide](../docs/lesson-style-guide.md) as model i
 Draft from materials calls the Vercel draft endpoint for signed-in instructors and admins.
 Generated articles use the Cat Photo App presentation in preview and the student player.
 Review notes stay in the dialog, and adding a module starts it unpublished.
+GPT-6.1 Terra is the default. Claude Opus 5.5 is available under High quality.
+Both use the same five-minute function runtime and a dedicated capped OpenRouter key.
 See the [README](../README.md#draft-curriculum-from-materials) for preview configuration.
 
 ## Student preview

@@ -137,7 +137,9 @@ Metric definitions live in `src/admin/metrics.ts` and on the Impact page. Learni
 
 In an instructor's course builder, choose **Draft from materials**, paste a proposal or upload a text or Markdown file, then review the generated module before adding it. The module starts unpublished and its article, practice, and exit blocks are editable. The [lesson style guide](docs/lesson-style-guide.md) is included in the server prompt. Verified references are selected from the approved catalog in `server/curriculum/references.ts`.
 
-For a preview, configure the existing Supabase project variables and a dedicated, capped `OPENROUTER_API_KEY` in the Vercel server environment. Set the OpenRouter key's workspace privacy policy to **ZDR only**, excluding Safety Retention endpoints for Google and other providers. Use `vercel dev` to run the API locally alongside the app. Plain Vite in mock mode offers a local preview without calling OpenRouter. The two server model overrides in `.env.example` can be used to compare drafts.
+**Standard** uses GPT-6.1 Terra. **High quality** uses Claude Opus 5.5. Both use high reasoning and get up to 265 seconds for generation within a 300-second Vercel Function. Each generation uses the model chosen by the instructor.
+
+For a preview, configure the existing Supabase project variables and a dedicated, capped `OPENROUTER_CURRICULUM_API_KEY` in the Vercel server environment. Use a workspace with **ZDR only** and Safety Retention excluded. The API checks eligibility before sending lesson materials. Use `vercel dev` to run the API locally alongside the app. Plain Vite in mock mode offers a local preview without calling OpenRouter.
 
 ### Interactive HTML activities
 

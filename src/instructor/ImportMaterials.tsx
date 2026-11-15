@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { maxSourceText } from '../shared/curriculum/draft'
+import { defaultDraftQuality, draftQualities, isDraftQuality, maxSourceText } from '../shared/curriculum/draft'
 import { LessonPreview } from './LessonPreview'
 import { requestMaterialsDraft, type MaterialDraft } from './materialsDraft'
 import type { Module } from './model'
@@ -13,6 +13,7 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
 }) {
   const [text, setText] = useState('')
   const [audience, setAudience] = useState('')
+  const [quality, setQuality] = useState(defaultDraftQuality)
   const [draft, setDraft] = useState<MaterialDraft | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -43,7 +44,7 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
       setBusy(true)
       setError('')
       try {
-        const result = await requestMaterialsDraft({ kind: 'lesson_plan', text: text.trim(), audience: audience.trim() }, request.signal)
+        const result = await requestMaterialsDraft({ kind: 'lesson_plan', text: text.trim(), audience: audience.trim(), quality }, request.signal)
         if (!request.signal.aborted) setDraft(result)
       } catch (problem) {
         if (!request.signal.aborted) setError(problem instanceof Error ? problem.message : 'Could not generate a draft.')
@@ -70,8 +71,14 @@ export function ImportMaterials({ mode, close, onMarkdown, onDraft }: {
       }} /></label>
       {converter && <label>Audience (optional)<input value={audience} maxLength={180} disabled={busy}
         onChange={event => setAudience(event.target.value)} /></label>}
+      {converter && <label>Draft quality<select value={quality} disabled={busy} onChange={event => {
+        const value = event.target.value
+        if (isDraftQuality(value)) setQuality(value)
+      }}>
+        {Object.entries(draftQualities).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+      </select></label>}
       {error && <p className="ic-error" role="alert">{error}</p>}
-      {busy && <p role="status">Generating your draft…</p>}
+      {busy && <p role="status">Generating your draft… This can take a few minutes.</p>}
       <div className="ic-form-footer"><button type="submit" className="ic-button ic-primary" disabled={busy || !text.trim()}>
         {converter ? 'Generate draft' : 'Add article'}
       </button></div>
