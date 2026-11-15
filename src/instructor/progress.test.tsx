@@ -40,3 +40,10 @@ it('keeps zero-required completion and does not invent state for unlinked roster
   expect(classProgress(group([state({ required_count: 0, done_count: 0 })]), course).roster[0].status).toBe('Complete');
   expect(classProgress(group([]), course).roster[0].status).toBe('Not started');
 });
+
+it('retains truthful activity-percentage labels for mock fixtures', () => {
+  const mock = group([]);
+  delete mock.learners[0].moduleProgress;
+  const html = renderToStaticMarkup(<DashboardTab group={mock} course={course} />);
+  expect(html).toContain('50% of activities submitted');
+});

@@ -40,6 +40,7 @@ function moduleStats(group: ClassGroup, course: Course | undefined, moduleId: st
   const possible = roster.length * activities.length;
   const scores = roster.flatMap(row => row.submitted.map(attempt => attempt.score)).filter((score): score is number => score !== null);
   return {
+    live,
     completion: live ? (eligible.length ? (done / eligible.length) * 100 : null)
       : possible ? roster.reduce((sum, row) => sum + row.completed, 0) / possible * 100 : null,
     finished: done,
@@ -83,13 +84,13 @@ export function DashboardTab({ group, course }: { group: ClassGroup; course?: Co
       </Tile>
       <Tile title="Module completion" note="Open a module to see its assignments and due dates.">
         {modules.length ? <ul className="ic-drill">{modules.map(module => {
-          const { completion } = moduleStats(group, course, module.id);
+          const { completion, live } = moduleStats(group, course, module.id);
           const work = moduleAssignments(group, module.id);
           return <li key={module.id}><details>
             <summary>
               <span className="ic-drill-title">{module.title}</span>
               <span className="ic-bar-track" aria-hidden="true"><span className="ic-bar-fill" style={{ width: `${completion ?? 0}%` }} /></span>
-              <strong aria-label={`${percent(completion)} of enrolled students completed this module`}>{percent(completion)}</strong>
+              <strong aria-label={live ? `${percent(completion)} of enrolled students completed this module` : `${percent(completion)} of activities submitted`}>{percent(completion)}</strong>
             </summary>
             {work.length ? <ul className="ic-module-work">{work.map(({ assignment, submitted, toGrade, missing, students }) => <li key={assignment.id}>
               <a href={`#/classes/${group.id}/assignments/${assignment.id}`}>{assignment.title}</a>

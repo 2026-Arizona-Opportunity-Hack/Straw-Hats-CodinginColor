@@ -115,4 +115,3 @@ describe('fmtGain', () => {
     expect([fmtGain(12.4), fmtGain(-3.2), fmtGain(-0.4), fmtGain(0), fmtGain(null)]).toEqual(['+12 pts', '−3 pts', '0 pts', '0 pts', '—'])
   })
 })
-
