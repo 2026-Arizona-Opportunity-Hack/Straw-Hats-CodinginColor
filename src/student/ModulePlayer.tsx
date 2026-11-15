@@ -32,7 +32,7 @@ export function ModulePlayer() {
 
   return <>
     <PageHeader title={mod.title} subtitle={mod.concept} />
-    <div className="space-y-6">
+    <div className="cic-student-lessons">
       {mod.lessons.map(lesson => <LessonContent key={lesson.id} lesson={lesson} statuses={statuses}
         onAttempt={(_, input) => recordAttempt(input)} onSaved={refreshProgress} allowScripts={isLocalDemo}
         checkLab={checkCatPhotoLab} studentId={studentId} loadDiscussion={getClassmateNotes} />)}
