@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { ArrowRight, BookOpen, Clipboard, GraduationCap, Plus, Printer, Search, Users } from 'lucide-react';
+import { ArrowRight, BookOpen, Clipboard, GraduationCap, Plus, Search } from 'lucide-react';
 import { RosterUpload } from './RosterUpload';
 import { makeLearners, type Activity, type ClassGroup, type Course, type Learner } from './model';
 import { attemptFor, classProgress, percent, points } from './progress';
@@ -48,25 +48,25 @@ export function ClassDashboard({ group, course, onSave, onAddStudents, justCreat
   otherClasses: ClassGroup[];
 }) {
   const [selected, setSelected] = useState<string | null>(null);
-  const [dialog, setDialog] = useState<'cards' | 'roster' | 'assignment' | null>(null);
+  const [dialog, setDialog] = useState<'share' | 'roster' | 'assignment' | null>(null);
   const [rows, setRows] = useState<RosterRow[]>([]);
   const [savingRoster, setSavingRoster] = useState(false);
   const [rosterError, setRosterError] = useState('');
   const rosterAttempt = useRef<Learner[] | null>(null);
   const [draftModules, setDraftModules] = useState(group.moduleIds);
   const [feedback, setFeedback] = useState('');
+  const [rosterMessage, setRosterMessage] = useState('');
   const { roster, activities } = classProgress(group, course);
   const details = roster.find(row => row.learner.id === selected);
   const ready = rows.filter(row => !row.issue).map(row => row.name);
-  const exampleLink = 'https://example.com/join/' + group.joinCode;
   const editAssignment = () => { setDraftModules(group.moduleIds); setDialog('assignment'); };
   const updateRoster = (next: RosterRow[]) => {
     setRows(next);
     setRosterError('');
     rosterAttempt.current = null;
   };
-  const openImport = () => { updateRoster([]); setDialog('roster'); };
-  const openCards = () => { setFeedback(''); setDialog('cards'); };
+  const openImport = () => { updateRoster([]); setRosterMessage(''); setDialog('roster'); };
+  const openShare = () => { setFeedback(''); setDialog('share'); };
 
   async function importRoster() {
     if (savingRoster || !ready.length) return;
@@ -76,8 +76,8 @@ export function ClassDashboard({ group, course, onSave, onAddStudents, justCreat
     rosterAttempt.current = students;
     try {
       await onAddStudents(students);
-      setFeedback('');
-      setDialog('cards');
+      setRosterMessage(`Imported ${students.length} ${students.length === 1 ? 'student' : 'students'}.`);
+      setDialog(null);
     } catch (problem) {
       setRosterError(problem instanceof Error ? problem.message : 'Could not save the roster. Try again.');
     } finally {
@@ -87,17 +87,17 @@ export function ClassDashboard({ group, course, onSave, onAddStudents, justCreat
 
   return <>
     <PageHeader title={group.name} description={group.school + (course ? ' · ' + course.title : '')} back={{ label: 'Classes', to: '#/classes' }}>
-      <button className="ic-button" onClick={openImport}><Users size={17} /> Import roster</button>
-      <button className="ic-button ic-primary" onClick={openCards}><Printer size={17} /> Student login cards</button>
+      <button className="ic-button ic-primary" onClick={openShare}><Clipboard size={17} /> Share class code</button>
     </PageHeader>
-    {justCreated && <p className="ic-success" role="status">Class created with {group.learners.length} students. Open student login cards to see the example link and passcodes.</p>}
+    {justCreated && <p className="ic-success" role="status">Class created. Share the class code so students can sign up and join.</p>}
+    {rosterMessage && <p className="ic-success" role="status">{rosterMessage}</p>}
     <ClassTabBar groupId={group.id} active={tab} />
     {tab === 'dashboard' && <DashboardTab group={group} course={course} />}
     {tab === 'curriculum' && (editor ?? <CurriculumTab group={group} course={course} onEditAssignment={editAssignment}
       onMakeEditable={onMakeEditable} viewing={detail === 'view'} blockActions={blockActions} />)}
     {tab === 'assignments' && <AssignmentsTab group={group} course={course} otherClasses={otherClasses} assignmentId={detail} onSave={onSave} />}
     {tab === 'grades' && <GradesTab group={group} course={course} onSelect={setSelected} onSave={onSave} />}
-    {tab === 'roster' && <RosterTab group={group} course={course} onSave={onSave} onImport={openImport} onCards={openCards} />}
+    {tab === 'roster' && <RosterTab group={group} course={course} onSave={onSave} onImport={openImport} />}
     {details && <Dialog wide title={details.learner.name + ' · Activity details'} onClose={() => setSelected(null)}>
       <p className="ic-note">{details.status} · {details.completed} of {details.total} completed · {details.minutes} min · Learning gain {points(details.gain)}</p>
       <ul className="ic-list ic-section-gap">{activities.map(activity => {
@@ -110,14 +110,16 @@ export function ClassDashboard({ group, course, onSave, onAddStudents, justCreat
       <h3>Hint log</h3>
       {details.learner.hints.length ? <ul>{details.learner.hints.map((hint, index) => <li key={index}>{hint.concept} · {hint.text}</li>)}</ul> : <Empty>No hints requested.</Empty>}
     </Dialog>}
-    {dialog === 'cards' && <Dialog wide title="Student login cards" onClose={() => setDialog(null)}>
-      <p className="ic-note">Demo credentials. Each student uses the class code and their individual passcode.</p>
-      <div className="ic-share"><label>Example student link<input value={exampleLink} readOnly onFocus={event => event.target.select()} /></label><button className="ic-button" onClick={async () => setFeedback(await copyText(exampleLink) ? 'Example link copied.' : 'Select the example link to copy it.')}><Clipboard size={16} /> Copy link</button></div>
+    {dialog === 'share' && <Dialog title="Share class code" onClose={() => setDialog(null)}>
+      <p className="ic-note">New students enter this code on CIC Learn’s <strong>Create an account</strong> page. Students with an account can enter it in <strong>My classroom</strong> after signing in.</p>
+      <div className="ic-share">
+        <label>Class code<input value={group.joinCode} readOnly onFocus={event => event.target.select()} /></label>
+        <button type="button" className="ic-button ic-primary" onClick={async () => setFeedback(await copyText(group.joinCode) ? 'Class code copied.' : 'Select the class code to copy it.')}><Clipboard size={16} /> Copy code</button>
+      </div>
       <p className="ic-note" role="status">{feedback}</p>
-      <LoginCards group={group} learners={group.learners} />
-      <div className="ic-form-footer"><button className="ic-button ic-primary" onClick={() => window.print()}><Printer size={16} /> Print login cards</button></div>
     </Dialog>}
     {dialog === 'roster' && <Dialog wide title="Import more students" closeDisabled={savingRoster} onClose={() => setDialog(null)}>
+      <p className="ic-note">Students who sign up with the class code appear on the roster automatically. Importing those same students first can create duplicate roster entries.</p>
       <div inert={savingRoster}><RosterUpload rows={rows} setRows={updateRoster} /></div>
       {rosterError && <p className="ic-error" role="alert">{rosterError}</p>}
       <div className="ic-form-footer"><button type="button" disabled={savingRoster || !ready.length} className="ic-button ic-primary" onClick={importRoster}>
@@ -133,10 +135,4 @@ export function ClassDashboard({ group, course, onSave, onAddStudents, justCreat
       }}>Save assignment</button></div>
     </Dialog>}
   </>;
-}
-
-function LoginCards({ group, learners }: { group: ClassGroup; learners: Learner[] }) {
-  return <div className="ic-login-cards">{learners.map(learner => <article key={learner.id}>
-    <h3>{learner.name}</h3><p>{group.name}</p><p>Class code <strong>{group.joinCode}</strong></p><p>Passcode <strong>{learner.passcode}</strong></p>
-  </article>)}</div>;
 }

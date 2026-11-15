@@ -237,13 +237,8 @@ body:has(.ic-app) { margin: 0; }
 .ic-draft-preview .ic-tab-row { margin-bottom: 0; }
 .ic-draft-preview .ic-student-preview { background: var(--ic-canvas); padding: 12px; }
 
-.ic-share { display: flex; align-items: end; gap: 8px; margin-top: 10px; }
-.ic-share label { flex: 1; }
-.ic-login-cards { margin-top: 15px; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
-.ic-login-cards article { border: 1px solid var(--ic-border); border-radius: 6px; padding: 10px; overflow-wrap: anywhere; }
-.ic-login-cards p { font-size: 13px; }
-.ic-login-cards h3 { color: var(--ic-green); }
-.ic-login-cards p strong { font-family: ui-monospace, monospace; }
+.ic-share { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin: 10px 0; }
+.ic-share label { flex: 1; min-width: 8rem; }
 
 @media(max-width: 1080px) {
   .ic-app { grid-template-columns: 190px minmax(0,1fr); }
@@ -275,23 +270,6 @@ body:has(.ic-app) { margin: 0; }
   .ic-steps li { gap: 4px; font-size: 12px; }
   .ic-steps li span { flex-basis: 19px; height: 19px; }
   .ic-course-row { flex-wrap: wrap; }
-  .ic-login-cards { grid-template-columns: 1fr; }
-}
-@media print {
-  .ic-app:has(.ic-login-cards) { display: block; color: black; background: white; }
-  .ic-app:not(.ic-embedded):has(.ic-login-cards) > :not(.ic-main),
-  .ic-main:has(.ic-login-cards) > :not(.ic-dialog),
-  .ic-embedded:has(.ic-login-cards) > :not(.ic-dialog),
-  /* Embedded: hide the main app's sidebar and mobile header when printing login cards. */
-  body:has(.ic-embedded .ic-login-cards) #root aside,
-  body:has(.ic-embedded .ic-login-cards) #root > div > header,
-  .ic-dialog:has(.ic-login-cards) > header,
-  .ic-dialog:has(.ic-login-cards) .ic-dialog-content > :not(.ic-login-cards),
-  .ic-dialog:has(.ic-login-cards)::backdrop { display: none; }
-  .ic-main:has(.ic-login-cards), .ic-dialog:has(.ic-login-cards) .ic-dialog-content { padding: 0; }
-  .ic-dialog:has(.ic-login-cards) { position: static; margin: 0; padding: 0; width: 100%; max-width: none; max-height: none; overflow: visible; border: 0; box-shadow: none; }
-  .ic-dialog:has(.ic-login-cards) .ic-login-cards { margin: 0; grid-template-columns: repeat(2,minmax(0,1fr)); }
-  .ic-login-cards article { break-inside: avoid; }
 }
 
 .ic-lesson-page { padding: 16px clamp(14px, 3vw, 36px) 26px; }

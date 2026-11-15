@@ -1,7 +1,7 @@
 // Tabbed pages inside a class: Dashboard, Modules, Grades, Assignments, Curriculum, Syllabus.
 // Each tab is its own URL (#/classes/<id>/<tab>) so back, reload and links work.
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowRight, Eye, Pencil, Printer, Search, Trash2, Upload, UserPlus } from 'lucide-react';
+import { ArrowRight, Eye, Pencil, Search, Trash2, Upload, UserPlus } from 'lucide-react';
 import { makeLearners, type Activity, type ClassGroup, type Course } from './model';
 import { CourseReviewer } from './Curriculum';
 import { assignedModules, classProgress, percent, points, statuses } from './progress';
@@ -225,8 +225,8 @@ export function CurriculumTab({ group, course, onEditAssignment, onMakeEditable,
   </div>;
 }
 
-export function RosterTab({ group, course, onSave, onImport, onCards }: {
-  group: ClassGroup; course?: Course; onSave: (group: ClassGroup) => boolean; onImport: () => void; onCards: () => void;
+export function RosterTab({ group, course, onSave, onImport }: {
+  group: ClassGroup; course?: Course; onSave: (group: ClassGroup) => boolean; onImport: () => void;
 }) {
   const [name, setName] = useState('');
   const [search, setSearch] = useState('');
@@ -253,9 +253,9 @@ export function RosterTab({ group, course, onSave, onImport, onCards }: {
   return <div className="ic-tab-page">
     <div className="ic-stat-grid">
       <StatCard label="Students" value={group.learners.length} note="On this roster" />
-      <StatCard label="Class code" value={group.joinCode} note="Students enter this with their passcode" />
+      <StatCard label="Class code" value={group.joinCode} note="Students enter this to join the class" />
       <StatCard label="Active this week" value={roster.filter(row => row.learner.lastActive && now - new Date(row.learner.lastActive).getTime() < 7 * 86_400_000).length} note="Submitted work in the last 7 days" tone="good" />
-      <StatCard label="Never signed in" value={roster.filter(row => !row.learner.lastActive).length} note="Check they have a login card" />
+      <StatCard label="No activity yet" value={roster.filter(row => !row.learner.lastActive).length} note="No submitted work recorded" />
     </div>
     <section className="ic-tile ic-filter-bar">
       <label className="ic-search ic-grow"><Search size={16} /><input aria-label="Search roster" type="search" placeholder="Search students" value={search} onChange={event => setSearch(event.target.value)} /></label>
@@ -263,24 +263,21 @@ export function RosterTab({ group, course, onSave, onImport, onCards }: {
         <label className="ic-inline-field">Add student<input value={name} maxLength={100} placeholder="Full name" onChange={event => setName(event.target.value)} /></label>
         <button type="submit" className="ic-button" disabled={!trimmed}><UserPlus size={16} /> Add</button>
       </form>
-      <button type="button" className="ic-button" onClick={onImport}><Upload size={16} /> Add multiple students</button>
-      <button type="button" className="ic-button ic-primary" onClick={onCards}><Printer size={16} /> Login cards</button>
+      <button type="button" className="ic-button" onClick={onImport}><Upload size={16} /> Import roster</button>
       {message && <p className="ic-note" role="status">{message}</p>}
     </section>
     <section className="ic-tile">
       {rows.length ? <div className="ic-table-wrap" tabIndex={0} role="region" aria-label="Roster table">
         <table className="ic-data-table">
-          <thead><tr>{['Student', 'Passcode', 'Status', 'Last active', ''].map((text, index) => <th scope="col" key={index}>{text || <span className="ic-sr-only">Actions</span>}</th>)}</tr></thead>
+          <thead><tr>{['Student', 'Status', 'Last active', ''].map((text, index) => <th scope="col" key={index}>{text || <span className="ic-sr-only">Actions</span>}</th>)}</tr></thead>
           <tbody>{rows.map(row => <tr key={row.learner.id}>
             <td><strong>{row.learner.name}</strong></td>
-            <td><code>{row.learner.passcode}</code></td>
             <td><span className={'ic-status ' + (row.status === 'Stuck' ? 'is-stuck' : row.status === 'Complete' ? 'is-published' : '')}>{row.status}</span></td>
             <td>{row.learner.lastActive ? new Date(row.learner.lastActive).toLocaleDateString() : 'Never'}</td>
             <td className="ic-cell-action"><button type="button" className="ic-icon" aria-label={`Remove ${row.learner.name}`} onClick={() => removeStudent(row.learner.id, row.learner.name)}><Trash2 size={16} /></button></td>
           </tr>)}</tbody>
         </table>
-      </div> : <Empty>{search ? 'No students match your search.' : 'No students yet. Add one or import a CSV.'}</Empty>}
-      <p className="ic-note ic-section-gap">Students sign in with the class code and their own passcode. We store only their name.</p>
+      </div> : <Empty>{search ? 'No students match your search.' : 'Students will appear here when they join with the class code.'}</Empty>}
     </section>
   </div>;
 }
