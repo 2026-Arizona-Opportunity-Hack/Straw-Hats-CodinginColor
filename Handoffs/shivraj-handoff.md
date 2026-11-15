@@ -110,6 +110,8 @@ Applying needs `npx supabase db push --linked --include-all` (1xxx sorts before 
 - **Finish module** lands on the course page with `state.finishedModule`; `ModuleFinished.tsx` shows a banner there: confetti and the final-check score, then *Start the next module*, *Find your next course* (all done), or, when the pass mark is missed, the score needed, the tries left and *Retake the final check*. `Celebration.tsx` holds the shared confetti. `ModuleStatus` now carries `pass_mark`.
 - **Explore** (`StudentExplore.tsx`, `explore.css`): course cards with description, level and module count, subject chips and search. A card opens a `<dialog>` preview with the module list (`catalog_modules()`, 1012) and *Add course* (self-paced), a class-code form (with a class), *Open course* (already added) or *Coming soon*.
 - Course page back link goes to My courses once the course is added, else to Explore.
+- Course activity popovers link **Review** and **Go to content** to the chosen activity's `?step=N`, counted across all lessons in module order.
+  The module player still limits the target to the first unfinished required card; locked modules expose no activity links.
 - Shared step names: `src/student/steps.ts`. Shared course progress hook: `src/student/useMyCourseProgress.ts`.
 
 ### Functions the app calls (`supabase.rpc`)
@@ -190,6 +192,8 @@ Put each sentence on its own line.
 - 2026-11-15, Shivraj: added the module-complete banner on the course page (touches Jacky's `StudentCourse.tsx`).
 - 2026-11-15, Shivraj: added check explanations and right-answer reveal (1011) and merged the 1009 and 2006 versions of `_course_state` (2009).
 - 2026-11-14 7:30 PM, Ruthvik: confirmed with `migration list` that 1001 and 1002 are applied to the hosted DB. Items 4 (builder reads `activity_keys`) and 5 (scoring rules in instructor progress) are done on `ruthvik/class-tabs`.
+- 2026-11-15, Ken (Codex): course activity links retain the selected step; five rendered regressions and local browser checks cover later-lesson review, first reading, unfinished and inaccessible targets, and locked modules.
+  Also checked explicit links with reading bookmarks and the final-check navigation lock from the reconciled reading-order branch.
 - 2026-11-15, Codex: connected imported login cards to student Auth sessions and their original roster rows; hosted activation remains pending.
 - 2026-11-14, Shivraj: created. Migrations 1001 (grading, unlock rules, self-chosen courses) and 1002 (answer mover trigger, assigned modules only), both tested locally, not yet applied.
 
