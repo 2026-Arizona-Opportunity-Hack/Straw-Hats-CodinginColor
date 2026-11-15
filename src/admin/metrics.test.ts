@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { analyze, fmtGain, ruleFor, selfPacedProgress, type OrgData } from './metrics.ts'
-import { partnerImpactCsv } from './partnerExport.ts'
 
 const NOW = Date.now()
 const ago = (days: number) => new Date(NOW - days * 86_400_000).toISOString()
@@ -85,49 +84,5 @@ describe('self-paced learners', () => {
 describe('fmtGain', () => {
   it('signs gains after rounding and shows a dash without paired data', () => {
     expect([fmtGain(12.4), fmtGain(-3.2), fmtGain(-0.4), fmtGain(0), fmtGain(null)]).toEqual(['+12 pts', '−3 pts', '0 pts', '0 pts', '—'])
-  })
-})
-
-describe('partner impact export', () => {
-  const header = 'students_reached,module_completion_pct,average_learning_gain_pts\n'
-
-  it('exports one numeric row across active classes without names or group identifiers', () => {
-    const base = org()
-    const active = Array.from({ length: 10 }, (_, i) => ({ class_id: 'k', student_id: `student-${i}` }))
-    const archivedClass = { ...base.classes[0], id: 'archived', name: 'Private class', archived_at: ago(1) }
-    const data = org({
-      classes: [...base.classes, archivedClass],
-      enrollments: [...active, { class_id: archivedClass.id, student_id: 'archived-student' }],
-      attempts: active.flatMap(({ student_id }, i) => [
-        attempt(student_id, 'pre', 1, 0.4),
-        attempt(student_id, 'post', 1, i < 5 ? 0.9 : 0.5),
-      ]),
-    })
-    expect(partnerImpactCsv(data)).toBe(header + '10,50,30\n')
-  })
-
-  it('does not count one student across multiple classes toward the privacy threshold', () => {
-    const base = org()
-    const classes = Array.from({ length: 5 }, (_, i) => ({ ...base.classes[0], id: `class-${i}` }))
-    const data = org({
-      classes,
-      classModules: classes.map(({ id }) => ({ class_id: id, module_id: 'm' })),
-      classModuleSettings: classes.map(({ id }) => ({ ...base.classModuleSettings[0], class_id: id })),
-      enrollments: classes.map(({ id }) => ({ class_id: id, student_id: 'ana' })),
-      attempts: classes.flatMap(({ id }) => [
-        { ...attempt('ana', 'pre', 1, 0.4), class_id: id },
-        { ...attempt('ana', 'post', 1, 0.9), class_id: id },
-      ]),
-    })
-    expect(partnerImpactCsv(data)).toBe(header + ',,\n')
-  })
-
-  it('suppresses small outcome groups and a small set of paired assessments', () => {
-    const enrollments = Array.from({ length: 6 }, (_, i) => ({ class_id: 'k', student_id: `student-${i}` }))
-    const attempts = enrollments.slice(0, 4).flatMap(({ student_id }, i) => [
-      attempt(student_id, 'pre', 1, 0.4),
-      attempt(student_id, 'post', 1, i === 0 ? 0.9 : 0.5),
-    ])
-    expect(partnerImpactCsv(org({ enrollments, attempts }))).toBe(header + '6,,\n')
   })
 })

@@ -67,7 +67,8 @@ The #27 student "Browse courses" UI was dropped in favor of the Explore page alr
 - No thresholds are hardcoded on the frontend.
   Inactive days, low score, pass mark and post-test tries come from `program_settings` and the `class_module_settings` view (migration 2006); each class gets `rules` in `liveStore.ts`.
   Admin analytics (`src/admin/api.ts`, `metrics.ts`) read the same tables, every row, including self-enrolled students.
-- The admin Impact page exports named student rows for internal use and a separate program-wide partner CSV for active classes with small groups suppressed.
+- The admin Impact page exports named student rows for internal use and a separate program-wide partner CSV for all active classes, independent of filters.
+  The partner CSV omits results based on fewer than five distinct learners, including either side of the completion rate, and gives each learner with paired results equal weight in the average gain.
 
 ### Assignments and grading
 
@@ -178,11 +179,12 @@ Keep it short; link to code instead of copying it.
 Put each sentence on its own line.
 
 ## Log
-- 2026-11-15, Codex: separated the named internal student CSV from the aggregate partner CSV in admin analytics.
 - 2026-11-15 8:55 AM, Ruthvik: rewrote this handoff to cover everything I built (PR list, features, migrations, open work) now that #49 is on `main`. Updated the README instructor section and the Supabase handoff (2006 applied).
 - 2026-11-15 1:20 AM, Ruthvik: opened one PR from `ruthvik/class-library-dashboard` that merges latest `main` with the CIC library, edit-in-class curriculum, class Dashboard drill-downs, DB-driven thresholds (migration 2006, already applied to hosted), the lesson reading view, AI Academy curriculum and embedded HTML activities.
   Merge choices: course edits for a class use Ken's browser drafts and `publish_curriculum`; the student player stays on main's `LessonContent` (now rendering Markdown with `LessonMarkdown`); the student enrollment UI from #27 is dropped for main's Explore page.
   Not included: removing mock mode (conflicts with teammates' new work; redo on top of `main` later) and the demo SQL `supabase/demo/assignment_modules_demo.sql` (not run on hosted).
+- 2026-11-15, Codex: separated the named internal student CSV from the aggregate partner CSV in admin analytics.
+
 - 2026-11-14 9:40 PM, Ruthvik: restyled the 5 AI Academy widget pages with one shared look (indigo header band, cyan accent) and CSS-only motion (answer pop and shake, packet flow, bit toggles, 3D flips, score and progress bars, confetti); all motion stops under reduced motion. Score and progress bars are inline, not sticky, because the frame now grows to full height. Content and logic unchanged; SQL regenerated, not applied.
 
 - 2026-11-14 10:00 PM, Ruthvik: AI Academy Module 1 reading pages rewritten textbook style (hooks, subheads, tables, `> **Key idea:**`-style callouts for the new lesson renderer, no leading title heading). The 5 interactive pages are now in the classroom course too, next to its worksheets. Regenerated `supabase/curriculum/ai-academy.sql` (not applied to the hosted database).
