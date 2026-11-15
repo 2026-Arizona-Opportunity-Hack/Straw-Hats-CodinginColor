@@ -4,7 +4,7 @@ import type { ReportProgress } from '../shared/curriculum/progress'
 import { requestCurriculum, sampleCurriculum } from './requestCurriculum'
 import { blankQuestion, id, newActivity, newLesson, type Activity, type Module } from './model'
 
-export type DraftQaFixture = { scenario: 'preview' | 'image' | 'limit'; src: string }
+export type DraftQaFixture = { scenario: 'preview' | 'image' | 'limit'; src: string; alt: string }
 export type MaterialDraft = { module: Module; imageTicket?: string; fixture?: DraftQaFixture }
 
 export async function requestMaterialsDraft(source: DraftSource, signal: AbortSignal, report: ReportProgress): Promise<MaterialDraft> {
