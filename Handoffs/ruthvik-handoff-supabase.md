@@ -155,6 +155,14 @@ Applied to the hosted project on 2026-11-15 with `npx supabase db push --linked 
 It was first numbered 2005, but Ken's `2005_publish_curriculum` already held that version on hosted, so the CLI would have skipped it; check `npx supabase migration list --linked` before numbering a migration.
 After applying: `program_settings` has its row and `class_module_settings` returned 29 rows.
 
+## Migration 3005: aggregate read API (not applied)
+
+`api/progress.ts` serves GET-only organization-wide aggregates using admin-issued `api_keys` and a server-only `SUPABASE_SERVICE_ROLE_KEY`.
+`read_api_progress(text)` is executable only by `service_role`, rechecks revocation, and uses `_course_state` for canonical module completion and paired pre/post gains.
+The response contains cohort/course metadata and counts, never student identities or individual work.
+See the [README API contract](../README.md#aggregate-read-api) for configuration, scoring definitions, and local tests.
+Migration 3005 is committed for review; no hosted database or deployment changes were made.
+
 ## Gotchas we already hit
 
 - Supabase keeps `pgcrypto` in the `extensions` schema: call `extensions.crypt(...)` and `extensions.gen_salt(...)`, not the bare names.
@@ -169,6 +177,8 @@ Plan, not done yet.
 Delete demo auth users and rows (or create a fresh project), apply migrations without `--include-seed`, then create the real CIC admin account in Authentication and a matching `profiles` row with `role = 'admin'`.
 
 ## Log
+
+- 2026-11-15, Codex: added migration 3005 and the key-authenticated aggregate read endpoint, with HTTP authorization tests and rollback-only SQL tests on a disposable local database; hosted activation remains pending.
 
 - 2026-11-15 8:55 AM, Ruthvik: migration 2006 is applied on hosted (renumbered from 2005); every migration through 2008 is applied. `supabase/demo/assignment_modules_demo.sql` is still not run on hosted.
 
