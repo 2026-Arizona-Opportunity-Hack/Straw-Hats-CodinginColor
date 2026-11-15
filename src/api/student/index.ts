@@ -67,12 +67,10 @@ export async function listMyCourses(): Promise<StudentCourse[]> {
   return mockDelay(MOCK_COURSES.filter((c) => c.published).map((c) => ({ ...c, source: 'self' as const, class_name: null })))
 }
 
-/** Every published original course, for Explore. Teachers' class copies are left out
- * (students in that class still see their copy in My courses). Module lists stay hidden until the student enrolls. */
+/** Published global courses, for Explore. Class-local courses appear in My courses for enrolled students. */
 export async function listCatalog(): Promise<CatalogCourse[]> {
   if (curriculumBackend) {
-    return result(curriculumBackend.from('courses').select('id, title, description, level, delivery_mode')
-      .eq('published', true).is('copied_from', null).order('title'))
+    return result(curriculumBackend.rpc('catalog_courses'))
   }
   return mockDelay(MOCK_COURSES.filter((c) => c.published))
 }

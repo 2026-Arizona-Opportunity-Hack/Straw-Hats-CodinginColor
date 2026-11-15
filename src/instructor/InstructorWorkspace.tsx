@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { BarChart3, BookOpen, Eye, GraduationCap, Settings } from 'lucide-react';
+import { BarChart3, BookOpen, Eye, GraduationCap, Library, Pencil, Settings } from 'lucide-react';
 import { ClassSetup } from './ClassSetup';
 import { ClassDashboard, ClassList } from './Classes';
 import { isClassTab } from './classTabIds';
 import { CourseBuilder, CourseReviewer, CurriculumList } from './Curriculum';
+import { CurriculumBlockComments } from './CurriculumBlockComments';
+import { CicLibrary } from './CicLibrary';
 import { copyCourse, publishModule, type Activity, type ClassGroup, type Course, type Learner, type Module, type StaffRole } from './model';
 import { AccessSettings, ProgramOverview } from './Operations';
 import { browserInstructorStore, loadCourseDrafts, saveCourseDraft, type InstructorStore } from './store';
@@ -13,7 +15,8 @@ import './styles.css';
 
 const routes = [
   { path: 'classes', label: 'Classes', icon: GraduationCap },
-  { path: 'curriculum', label: 'CIC library', icon: BookOpen },
+  { path: 'curriculum', label: 'Curriculum', icon: BookOpen },
+  { path: 'library', label: 'CIC Library', icon: Library },
   { path: 'review', label: 'Reviewer preview', icon: Eye },
   { path: 'overview', label: 'Program overview', icon: BarChart3 },
   { path: 'access', label: 'Access settings', icon: Settings },
@@ -60,7 +63,7 @@ export function InstructorWorkspace({
   const visibleClasses = profile.role === 'admin' ? data.classes : data.classes.filter(group => profile.classIds.includes(group.id));
   // Embedded admins use the main app's admin pages for overview and access.
   const navigation = routes.filter(({ path }) => (profile.role === 'admin' && !embedded)
-    || (profile.role === 'reviewer' ? path === 'review' : ['classes', 'curriculum', 'review'].includes(path)));
+    || (profile.role === 'reviewer' ? path === 'review' : ['classes', 'curriculum', 'library', 'review'].includes(path)));
   const home = '#/' + homeSection;
 
   useEffect(() => {
@@ -169,7 +172,7 @@ export function InstructorWorkspace({
 
   function createCourse(course: Course) {
     if (!draftsLocal) {
-      if (saveDraft(course)) window.location.hash = '/curriculum/' + course.id;
+      if (saveDraft(course)) window.location.hash = '/curriculum/' + course.id + '/edit';
       return;
     }
     const current = store.load();
@@ -177,7 +180,7 @@ export function InstructorWorkspace({
       ...current,
       courses: [...current.courses, { ...course, modules: [] }],
       courseDrafts: { ...current.courseDrafts, [draftKey(course.id)]: course },
-    })) window.location.hash = '/curriculum/' + course.id;
+    })) window.location.hash = '/curriculum/' + course.id + '/edit';
   }
 
   async function release(draft: Course, moduleId: string, selected: Module | null): Promise<Course | false> {
@@ -239,51 +242,71 @@ export function InstructorWorkspace({
   const draftOf = (courseId: string) => draftsLocal ? data.courseDrafts?.[draftKey(courseId)] : liveDrafts[courseId];
 
   /** The builder for a published course or a private draft; null when neither exists. */
-  const builderFor = (courseId: string, inClass?: { className: string; backTo: string }) => {
+  const builderFor = (courseId: string, options: {
+    inClass?: { className: string; backTo: string }; initialLessonId?: string; canCurate?: boolean;
+  } = {}) => {
     const released = data.courses.find(item => item.id === courseId);
     const initial = draftOf(courseId) ?? released;
     if (!initial) return null;
-    return <CourseBuilder key={draftKey(courseId)} initial={initial} released={released ?? { ...initial, modules: [] }}
+    return <CourseBuilder key={draftKey(courseId) + (options.initialLessonId ?? '')} initial={initial} released={released ?? { ...initial, modules: [] }}
       localAuthoring={draftsLocal} onSave={saveDraft} onRelease={release}
       assigned={new Set(data.classes.filter(item => item.courseId === courseId).flatMap(item => item.moduleIds))}
-      library={library} onSaveLibrary={saveLibrary} inClass={inClass} />;
+      library={library} onSaveLibrary={saveLibrary} {...options} />;
   };
 
   const group = section === 'classes' ? visibleClasses.find(group => group.id === item) : undefined;
-  const course = data.courses.find(course => course.id === (group?.courseId ?? item));
+  const course = data.courses.find(course => course.id === group?.courseId);
+  const classCourseIds = new Set(data.classes.map(group => group.courseId));
+  const shared = data.courses.filter(course => !course.local && (course.library || (!course.copiedFrom && !classCourseIds.has(course.id))));
+  const isAdmin = profile.role === 'admin';
+  const catalog = isAdmin ? [...shared] : shared.filter(course => course.published !== false && (course.library || course.modules.some(module => module.published)));
+  // Unpublished admin courses may exist only as a draft in this browser.
+  if (isAdmin) catalog.push(...Object.values(liveDrafts).filter(draft => !data.courses.some(course => course.id === draft.id)));
+  const unassigned = isAdmin ? data.courses.filter(course => (course.local || course.copiedFrom) && !classCourseIds.has(course.id)) : [];
+  const catalogCourse = catalog.find(course => course.id === item);
+  const classCurricula = visibleClasses.flatMap(group => {
+    const course = data.courses.find(course => course.id === group.courseId);
+    return course ? [{ group, course }] : [];
+  });
+  const catalogPage = () => <CurriculumList courses={catalog} classCurricula={classCurricula} unassigned={unassigned}
+    onCreate={isAdmin ? createCourse : undefined} />;
+  const comments = (activity: Activity, classId?: string) =>
+    <CurriculumBlockComments activityId={activity.id} activityTitle={activity.title} classId={classId} viewerId={author} viewerName={profile.name} />;
+  const viewCatalogCourse = (course: Course, initialLessonId?: string) => <CourseReviewer key={course.id + (initialLessonId ?? '')} course={course}
+    back={{ label: 'Curriculum', to: '#/curriculum' }} initialLessonId={initialLessonId}
+    blockActions={course.local || course.copiedFrom ? undefined : comments}
+    actions={isAdmin && <a className="ic-button ic-primary" href={`#/curriculum/${course.id}/edit${initialLessonId ? `/${initialLessonId}` : ''}`}><Pencil size={16} aria-hidden="true" /> Edit curriculum</a>} />;
+
   const content = (() => {
     if (!navigation.some(({ path }) => path === section)) return <PageHeader title="Page unavailable for this role" back={{ label: 'Back to workspace', to: home }} />;
     if (section === 'classes') {
       if (item === 'new') return <ClassSetup courses={data.courses} classes={data.classes} onCreate={createClass} onImport={importCourse} />;
       if (group) return <ClassDashboard key={group.id} group={group} course={course} onSave={saveClass} justCreated={newClass === group.id} tab={isClassTab(subpage) ? subpage : 'dashboard'} detail={detail} otherClasses={visibleClasses}
         onAddStudents={students => addRosterStudents(group.id, students)}
-        editor={subpage === 'curriculum' && detail === 'edit' && course && !course.library ? builderFor(course.id, { className: group.name, backTo: `#/classes/${group.id}/curriculum` }) : undefined}
+        editor={subpage === 'curriculum' && detail === 'edit' && course && !course.library
+          ? builderFor(course.id, { inClass: { className: group.name, backTo: `#/classes/${group.id}/curriculum/view` } }) : undefined}
+        blockActions={activity => comments(activity, group.id)}
         onMakeEditable={course?.library ? () => makeClassEditable(group, course) : undefined} />;
       if (!item) return <ClassList groups={visibleClasses} courses={data.courses} />;
     }
     if (section === 'curriculum') {
-      // Instructors edit a course inside its class; only admins open the builder from here (library upkeep).
-      if (item && profile.role === 'admin') {
-        const builder = builderFor(item);
-        if (builder) return builder;
-      }
-      if (course) return <PageHeader title={course.title} description="Open a class that uses this course and edit it from the class's Curriculum tab." back={{ label: 'CIC library', to: '#/curriculum' }} />;
-      if (!item) {
-        const courses = data.courses.map(item => draftOf(item.id) ?? item);
-        // Live drafts of courses that were never published exist only in this browser.
-        const privateCourses = Object.values(liveDrafts).filter(draft => !data.courses.some(item => item.id === draft.id));
-        return <CurriculumList courses={[...courses, ...privateCourses]} onCreate={createCourse}
-          canEditLibrary={profile.role === 'admin'} libraryOnly={profile.role !== 'admin'} />;
+      if (!item) return catalogPage();
+      const selected = catalogCourse ?? unassigned.find(course => course.id === item);
+      if (selected) {
+        if (subpage === 'edit' && isAdmin) return builderFor(selected.id, { initialLessonId: detail, canCurate: Boolean(catalogCourse) });
+        return viewCatalogCourse(selected, subpage === 'view' ? detail : undefined);
       }
     }
+    if (section === 'library') return <CicLibrary courses={shared} canCurate={isAdmin} />;
     if (section === 'review') {
-      // Instructors reach this page from the CIC library's Preview, so they go back there.
-      const fromLibrary = profile.role !== 'reviewer';
-      if (course?.modules.some(module => module.published)) return <CourseReviewer key={course.id} course={course}
-        back={fromLibrary ? { label: 'CIC library', to: '#/curriculum' } : undefined} />;
-      if (!item && fromLibrary) return <CurriculumList courses={data.courses} libraryOnly canEditLibrary={profile.role === 'admin'} />;
-      // Reviewers check shared curriculum; per-class copies are not theirs to review.
-      if (!item) return <CurriculumList key="reviewer" courses={data.courses.filter(course => !course.copiedFrom)} reviewer />;
+      if (profile.role !== 'reviewer') {
+        if (!item) return catalogPage();
+        if (catalogCourse) return viewCatalogCourse(catalogCourse);
+      } else {
+        const reviewed = shared.find(course => course.id === item);
+        if (reviewed?.modules.some(module => module.published)) return <CourseReviewer key={reviewed.id} course={reviewed} />;
+        if (!item) return <CurriculumList key="reviewer" courses={shared} reviewer />;
+      }
     }
     if (section === 'overview') return <ProgramOverview groups={data.classes} courses={data.courses} />;
     if (section === 'access') return <AccessSettings staff={data.staff} groups={data.classes} onSave={staff => save({ ...(draftsLocal ? store.load() : data), staff })} />;

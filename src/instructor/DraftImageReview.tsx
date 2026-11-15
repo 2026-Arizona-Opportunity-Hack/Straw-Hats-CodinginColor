@@ -1,41 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
-import { maxDraftImages, maxFigureDataUrl, maxImagePrompt, validLessonFigure, type ImageDraftResult, type LessonFigure } from '../shared/curriculum/figure'
+import { maxDraftImages, maxImagePrompt, validLessonFigure, type ImageDraftResult, type LessonFigure } from '../shared/curriculum/figure'
 import type { GenerationStage } from '../shared/curriculum/progress'
 import { FigureMarkupEditor } from './FigureMarkupEditor'
+import { compressFigureImage } from './figureImage'
 import { GenerationStatus } from './GenerationStatus'
 import type { DraftQaFixture } from './materialsDraft'
 import type { Module } from './model'
 import { requestCurriculum } from './requestCurriculum'
 
-async function compressImage(dataUrl: string) {
-  const img = new Image()
-  img.src = dataUrl
-  await img.decode()
-  const canvas = document.createElement('canvas')
-  const ratio = Math.min(1, 1024 / Math.max(img.width, img.height))
-  canvas.width = Math.round(img.width * ratio)
-  canvas.height = Math.round(img.height * ratio)
-  const context = canvas.getContext('2d')
-  if (!context) throw new Error('Could not prepare the image.')
-  context.fillStyle = '#ffffff'
-  context.fillRect(0, 0, canvas.width, canvas.height)
-  context.drawImage(img, 0, 0, canvas.width, canvas.height)
-  for (const quality of [.86, .74, .58, .42]) {
-    const result = canvas.toDataURL('image/jpeg', quality)
-    if (result.length <= maxFigureDataUrl) return result
-  }
-  throw new Error('This image is too large to add to the lesson.')
-}
-
 export function DraftImageReview({ module, ticket, fixture, onApprove, onBusy }: {
   module: Module; ticket?: string; fixture?: DraftQaFixture; onApprove: (placement: string, figure: LessonFigure) => void; onBusy: (busy: boolean) => void
 }) {
-  const [prompt, setPrompt] = useState(fixture ? 'A cat resting on its side' : '')
+  const [prompt, setPrompt] = useState(fixture ? fixture.alt || 'Test image' : '')
   const [placement, setPlacement] = useState(module.lessons[0]?.activities.find(a => a.type === 'content')?.id ?? '')
   const [remaining, setRemaining] = useState(fixture?.scenario === 'limit' ? 0
     : fixture?.scenario === 'image' ? maxDraftImages - 1 : maxDraftImages)
   const [figure, setFigure] = useState<LessonFigure | null>(() => fixture?.scenario === 'image'
-    ? { src: fixture.src, alt: 'A cat resting on its side', caption: '', marks: [] } : null)
+    ? { src: fixture.src, alt: fixture.alt, caption: '', marks: [] } : null)
   const [suggestions, setSuggestions] = useState<'pending' | 'ready' | 'empty' | 'unavailable'>('pending')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -61,7 +42,7 @@ export function DraftImageReview({ module, ticket, fixture, onApprove, onBusy }:
     setSuggestions('pending')
     if (fixture) {
       setRemaining(remaining - 1)
-      setFigure({ src: fixture.src, alt: 'A cat resting on its side', caption: '', marks: [] })
+      setFigure({ src: fixture.src, alt: fixture.alt, caption: '', marks: [] })
       return
     }
     if (!ticket) return
@@ -76,7 +57,7 @@ export function DraftImageReview({ module, ticket, fixture, onApprove, onBusy }:
       controller.signal.throwIfAborted()
       setRemaining(result.remaining)
       if (result.error || !result.src) throw new Error(result.error || 'The model did not return an image.')
-      const src = await compressImage(result.src)
+      const src = await compressFigureImage(result.src)
       controller.signal.throwIfAborted()
       setFigure({ src, alt: '', caption: '', marks: [] })
     } catch (problem) {

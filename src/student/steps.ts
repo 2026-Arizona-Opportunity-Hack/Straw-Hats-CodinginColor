@@ -21,5 +21,5 @@ export function stepTitle(activity: Activity): string {
   return typeof title === 'string' && title.trim() ? title : STEP_LABEL[activity.type] ?? 'Step'
 }
 
-/** Readings need no submission, so they count as done as soon as they are shown. */
+/** Readings never require a submission; this says nothing about whether they were visited. */
 export const needsSubmission = (activity: Activity) => activity.type !== 'content'

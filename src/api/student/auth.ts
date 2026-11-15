@@ -69,6 +69,20 @@ export async function signInStudent(login: string, password: string): Promise<vo
   if (error) throw new Error(friendlyError(error.message))
 }
 
+/** Signs in an imported learner using the teacher's login card. */
+export async function signInWithRoster(classCode: string, passcode: string): Promise<void> {
+  const c = client()
+  const { data, error } = await c.functions.invoke('roster-login', { body: { classCode: classCode.trim(), passcode } })
+  if (error || !data?.access_token || !data?.refresh_token) {
+    const status = error?.context instanceof Response ? error.context.status : undefined
+    throw new Error(status === 429 ? 'Too many attempts. Wait 15 minutes, then try again.'
+      : status === 401 || status === 400 ? 'Check the class code and six-digit passcode on your login card.'
+      : 'Sign-in is temporarily unavailable. Please try again or ask your teacher.')
+  }
+  const { error: sessionError } = await c.auth.setSession(data)
+  if (sessionError) throw new Error('We could not finish signing in. Please try again.')
+}
+
 /** K-12 educators: redirects to Google; a new Google account becomes a reviewer (1013). */
 export async function signInWithGoogle(): Promise<void> {
   const { error } = await client().auth.signInWithOAuth({

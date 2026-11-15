@@ -84,6 +84,7 @@ export interface GroupSummary {
   label: string
   students: number
   completionPct: number | null
+  assessmentPairs: number
   avgPre: number | null
   avgPost: number | null
   avgGain: number | null
@@ -263,15 +264,17 @@ function summarize(
 ): GroupSummary[] {
   return groups.map((g) => {
     const rows = sm.filter((r) => inGroup(g.id, r))
+    const paired = rows.filter((r) => r.pre !== null && r.post !== null)
     const studs = students.filter((s) => inGroup(g.id, s))
     return {
       id: g.id,
       label: g.label,
       students: new Set([...rows.map((r) => `${r.classId}|${r.studentId}`), ...studs.map((s) => `${s.classId}|${s.studentId}`)]).size,
       completionPct: rows.length ? (rows.filter((r) => r.done).length / rows.length) * 100 : null,
-      avgPre: mean(rows.map((r) => r.pre)),
-      avgPost: mean(rows.map((r) => r.post)),
-      avgGain: mean(rows.map((r) => r.gain)),
+      assessmentPairs: paired.length,
+      avgPre: mean(paired.map((r) => r.pre)),
+      avgPost: mean(paired.map((r) => r.post)),
+      avgGain: mean(paired.map((r) => r.gain)),
       stuck: studs.filter((s) => s.status === 'stuck').length,
       notStarted: studs.filter((s) => s.status === 'not_started').length,
     }
