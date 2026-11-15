@@ -87,7 +87,7 @@ Use `/login` to sign in. Students use their username and password, an existing e
 New students use `/signup` to get a username and can enter a class code during sign-up or join later from **My classroom**.
 Educators can sign up with Google on `/signup` for curriculum reviewer access and return through `/login`. CIC administrators provision instructor accounts.
 
-### Student login cards
+### Previously issued student login cards
 
 Apply migration `3007_roster_student_login.sql` and deploy the `roster-login` Supabase Edge Function before using imported learners' login cards.
 Students enter their class code and individual six-digit passcode; their existing roster row is linked to an Auth identity and enrollment on first login.
@@ -160,7 +160,8 @@ Instructors and reviewers use the workspace in `src/instructor/` inside the main
 `src/instructor/InstructorRoute.tsx` mounts it and passes the signed-in role.
 Its page styles live in `src/instructor/styles.css` (`ic-*` classes); reuse them when connecting data so the layout stays consistent.
 Inside a class, tabs are Dashboard, Curriculum, Assignments, Grades and Roster (`#/classes/<id>/<tab>`).
-During class setup or in an existing roster, upload a CSV or enter names directly. Review the column previews and confirm the names before importing. During manual entry, Enter advances to the next name field or inserts a new row below.
+Create a class and assign curriculum, then use **Share class code**. New students enter the code on `/signup` and appear on the class roster. Returning students can join from **My classroom**.
+The **Roster** tab supports CSV import and manual entry. Review the column previews and confirm the names before importing. Imported rows and self-sign-ups are tracked separately, so use one method per student to avoid duplicate entries. During manual entry, Enter advances to the next name field or inserts a new row below.
 With Supabase staff sign-in and a Jev provider configured, **Suggest matches** sends only reviewed CSV header labels to Jev. The file and sample values stay in the browser during mapping. Column selection and manual entry also work without Jev. Set a server-side `OPENROUTER_API_KEY` to use OpenRouter. The Vercel AI Gateway path uses a server-side `AI_GATEWAY_API_KEY` or Vercel's runtime OIDC token.
 Assignments (`src/instructor/assignments/`) are built from blocks in any order: text, links and videos, interactive HTML pages, questions (multiple choice, select all, true/false, short answer, number), written responses and code exercises, so a video can be followed by questions about it.
 Instructors can create, edit, duplicate, publish, delete, export to a `.json` file, and import from that file, from another class, or from pasted quiz text in the Aiken format (`A.` choices plus an `ANSWER: B` line).

@@ -9,6 +9,8 @@ All times below are **MST**. Demo recording starts **Sun 12:00 PM**. Submission 
 
 ## 1. What we are building (one paragraph)
 
+**November 15 update:** Teachers share a class code. New students use `/signup`, and returning students join in **My classroom**. The login-card references below reflect the original plan.
+
 A student opens a class link on a Chromebook and logs in with a class code and a passcode. No email is needed. They take a short **placement quiz**. The quiz also records *how* they answer: time per answer, answer changes and confidence. An algorithm estimates their level per concept. It then **recommends** a course (Beginner, Intermediate, Advanced, and Expert as a stretch goal). The student can still choose any course. Each course is a sequence of interactive **modules**. A module contains a video or slides, a check question, a worksheet or coding exercise, and an exit question. Coding exercises run in an in-browser Python editor (Pyodide). The next module unlocks automatically. Progress is saved at **checkpoints**, so a student can resume from any checkpoint. A late joiner is placed at the right module. Instructors build and edit curriculum in an authoring UI. They can import blog-style content, embed videos and add images. They also import a roster CSV and see who is stuck. Admins see every class and a **stats page for funders**, which shows learning gain per student, class and cohort. External reviewers get read-only access to the curriculum. A key-authenticated read API serves the same numbers to CIC's org dashboard.
 
 ## 2. Requirement coverage (judges check this)

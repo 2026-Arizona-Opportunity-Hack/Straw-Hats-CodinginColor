@@ -126,9 +126,9 @@ The separate sign-in route has its own main landmark. The sidebar and mobile hom
 
 ## Roster entry
 
-Class setup and existing classes share the same CSV and manual-entry controls.
-Both require confirmation before saving validated names.
-Class setup and existing-class imports show success after the roster write completes.
+Class setup assigns curriculum and offers **Share class code** after creation. Student sign-up and **My classroom** enroll by code and add the linked roster row.
+CSV and manual entry are available on the Roster tab. Imported rows require confirmation before saving and show success after the write completes.
+The import dialog explains that self-sign-up creates its own roster row. Previously issued login cards still work through student sign-in.
 Failed saves keep the roster draft available for retry with the same student IDs.
 Class creation maps selected library modules to their copy using the complete course order or stored positions when the library hides unpublished modules.
 A class setup retry keeps the same copied course and selection mapping.
@@ -140,6 +140,8 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 The public root introduces AI Academy and Responsive Web Development using the existing CIC brand tokens and fonts. Log in and Sign up open the existing student and staff flows. Featured course links continue to a catalog search after student sign-in. Coming Soon mirrors planned subjects in Student Explore.
 
 ## Log
+
+- 2026-11-15, Ken (Codex): made shared class codes the instructor onboarding flow and removed printable cards from class setup.
 
 - 2026-11-15, Ken: added the public homepage and links into sign-up and the course catalog.
 
