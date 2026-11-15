@@ -192,3 +192,4 @@ Put each sentence on its own line.
 - 2026-11-15, Codex: preserved 1013 username and educator Google onboarding while blocking direct personal-email student signup and email changes.
   Append-only 3010 reconciles the 3006 guard using server-owned username markers; People & roles retains email-free student creation.
   Tested anonymous PostgREST and Auth worker sessions separately from trusted SQL fixtures; hosted activation remains pending.
+  Local browser fixtures confirmed card/username/signup modes, educator Google visibility and email-free admin student provisioning.
