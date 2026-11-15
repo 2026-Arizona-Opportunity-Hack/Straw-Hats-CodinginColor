@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AI App Investigation</title>
+<style>
+:root{--accent:#5b2a86;--accent-soft:#f3ecf9;--ink:#1b1b22;--muted:#464654;--line:#c4c4cf;--bg:#fff;--panel:#f5f5f8;--ok:#14532d;--ok-bg:#e4f4e9;--no:#8a1c1c;--no-bg:#fcebeb;--focus:#1d4ed8;color-scheme:light}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:1.0625rem/1.55 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+main{max-width:52rem;margin:0 auto;padding:16px 16px 28px}
+h1{font-size:1.5rem;line-height:1.25;margin:.25rem 0 .5rem}
+h2{font-size:1.2rem;line-height:1.3;margin:1.5rem 0 .5rem}
+p{margin:.5rem 0}
+ul,ol{margin:.5rem 0;padding-left:1.4rem}
+.kicker{margin:0;font-size:1rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent)}
+.lede{color:var(--muted)}
+.note{background:var(--panel);border-radius:12px;padding:12px 14px;margin:12px 0}
+.note>:first-child{margin-top:0}.note>:last-child{margin-bottom:0}
+fieldset{border:1px solid var(--line);border-radius:12px;padding:12px 14px 14px;margin:0 0 16px;min-width:0}
+legend{float:left;width:100%;padding:0;margin:0 0 4px;font-weight:700;line-height:1.4}
+legend+*{clear:both}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(8.5rem,1fr));gap:8px;margin-top:8px}
+.opt{display:flex;align-items:center;gap:10px;min-height:48px;padding:8px 12px;border:2px solid var(--line);border-radius:10px;cursor:pointer;background:var(--bg);line-height:1.3}
+.opt input{width:22px;height:22px;margin:0;flex:none;accent-color:var(--accent);cursor:pointer}
+.opt:hover{border-color:var(--accent)}
+.opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.opt:has(.r:checked){border-color:var(--ok);background:var(--ok-bg)}
+.opt:has(.w:checked){border-color:var(--no);background:var(--no-bg)}
+input:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.opt:has(input:focus-visible){outline:3px solid var(--focus);outline-offset:2px}
+.fb{display:none;margin:10px 0 0;padding:10px 12px;border-radius:8px;border-left:6px solid}
+.fb.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+.fb.no{background:var(--no-bg);color:var(--no);border-color:var(--no)}
+.fb.maybe{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+fieldset:has(.r:checked)>.fb.ok,fieldset:has(.w:checked)>.fb.no{display:block}
+html{scroll-padding-top:64px}
+body{counter-reset:done}
+main{display:flex;flex-direction:column}
+.progress{order:-1;position:sticky;top:0;z-index:1;margin:-16px -16px 12px;padding:10px 16px;background:var(--accent);color:#fff;font-weight:700;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
+.progress .c::after{content:counter(done) " of 12 steps done"}
+.progress .all{display:none}
+body:not(:has(.task input:not(:checked))) .progress .all{display:inline}
+.warn{border:2px solid var(--no);background:var(--no-bg);color:var(--no);border-radius:12px;padding:12px 14px;margin:12px 0}
+.warn p{margin:0}
+.warn ul{margin:6px 0 0}
+.task{display:flex;align-items:flex-start;gap:12px;min-height:48px;padding:10px 12px;margin:8px 0 0;border:2px solid var(--line);border-radius:10px;cursor:pointer}
+.task:hover{border-color:var(--accent)}
+.task input{width:24px;height:24px;margin:2px 0 0;flex:none;accent-color:var(--accent);cursor:pointer}
+.task:has(input:focus-visible){outline:3px solid var(--focus);outline-offset:2px}
+.task input:checked{counter-increment:done}
+.task:has(input:checked){background:var(--panel);border-color:var(--line)}
+.task:has(input:checked) .t{text-decoration:line-through;text-decoration-thickness:2px;color:var(--muted)}
+.task small{display:block;font-size:1rem;color:var(--muted)}
+fieldset.prompts{margin:12px 0 0}
+fieldset.prompts .opts{grid-template-columns:1fr}
+fieldset.prompts .opt{font-style:italic}
+.hint{margin:6px 0 0;color:var(--muted)}
+section{margin-bottom:8px}
+</style>
+</head>
+<body>
+<main>
+<p class="kicker">AI Academy - Module 1 project</p>
+<h1>AI App Investigation</h1>
+<p class="lede">You have about 35 minutes. Research and test one AI app, then share what you found. Check off each step as you go.</p>
+<div class="warn" role="note">
+<p><strong>Stay safe: never type personal information into an AI tool.</strong></p>
+<ul><li>No full name, address, phone number, school name, passwords or photos of yourself or friends.</li><li>Use only the apps your teacher says are OK.</li></ul>
+</div>
+
+<section>
+<h2>1. Pick your app</h2>
+<label class="task"><input type="checkbox"><span class="t">Choose one AI application.<small>Examples: a chatbot, a voice assistant, a translation app or a photo app.</small></span></label>
+<label class="task"><input type="checkbox"><span class="t">Write down its purpose: what is it for?</span></label>
+<label class="task"><input type="checkbox"><span class="t">Write down three key features.</span></label>
+</section>
+
+<section>
+<h2>2. Test three kinds of prompts</h2>
+<p>Pick one prompt from each group. For each test, write the prompt and a 1-2 sentence summary of the answer.</p>
+
+<fieldset class="prompts">
+<legend>Fact-checking: is the information accurate?</legend>
+<div class="opts">
+<label class="opt"><input type="radio" name="p1"> What are the three laws of motion?</label>
+<label class="opt"><input type="radio" name="p1"> What is the Pythagorean Theorem used for?</label>
+<label class="opt"><input type="radio" name="p1"> When did World War II end and who were the major powers involved?</label>
+</div>
+<p class="hint">Tip: check the answer against your textbook or another trusted source.</p>
+</fieldset>
+<label class="task"><input type="checkbox"><span class="t">I tested a fact-checking prompt and saved a summary of the response.</span></label>
+
+<fieldset class="prompts">
+<legend>Creative writing: can it write something new and clear?</legend>
+<div class="opts">
+<label class="opt"><input type="radio" name="p2"> Can you write a short story about a robot that learns to feel emotions?</label>
+<label class="opt"><input type="radio" name="p2"> Can you help me write a poem about climate change in the style of Dr. Seuss?</label>
+<label class="opt"><input type="radio" name="p2"> Rewrite this paragraph to sound more professional.</label>
+</div>
+<p class="hint">Tip: for the rewrite, paste a paragraph you wrote about a school topic - nothing personal.</p>
+</fieldset>
+<label class="task"><input type="checkbox"><span class="t">I tested a creative prompt and saved a summary of the response.</span></label>
+
+<fieldset class="prompts">
+<legend>Capabilities and limits: what can and can't it do?</legend>
+<div class="opts">
+<label class="opt"><input type="radio" name="p3"> Can you explain how you were trained?</label>
+<label class="opt"><input type="radio" name="p3"> Do you have access to real-time news?</label>
+<label class="opt"><input type="radio" name="p3"> Can you tell me who won the Super Bowl last weekend?</label>
+</div>
+<p class="hint">Tip: does the app admit what it does not know, or does it guess?</p>
+</fieldset>
+<label class="task"><input type="checkbox"><span class="t">I tested a capability question and saved a summary of the response.</span></label>
+</section>
+
+<section>
+<h2>3. Judge what you saw</h2>
+<label class="task"><input type="checkbox"><span class="t">Name one strength.<small>What did the app do well?</small></span></label>
+<label class="task"><input type="checkbox"><span class="t">Name one limitation.<small>Where was it wrong, unclear or missing context?</small></span></label>
+<label class="task"><input type="checkbox"><span class="t">Write one question you still have.</span></label>
+</section>
+
+<section>
+<h2>4. Turn in and share</h2>
+<label class="task"><input type="checkbox"><span class="t">Turn in one page or a shared document before class ends.<small>Include: app and purpose, three features, prompts and short summaries, one strength, one limitation, one question.</small></span></label>
+<label class="task"><input type="checkbox"><span class="t">Prepare a one-minute comparison for the class.</span></label>
+<label class="task"><input type="checkbox"><span class="t">Double-check: nothing personal went into the AI tool or your notes.</span></label>
+</section>
+
+<div class="progress" aria-live="polite"><span class="c"></span><span class="all">All done, great work!</span></div>
+</main>
+</body>
+</html>

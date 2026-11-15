@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AI or Not AI?</title>
+<style>
+:root{--accent:#5b2a86;--accent-soft:#f3ecf9;--ink:#1b1b22;--muted:#464654;--line:#c4c4cf;--bg:#fff;--panel:#f5f5f8;--ok:#14532d;--ok-bg:#e4f4e9;--no:#8a1c1c;--no-bg:#fcebeb;--focus:#1d4ed8;color-scheme:light}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:1.0625rem/1.55 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+main{max-width:52rem;margin:0 auto;padding:16px 16px 28px}
+h1{font-size:1.5rem;line-height:1.25;margin:.25rem 0 .5rem}
+h2{font-size:1.2rem;line-height:1.3;margin:1.5rem 0 .5rem}
+p{margin:.5rem 0}
+ul,ol{margin:.5rem 0;padding-left:1.4rem}
+.kicker{margin:0;font-size:1rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent)}
+.lede{color:var(--muted)}
+.note{background:var(--panel);border-radius:12px;padding:12px 14px;margin:12px 0}
+.note>:first-child{margin-top:0}.note>:last-child{margin-bottom:0}
+fieldset{border:1px solid var(--line);border-radius:12px;padding:12px 14px 14px;margin:0 0 16px;min-width:0}
+legend{float:left;width:100%;padding:0;margin:0 0 4px;font-weight:700;line-height:1.4}
+legend+*{clear:both}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(8.5rem,1fr));gap:8px;margin-top:8px}
+.opt{display:flex;align-items:center;gap:10px;min-height:48px;padding:8px 12px;border:2px solid var(--line);border-radius:10px;cursor:pointer;background:var(--bg);line-height:1.3}
+.opt input{width:22px;height:22px;margin:0;flex:none;accent-color:var(--accent);cursor:pointer}
+.opt:hover{border-color:var(--accent)}
+.opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.opt:has(.r:checked){border-color:var(--ok);background:var(--ok-bg)}
+.opt:has(.w:checked){border-color:var(--no);background:var(--no-bg)}
+input:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.opt:has(input:focus-visible){outline:3px solid var(--focus);outline-offset:2px}
+.fb{display:none;margin:10px 0 0;padding:10px 12px;border-radius:8px;border-left:6px solid}
+.fb.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+.fb.no{background:var(--no-bg);color:var(--no);border-color:var(--no)}
+.fb.maybe{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+fieldset:has(.r:checked)>.fb.ok,fieldset:has(.w:checked)>.fb.no{display:block}
+html{scroll-padding-bottom:72px}
+main{counter-reset:score answered}
+.q legend{font-size:1.1rem}
+.q .opts{grid-template-columns:repeat(3,1fr)}
+.q input:checked{counter-increment:answered}
+.q input.m:checked{counter-increment:answered score}
+.opt:has(.m:checked){border-color:var(--ok);background:var(--ok-bg)}
+.opt:has(.x:checked){border-color:var(--no);background:var(--no-bg)}
+.q:has(.a-ai:checked)>.f-ai,.q:has(.a-not:checked)>.f-not,.q:has(.a-dep:checked)>.f-dep{display:block}
+.score{position:sticky;bottom:0;margin:16px -16px -28px;padding:12px 16px;background:var(--accent);color:#fff;font-weight:700;display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center;justify-content:space-between}
+.score .s::after{content:counter(score) " of 8 match the guide"}
+.score .a::after{content:counter(answered) " of 8 answered"}
+.score .a{font-weight:400}
+@media (max-width:400px){.q .opts{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<p class="kicker">AI Academy - Module 1</p>
+<h1>AI or Not AI?</h1>
+<div class="note">
+<p><strong>Rule of thumb:</strong> AI systems recognize patterns, understand language or make predictions. Many learn those patterns from examples.</p>
+<p>A machine that is only <em>automatic</em> - it follows the same fixed rule every time - is not AI just because it runs by itself.</p>
+</div>
+<p>Sort each example as <strong>AI</strong>, <strong>Not AI</strong> or <strong>Depends</strong>. Think of one reason before you pick.</p>
+<fieldset class="q">
+<legend>1. A basic calculator</legend>
+<div class="opts">
+<label class="opt"><input type="radio" name="q1" class="a-ai x"> AI</label>
+<label class="opt"><input type="radio" name="q1" class="a-not m"> Not AI</label>
+<label class="opt"><input type="radio" name="q1" class="a-dep d"> Depends</label>
+</div>
+<p class="fb no f-ai" aria-live="polite"><strong>Not quite.</strong> A basic calculator follows fixed math rules. Being fast is not the same as being AI.</p>
+<p class="fb ok f-not" aria-live="polite"><strong>Matches the guide.</strong> It follows the same fixed rules every time and never learns from examples.</p>
+<p class="fb maybe f-dep" aria-live="polite"><strong>Fair thinking,</strong> but a basic calculator only follows fixed rules. "Depends" works only if you can name a part that learns patterns.</p>
+</fieldset>
+<fieldset class="q">
+<legend>2. A simple light switch</legend>
+<div class="opts">
+<label class="opt"><input type="radio" name="q2" class="a-ai x"> AI</label>
+<label class="opt"><input type="radio" name="q2" class="a-not m"> Not AI</label>
+<label class="opt"><input type="radio" name="q2" class="a-dep d"> Depends</label>
+</div>
+<p class="fb no f-ai" aria-live="polite"><strong>Not quite.</strong> A switch just connects or breaks a circuit. It does exactly what you tell it.</p>
+<p class="fb ok f-not" aria-live="polite"><strong>Matches the guide.</strong> On or off, nothing is learned or predicted.</p>
+<p class="fb maybe f-dep" aria-live="polite"><strong>Fair if you explain it:</strong> the switch itself is Not AI, but a smart-home system that controls it might use AI.</p>
+</fieldset>
+<fieldset class="q">
+<legend>3. A basic vending machine</legend>
+<div class="opts">
+<label class="opt"><input type="radio" name="q3" class="a-ai x"> AI</label>
+<label class="opt"><input type="radio" name="q3" class="a-not m"> Not AI</label>
+<label class="opt"><input type="radio" name="q3" class="a-dep d"> Depends</label>
+</div>
+<p class="fb no f-ai" aria-live="polite"><strong>Not quite.</strong> Money in, snack out is automation. Automation alone is not evidence of AI.</p>
+<p class="fb ok f-not" aria-live="polite"><strong>Matches the guide.</strong> It runs by itself, but it only follows fixed steps.</p>
+<p class="fb maybe f-dep" aria-live="polite"><strong>Fair if you explain it:</strong> a basic machine is Not AI, but one inside a bigger system that predicts what to restock could use AI.</p>
+</fieldset>
+<fieldset class="q">
+<legend>4. Netflix recommendations</legend>
+<div class="opts">
+<label class="opt"><input type="radio" name="q4" class="a-ai m"> AI</label>
+<label class="opt"><input type="radio" name="q4" class="a-not x"> Not AI</label>
+<label class="opt"><input type="radio" name="q4" class="a-dep d"> Depends</label>
+</div>
+<p class="fb ok f-ai" aria-live="polite"><strong>Matches the guide.</strong> It learns patterns from what people watch and predicts what you might like.</p>
+<p class="fb no f-not" aria-live="polite"><strong>Not quite.</strong> It does more than follow fixed rules: it learns patterns from viewing data to make predictions.</p>
+<p class="fb maybe f-dep" aria-live="polite"><strong>Close,</strong> but the guide says AI: the suggestions come from patterns learned from lots of data.</p>
+</fieldset>
+<fieldset class="q">
+<legend>5. A voice assistant</legend>
+<div class="opts">
+<label class="opt"><input type="radio" name="q5" class="a-ai m"> AI</label>
+<label class="opt"><input type="radio" name="q5" class="a-not x"> Not AI</label>
+<label class="opt"><input type="radio" name="q5" class="a-dep d"> Depends</label>
+</div>
+<p class="fb ok f-ai" aria-live="polite"><strong>Matches the guide.</strong> It recognizes speech and understands language, skills learned from many examples.</p>
+<p class="fb no f-not" aria-live="polite"><strong>Not quite.</strong> Turning your voice into words and figuring out what you mean takes pattern recognition, which is AI.</p>
+<p class="fb maybe f-dep" aria-live="polite"><strong>Close,</strong> but the guide says AI: understanding spoken language is a classic AI task.</p>
+</fieldset>
+<fieldset class="q">
+<legend>6. A self-driving car</legend>
+<div class="opts">
+<label class="opt"><input type="radio" name="q6" class="a-ai m"> AI</label>
+<label class="opt"><input type="radio" name="q6" class="a-not x"> Not AI</label>
+<label class="opt"><input type="radio" name="q6" class="a-dep d"> Depends</label>
+</div>
+<p class="fb ok f-ai" aria-live="polite"><strong>Matches the guide.</strong> It recognizes people, signs and cars from camera and sensor data, then predicts what to do.</p>
+<p class="fb no f-not" aria-live="polite"><strong>Not quite.</strong> A car cannot drive on fixed rules alone. It must recognize what it sees and predict what happens next.</p>
+<p class="fb maybe f-dep" aria-live="polite"><strong>Close,</strong> but the guide says AI: seeing the road and predicting what others will do needs AI.</p>
+</fieldset>
+<fieldset class="q">
+<legend>7. A basic thermostat</legend>
+<div class="opts">
+<label class="opt"><input type="radio" name="q7" class="a-ai x"> AI</label>
+<label class="opt"><input type="radio" name="q7" class="a-not m"> Not AI</label>
+<label class="opt"><input type="radio" name="q7" class="a-dep d"> Depends</label>
+</div>
+<p class="fb no f-ai" aria-live="polite"><strong>Not quite.</strong> A basic thermostat follows one rule, like "if it is colder than 68 degrees, turn on the heat."</p>
+<p class="fb ok f-not" aria-live="polite"><strong>Matches the guide.</strong> It follows a fixed temperature rule and never learns.</p>
+<p class="fb maybe f-dep" aria-live="polite"><strong>Fair thinking,</strong> but a basic thermostat only follows a fixed temperature rule, so the guide says Not AI.</p>
+</fieldset>
+<fieldset class="q">
+<legend>8. A learning thermostat</legend>
+<div class="opts">
+<label class="opt"><input type="radio" name="q8" class="a-ai m"> AI</label>
+<label class="opt"><input type="radio" name="q8" class="a-not x"> Not AI</label>
+<label class="opt"><input type="radio" name="q8" class="a-dep m"> Depends</label>
+</div>
+<p class="fb ok f-ai" aria-live="polite"><strong>Matches the guide.</strong> If it learns your schedule from patterns in when you change the heat, it may use AI.</p>
+<p class="fb no f-not" aria-live="polite"><strong>Not quite.</strong> If it really learns your habits from data, that is AI. Only a thermostat that follows a schedule you typed in is Not AI.</p>
+<p class="fb ok f-dep" aria-live="polite"><strong>Matches the guide.</strong> It depends on whether it truly learns patterns or just follows a schedule someone set.</p>
+</fieldset>
+<h2>Talk about it</h2>
+<p>Compare answers with a partner. What evidence helped you decide? A product calling itself "AI" is not proof - look at what it actually does.</p>
+<div class="score" aria-live="polite"><span class="s"></span><span class="a"></span></div>
+</main>
+</body>
+</html>
