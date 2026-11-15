@@ -1,15 +1,10 @@
 // Admin data functions. Owner: Aryan.
-// Same pattern as src/api/*: mock mode (no Supabase keys) uses an in-memory copy of
-// src/admin/mocks.ts; otherwise every call runs as the signed-in admin, so RLS decides
-// what comes back. Needed policies are listed in README ("Admin pages: database needs").
-import { setUserRole } from '../api/instructor/index.ts'
-import { isMockMode, supabase } from '../shared/supabase.ts'
+// Every call runs against Supabase as the signed-in admin, so RLS decides what comes back.
+// Needed policies are listed in README ("Admin pages: database needs").
+import type { PostgrestError } from '@supabase/supabase-js'
+import { supabase } from '../shared/supabase.ts'
 import type { Role } from '../shared/types/db.ts'
 import type { OrgData } from './metrics.ts'
-import { buildMockOrg, MOCK_APPLICATIONS, MOCK_ISSUES } from './mocks.ts'
-
-let mockOrg: OrgData | null = null
-const mock = () => (mockOrg ??= buildMockOrg())
 
 interface ApiKeyRow {
   id: string
@@ -17,9 +12,6 @@ interface ApiKeyRow {
   created_at: string
   revoked_at: string | null
 }
-let mockKeys: ApiKeyRow[] = []
-let mockIssues = MOCK_ISSUES
-let mockApplications = MOCK_APPLICATIONS
 
 const db = () => {
   if (!supabase) throw new Error('Supabase is not configured.')
@@ -49,42 +41,78 @@ async function updateOne(table: string, id: string, values: Record<string, unkno
   if (!data.length) throw new Error(`The database didn't allow ${what}. An admin access policy is missing (see README: Admin pages).`)
 }
 
+/** PostgREST returns at most 1000 rows per request (max_rows); read every page in a stable order. */
+const PAGE = 1000
+async function selectAll<T>(table: string, columns: string, orderBy: string[]): Promise<T[]> {
+  const rows: T[] = []
+  for (let from = 0; ; from += PAGE) {
+    let query = db().from(table).select(columns)
+    for (const column of orderBy) query = query.order(column)
+    const { data, error } = await query.range(from, from + PAGE - 1)
+    if (error) throw tableError(error, table)
+    rows.push(...(data as T[]))
+    if (data.length < PAGE) return rows
+  }
+}
+
+/** Names the table or view when the database does not have it yet (an unapplied migration). */
+function tableError(err: PostgrestError, table: string): Error {
+  if (['42P01', 'PGRST205'].includes(err.code))
+    return new Error(`The database has no ${table} yet, so these numbers can't be calculated. Apply the latest migrations in supabase/migrations.`)
+  return friendly(err, 'reading organization data')
+}
+
+type AttemptRow = OrgData['selfPacedAttempts'][number] & { class_id: string | null }
+
 export async function loadOrgData(): Promise<OrgData> {
-  if (isMockMode) return structuredClone(mock())
   const c = db()
-  const [classes, courses, ci, enr, cm, mods, acts, att, people] = await Promise.all([
+  const [classes, courses, ci, enr, cm, mods, acts, people, settings, courseEnrollments, rules, attempts] = await Promise.all([
     // '*' so pages keep working before archived_at exists (see README: Admin pages).
     c.from('classes').select('*').order('name'),
     c.from('courses').select('id, title, delivery_mode'),
     c.from('class_instructors').select('class_id, instructor_id'),
-    c.from('enrollments').select('class_id, student_id'),
-    c.from('class_modules').select('class_id, module_id'),
+    selectAll<OrgData['enrollments'][number]>('enrollments', 'class_id, student_id', ['class_id', 'student_id']),
+    selectAll<OrgData['classModules'][number]>('class_modules', 'class_id, module_id', ['class_id', 'module_id']),
     c.from('modules').select('id, course_id, title, position, concept, published'),
-    c.from('activities').select('id, type, concept, counts_toward_unlock, lesson:lessons!inner(module_id)'),
-    c.from('activity_attempts').select('student_id, activity_id, class_id, attempt_no, score, is_correct, submitted_at, time_on_task_ms'),
+    selectAll<{ id: string; type: OrgData['activities'][number]['type']; concept: string; counts_toward_unlock: boolean; lesson: { module_id: string } }>(
+      'activities', 'id, type, concept, counts_toward_unlock, lesson:lessons!inner(module_id)', ['id']),
     c.from('profiles').select('*').order('display_name'),
+    c.from('program_settings').select('inactive_days'),
+    selectAll<OrgData['courseEnrollments'][number]>('course_enrollments', 'student_id, course_id', ['student_id', 'course_id']),
+    selectAll<{ class_id: string; module_id: string; pass_mark: number | string; max_posttest_tries: number }>(
+      'class_module_settings', 'class_id, module_id, pass_mark, max_posttest_tries', ['class_id', 'module_id']),
+    selectAll<AttemptRow>('activity_attempts', 'id, student_id, activity_id, class_id, attempt_no, score, is_correct, submitted_at, time_on_task_ms', ['id']),
   ])
-  const failed = [classes, courses, ci, enr, cm, mods, acts, att, people].find((r) => r.error)
-  if (failed?.error) throw friendly(failed.error, 'reading organization data')
+  for (const [result, table] of [[classes, 'classes'], [courses, 'courses'], [ci, 'class_instructors'], [mods, 'modules'], [people, 'profiles'], [settings, 'program_settings']] as const)
+    if (result.error) throw tableError(result.error, table)
+  if (!settings.data!.length) throw new Error('program_settings has no row, so these numbers can\'t be calculated. Apply supabase/migrations/2005_program_settings_and_rules.sql.')
   // RLS hides rows instead of erroring. Attempts without any visible enrollment means the admin
   // read policies on enrollments are missing, and every number would silently read as zero.
-  if (att.data!.length > 0 && enr.data!.length === 0)
+  if (attempts.some((a) => a.class_id) && enr.length === 0)
     throw new Error("Student enrollments aren't visible to admins yet, so these numbers would all read zero. An admin access policy is missing (see README: Admin pages).")
+  const withScore = (a: AttemptRow) => ({
+    student_id: a.student_id, activity_id: a.activity_id, attempt_no: a.attempt_no, score: a.score == null ? null : Number(a.score),
+    is_correct: a.is_correct, submitted_at: a.submitted_at, time_on_task_ms: a.time_on_task_ms,
+  })
   return {
+    settings: { inactive_days: Number(settings.data![0].inactive_days) },
+    classModuleSettings: rules.map((r) => ({ ...r, pass_mark: Number(r.pass_mark) })),
+    courseEnrollments,
+    selfPacedAttempts: attempts.filter((a) => !a.class_id).map(withScore),
     classes: classes.data!,
     courses: courses.data!,
     classInstructors: ci.data!,
-    enrollments: enr.data!,
-    classModules: cm.data!,
+    enrollments: enr,
+    classModules: cm,
     modules: mods.data!,
-    activities: acts.data!.map((a) => ({
+    activities: acts.map((a) => ({
       id: a.id,
       type: a.type,
       concept: a.concept,
       counts_toward_unlock: a.counts_toward_unlock,
-      module_id: (a.lesson as unknown as { module_id: string }).module_id,
+      module_id: a.lesson.module_id,
     })),
-    attempts: att.data!.map((a) => ({ ...a, score: a.score == null ? null : Number(a.score) })),
+    attempts: attempts.filter((a) => a.class_id).map((a) => ({ ...withScore(a), class_id: a.class_id! })),
     people: people.data!,
   }
 }
@@ -108,14 +136,6 @@ function makeJoinCode(name: string) {
 
 export async function createClass(input: NewClass, adminId: string): Promise<{ join_code: string }> {
   const join_code = (input.join_code?.trim() || makeJoinCode(input.name)).toUpperCase()
-  if (isMockMode) {
-    const o = mock()
-    if (o.classes.some((c) => c.join_code === join_code)) throw new Error(`Join code ${join_code} is taken. Pick another.`)
-    const id = `class-${Date.now()}`
-    o.classes.push({ id, name: input.name, school: input.school, course_id: input.course_id, join_code, created_at: new Date().toISOString() })
-    if (input.instructor_id) o.classInstructors.push({ class_id: id, instructor_id: input.instructor_id })
-    return { join_code }
-  }
   const { data, error } = await db()
     .from('classes')
     .insert({ name: input.name, school: input.school, course_id: input.course_id, join_code, created_by: adminId })
@@ -127,41 +147,20 @@ export async function createClass(input: NewClass, adminId: string): Promise<{ j
 }
 
 export async function addInstructor(classId: string, instructorId: string): Promise<void> {
-  if (isMockMode) {
-    const o = mock()
-    if (o.classInstructors.some((x) => x.class_id === classId && x.instructor_id === instructorId))
-      throw new Error('They already teach this class.')
-    o.classInstructors.push({ class_id: classId, instructor_id: instructorId })
-    return
-  }
   const { error } = await db().from('class_instructors').insert({ class_id: classId, instructor_id: instructorId })
   if (error) throw error.code === '23505' ? new Error('They already teach this class.') : friendly(error, 'assigning the instructor')
 }
 
 export async function removeInstructor(classId: string, instructorId: string): Promise<void> {
-  if (isMockMode) {
-    const o = mock()
-    o.classInstructors = o.classInstructors.filter((x) => !(x.class_id === classId && x.instructor_id === instructorId))
-    return
-  }
   const { error } = await db().from('class_instructors').delete().match({ class_id: classId, instructor_id: instructorId })
   if (error) throw friendly(error, 'removing the instructor')
 }
 
 // ---- People --------------------------------------------------------------
 
-/**
- * Mock mode goes through the shared contract stub (src/api/instructor). Real mode updates the row
- * directly because that stub doesn't call Supabase yet; the "admin manages profiles" policy allows it.
- */
+/** Updates the profile row directly; the "admin manages profiles" policy allows it. */
 export async function changeRole(userId: string, role: Role, adminId: string): Promise<void> {
   if (userId === adminId && role !== 'admin') throw new Error("You can't remove your own admin access. Ask another admin.")
-  if (isMockMode) {
-    await setUserRole(userId, role)
-    const p = mock().people.find((x) => x.id === userId)
-    if (p) p.role = role
-    return
-  }
   const { data, error } = await db().from('profiles').update({ role }).eq('id', userId).select('id')
   if (error) throw friendly(error, 'changing the role')
   if (!data?.length) throw new Error("The database didn't allow changing the role (no rows updated).")
@@ -186,14 +185,6 @@ const ADD_ERRORS: Record<string, string> = {
 
 /** Creates a sign-in account (migrations 3002, 3003); students are enrolled in the class, instructors teach it. */
 export async function addPerson(p: NewPerson): Promise<void> {
-  if (isMockMode) {
-    const o = mock()
-    const id = `person-${Date.now()}`
-    o.people.push({ id, role: p.role, display_name: p.display_name, school: p.school || null })
-    if (p.class_id && p.role === 'student') o.enrollments.push({ class_id: p.class_id, student_id: id })
-    if (p.class_id && p.role === 'instructor') o.classInstructors.push({ class_id: p.class_id, instructor_id: id })
-    return
-  }
   const { error } = await db().rpc('admin_create_user', {
     p_email: p.email,
     p_password: p.password,
@@ -213,12 +204,6 @@ const ENROLL_ERRORS: Record<string, string> = {
 
 /** Enrolls an existing student (migration 3004), with the same rules as joining by class code. */
 export async function enrollStudent(studentId: string, classId: string): Promise<void> {
-  if (isMockMode) {
-    const o = mock()
-    if (o.enrollments.some((e) => e.class_id === classId && e.student_id === studentId)) throw new Error(ENROLL_ERRORS.ALREADY_IN_CLASS)
-    o.enrollments.push({ class_id: classId, student_id: studentId })
-    return
-  }
   const { error } = await db().rpc('admin_enroll_student', { p_student: studentId, p_class: classId })
   if (error) throw rpcError(error, ENROLL_ERRORS, 'adding them to the class')
 }
@@ -231,7 +216,6 @@ async function sha256Hex(text: string) {
 }
 
 export async function listApiKeys(): Promise<ApiKeyRow[]> {
-  if (isMockMode) return [...mockKeys]
   const { data, error } = await db().from('api_keys').select('id, label, created_at, revoked_at').order('created_at', { ascending: false })
   if (error) throw friendly(error, 'reading API keys')
   return data
@@ -244,20 +228,12 @@ export async function listApiKeys(): Promise<ApiKeyRow[]> {
 export async function createApiKey(label: string, adminId: string): Promise<string> {
   const bytes = crypto.getRandomValues(new Uint8Array(24))
   const key = `cic_live_${btoa(String.fromCharCode(...bytes)).replace(/[+/=]/g, (c) => ({ '+': '-', '/': '_', '=': '' })[c]!)}`
-  if (isMockMode) {
-    mockKeys = [{ id: `key-${Date.now()}`, label, created_at: new Date().toISOString(), revoked_at: null }, ...mockKeys]
-    return key
-  }
   const { error } = await db().from('api_keys').insert({ label, key_hash: await sha256Hex(key), created_by: adminId })
   if (error) throw friendly(error, 'creating the API key')
   return key
 }
 
 export async function revokeApiKey(id: string): Promise<void> {
-  if (isMockMode) {
-    mockKeys = mockKeys.map((k) => (k.id === id ? { ...k, revoked_at: new Date().toISOString() } : k))
-    return
-  }
   const { error } = await db().from('api_keys').update({ revoked_at: new Date().toISOString() }).eq('id', id).is('revoked_at', null)
   if (error) throw friendly(error, 'revoking the API key')
 }
@@ -267,12 +243,6 @@ export async function revokeApiKey(id: string): Promise<void> {
 
 export async function setArchived(table: 'classes' | 'profiles', id: string, archived: boolean): Promise<void> {
   const archived_at = archived ? new Date().toISOString() : null
-  if (isMockMode) {
-    const rows: { id: string; archived_at?: string | null }[] = table === 'classes' ? mock().classes : mock().people
-    const row = rows.find((r) => r.id === id)
-    if (row) row.archived_at = archived_at
-    return
-  }
   await updateOne(table, id, { archived_at }, archived ? 'archiving' : 'restoring')
 }
 
@@ -302,22 +272,16 @@ export interface Application {
 }
 
 export async function listIssues(): Promise<Issue[]> {
-  if (isMockMode) return structuredClone(mockIssues)
   const { data, error } = await db().from('instructor_issues').select('*').order('created_at', { ascending: false })
   if (error) throw friendly(error, 'reading instructor issues')
   return data
 }
 
 export async function resolveIssue(id: string): Promise<void> {
-  if (isMockMode) {
-    mockIssues = mockIssues.map((i) => (i.id === id ? { ...i, status: 'resolved' } : i))
-    return
-  }
   await updateOne('instructor_issues', id, { status: 'resolved', resolved_at: new Date().toISOString() }, 'resolving the issue')
 }
 
 export async function listApplications(): Promise<Application[]> {
-  if (isMockMode) return structuredClone(mockApplications)
   const { data, error } = await db().from('job_applications').select('*').order('updated_at', { ascending: false })
   if (error) throw friendly(error, 'reading applications')
   return data
@@ -325,9 +289,5 @@ export async function listApplications(): Promise<Application[]> {
 
 export async function setApplicationStatus(id: string, status: ApplicationStatus): Promise<void> {
   const updated_at = new Date().toISOString()
-  if (isMockMode) {
-    mockApplications = mockApplications.map((a) => (a.id === id ? { ...a, status, updated_at } : a))
-    return
-  }
   await updateOne('job_applications', id, { status, updated_at }, 'updating the application')
 }
