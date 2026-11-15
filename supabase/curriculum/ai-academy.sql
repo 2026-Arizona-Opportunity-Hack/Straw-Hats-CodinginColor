@@ -24,7 +24,7 @@ insert into courses (id, title, description, level, delivery_mode, is_library, o
 on conflict (id) do update set title = excluded.title, description = excluded.description, level = excluded.level,
   delivery_mode = excluded.delivery_mode, is_library = true, owner_id = null, published = true;
 insert into courses (id, title, description, level, delivery_mode, is_library, owner_id, published) values
-  ('1ef70b4d-be29-5ce5-8ff0-ba354feb2567', 'AI Academy (Classroom)', 'Coding in Color''s AI Academy for teachers. Students explore how computers process information, AI history and common AI tools, problem-solving with Scratch and Python, data and prediction, and AI ethics and social good, then design and present an AI solution for a real community need. Every lesson has a teacher guide with timings and answer guidance, plus worksheets for the group activities. For grades 6-12. No experience needed.', 'beginner', 'instructor_led', true, null, true)
+  ('1ef70b4d-be29-5ce5-8ff0-ba354feb2567', 'AI Academy (Classroom)', 'Coding in Color''s AI Academy for teachers. Students explore how computers process information, AI history and common AI tools, problem-solving with Scratch and Python, data and prediction, and AI ethics and social good, then design and present an AI solution for a real community need. Group activities come as worksheets, and a teacher guide with timings and answer guidance is in the repo (curriculum/ai-academy/teacher-guide.md). For grades 6-12. No experience needed.', 'beginner', 'instructor_led', true, null, true)
 on conflict (id) do update set title = excluded.title, description = excluded.description, level = excluded.level,
   delivery_mode = excluded.delivery_mode, is_library = true, owner_id = null, published = true;
 

@@ -11,7 +11,7 @@
     {
       "key": "classroom",
       "title": "AI Academy (Classroom)",
-      "description": "Coding in Color's AI Academy for teachers. Students explore how computers process information, AI history and common AI tools, problem-solving with Scratch and Python, data and prediction, and AI ethics and social good, then design and present an AI solution for a real community need. Every lesson has a teacher guide with timings and answer guidance, plus worksheets for the group activities. For grades 6-12. No experience needed.",
+      "description": "Coding in Color's AI Academy for teachers. Students explore how computers process information, AI history and common AI tools, problem-solving with Scratch and Python, data and prediction, and AI ethics and social good, then design and present an AI solution for a real community need. Group activities come as worksheets, and a teacher guide with timings and answer guidance is in the repo (curriculum/ai-academy/teacher-guide.md). For grades 6-12. No experience needed.",
       "level": "beginner",
       "deliveryMode": "instructor_led",
       "version": "classroom"
