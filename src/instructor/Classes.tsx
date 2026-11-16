@@ -65,15 +65,17 @@ export function ClassDashboard({ group, course, onSave, onAddStudents, justCreat
   const [feedback, setFeedback] = useState('');
   const [rosterMessage, setRosterMessage] = useState('');
   const needsProgress = tab === 'dashboard' || tab === 'grades' || tab === 'roster';
+  const refreshDashboard = Boolean(progressSource) && tab === 'dashboard';
   const progress = useQuery({
     queryKey: [...(progressSource?.queryKey ?? ['demo']), group.id, group.courseId],
     queryFn: progressSource ? ({ signal }) => loadStaffClassProgress(progressSource.client, group.id, signal) : skipToken,
     enabled: Boolean(progressSource) && needsProgress,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: refreshDashboard,
+    refetchInterval: refreshDashboard ? 30_000 : false,
     staleTime: 30_000,
     gcTime: 0,
   });
-  const report = progressSource && progress.data && !progress.isError
+  const report = progressSource && progress.data
     ? withClassProgress(group, progress.data)
     : progressSource ? undefined : group;
   const { roster, activities } = report && (needsProgress || selected) ? classProgress(report, course) : { roster: [], activities: [] };
@@ -115,6 +117,9 @@ export function ClassDashboard({ group, course, onSave, onAddStudents, justCreat
     {justCreated && <p className="ic-success" role="status">Class created. Share the class code so students can sign up and join.</p>}
     {rosterMessage && <p className="ic-success" role="status">{rosterMessage}</p>}
     <ClassTabBar groupId={group.id} active={tab} />
+    {needsProgress && report && progress.isRefetchError && <p role="status" className="ic-note">
+      Could not refresh class progress. Showing the last loaded results.
+    </p>}
     {needsProgress && !report && (progress.isError
       ? <div role="alert" className="ic-error"><p>{progress.error.message}</p><button type="button" className="ic-button" onClick={() => void progress.refetch()}>Try again</button></div>
       : <p role="status" className="ic-note">Loading class progress…</p>)}

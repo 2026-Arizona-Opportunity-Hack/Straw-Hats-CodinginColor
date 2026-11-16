@@ -3,7 +3,7 @@
 // database (submit_placement). No back button, so the timings stay honest.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { enrollInCourse } from '../../api/student/index.ts'
 import {
   listPlacementItems, skipPlacement, submitPlacement,
@@ -25,7 +25,7 @@ function isAnswered(item: PlacementItem, value: Value) {
   return typeof value === 'string'
 }
 
-function Intro({ onStart, onSkip, skipping }: { onStart: () => void; onSkip: () => void; skipping: boolean }) {
+function Intro({ onStart, onSkip, skipping, error }: { onStart: () => void; onSkip: () => void; skipping: boolean; error?: string }) {
   const { profile } = useAuth()
   return (
     <div className="st-banner mx-auto max-w-2xl px-6 py-14 text-center sm:px-12">
@@ -40,6 +40,7 @@ function Intro({ onStart, onSkip, skipping }: { onStart: () => void; onSkip: () 
           {skipping ? 'One moment…' : 'Skip for now'}
         </Button>
       </div>
+      {error && <p role="alert" className="mt-4 font-semibold text-white">Couldn't skip: {error}</p>}
     </div>
   )
 }
@@ -161,6 +162,11 @@ export function QuizResult({ result }: { result: PlacementResult }) {
 }
 
 export function StarterQuiz() {
+  const { previewRole } = useAuth()
+  return previewRole ? <Navigate to="/student" replace /> : <StudentStarterQuiz />
+}
+
+function StudentStarterQuiz() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { profile } = useAuth()
@@ -212,7 +218,7 @@ export function StarterQuiz() {
   if (isError || (!isLoading && !items.length)) {
     return <p role="alert">The starter quiz isn't available right now. <Link className="underline" to="/student">Go to my home</Link></p>
   }
-  if (step < 0) return <Intro onStart={() => show(0)} onSkip={() => skip.mutate()} skipping={skip.isPending} />
+  if (step < 0) return <Intro onStart={() => show(0)} onSkip={() => skip.mutate()} skipping={skip.isPending} error={skip.error?.message} />
   if (submit.isPending) return <p role="status" className="py-16 text-center text-lg">Finding your course…</p>
 
   const item = items[step]
