@@ -155,7 +155,7 @@ const lessonListKey = 'cic.reviewer.lessonList';
 
 export function CourseReviewer({ course, back = { label: 'Reviewer library', to: '#/review' }, actions, level, blockActions, initialLessonId }: {
   course: Course;
-  back?: { label: string; to: string };
+  back?: { label: string; to: string } | null;
   actions?: ReactNode;
   level?: 1 | 2;
   blockActions?: (activity: Activity) => ReactNode;
@@ -174,7 +174,7 @@ export function CourseReviewer({ course, back = { label: 'Reviewer library', to:
   }
   const go = (step: number) => { const next = lessons[index + step]; if (next) setActive(next.id); };
   return <>
-    <PageHeader title={course.title} description={course.description} back={back} level={level}>{actions}</PageHeader>
+    <PageHeader title={course.title} description={course.description} back={back ?? undefined} level={level}>{actions}</PageHeader>
     {lessons.length > 0 && <div className="ic-review-bar">
       <button type="button" className="ic-button" aria-expanded={showList} aria-controls={listId} onClick={toggleList}>
         <ListTree size={16} aria-hidden="true" /> {showList ? 'Hide lessons' : 'Show lessons'}</button>
@@ -195,12 +195,14 @@ export function CourseReviewer({ course, back = { label: 'Reviewer library', to:
   </>;
 }
 
-export function CourseBuilder({ initial, released, localAuthoring, onSave, onRelease, onManageModule, assigned, library, onSaveLibrary, inClass, inSchool, initialLessonId, canCurate, back }: {
+export function CourseBuilder({ initial, released, localAuthoring, onSave, onRelease, onManageModule, assigned, library, onSaveLibrary, inClass, inSchool, initialLessonId, canCurate, back, materialImport = true, level }: {
   /** Set when the builder opens inside a class card: a compact header that returns to the class. */
   inClass?: { className: string; backTo: string };
   inSchool?: { schoolName: string; backTo: string };
   initialLessonId?: string;
   canCurate?: boolean;
+  materialImport?: boolean;
+  level?: 1 | 2;
   back?: { label: string; to: string };
   initial: Course;
   released: Course;
@@ -448,7 +450,7 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
     {(() => {
       const actions = <>
         {localAuthoring && <button type="button" className="ic-button" onClick={() => setManageBlocks(true)}><Star size={16} /> My blocks</button>}
-        <button type="button" className="ic-button" onClick={() => setImporter('converter')}><FilePlus2 size={16} /> Draft from materials</button>
+        {materialImport && <button type="button" className="ic-button" onClick={() => setImporter('converter')}><FilePlus2 size={16} /> Draft from materials</button>}
         <button type="button" className="ic-button" disabled={!module?.lessons.length} onClick={() => setPreview(true)}><Eye size={16} /> Preview module</button>
         <button type="button" className="ic-button ic-primary" disabled={busy} onClick={saveDraft}><Save size={16} /> Save draft</button>
       </>;
@@ -458,7 +460,7 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
             <h2>Edit curriculum</h2><p className="ic-note">Edits apply to this class’s copy.</p></div>
           <div className="ic-row">{actions}</div>
         </div>
-        : <PageHeader title={course.title || 'Untitled course'}
+        : <PageHeader title={course.title || 'Untitled course'} level={level}
           description={inSchool ? inSchool.schoolName + ' · Publish changes for future classes.' : 'Course builder'}
           back={back ?? { label: 'View curriculum', to: inSchool?.backTo ?? `#/curriculum/${course.id}${initialLessonId ? `/view/${initialLessonId}` : ''}` }}>{actions}</PageHeader>;
     })()}

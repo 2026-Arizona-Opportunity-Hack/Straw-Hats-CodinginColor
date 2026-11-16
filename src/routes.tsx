@@ -1,14 +1,19 @@
 // Owner: Aryan. Add routes here; page components live in each owner's folder.
-import { createBrowserRouter } from 'react-router-dom'
+import { Suspense } from 'react'
+import { createBrowserRouter, Outlet } from 'react-router-dom'
 import {
-  AdminAnalytics, AdminClasses, AdminHome, AdminSettings, AdminUsers, InstructorRoute, ModulePlayer, PublishedDemo, RolePage, StarterQuiz, StudentClassroom, StudentCourse, StudentCourses, StudentExplore, StudentHome, StudentQuiz,
+  AdminAnalytics, AdminClasses, AdminHome, AdminSettings, AdminUsers, DemoWalkthrough, InstructorRoute, ModulePlayer, PublishedDemo, RolePage, StarterQuiz, StudentClassroom, StudentCourse, StudentCourses, StudentExplore, StudentHome, StudentQuiz,
 } from './lazyPages.tsx'
 import { AuthPage } from './AuthPage.tsx'
 import { HomePage } from './home/HomePage.tsx'
 import { AccountPage } from './shared/auth/AccountPage.tsx'
+import { AuthProvider } from './shared/auth/AuthContext.tsx'
 import { AppLayout } from './shared/ui/AppLayout.tsx'
 
+// Keep the public walkthrough outside the authenticated application tree.
 export const router = createBrowserRouter([
+  { path: '/demo', element: <Suspense fallback={<p className="p-6" role="status">Loading the walkthrough…</p>}><DemoWalkthrough /></Suspense> },
+  { element: <AuthProvider><Outlet /></AuthProvider>, children: [
   { path: '/', element: <HomePage /> },
   { path: '/login', element: <AuthPage key="login" /> },
   { path: '/signup', element: <AuthPage key="signup" signup /> },
@@ -65,4 +70,5 @@ export const router = createBrowserRouter([
       { path: '*', element: <p>Page not found.</p> },
     ],
   },
+  ] },
 ])

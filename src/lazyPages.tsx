@@ -5,6 +5,7 @@ import { RequireRole } from './shared/auth/RequireRole.tsx'
 import type { Role } from './shared/types/db.ts'
 
 const admin = () => import('./admin/AdminPages.tsx')
+export const DemoWalkthrough = lazy(() => import('./demo/DemoWalkthrough.tsx'))
 export const AdminHome = lazy(() => admin().then(m => ({ default: m.AdminHome })))
 export const AdminUsers = lazy(() => admin().then(m => ({ default: m.AdminUsers })))
 export const AdminClasses = lazy(() => admin().then(m => ({ default: m.AdminClasses })))
