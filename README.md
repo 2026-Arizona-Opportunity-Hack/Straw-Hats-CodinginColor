@@ -4,9 +4,7 @@ CIC Learn brings Coding in Color's slide decks and worksheets into lessons stude
 
 Built by [Straw Hats](https://www.ohack.dev/hack/fall-2026/team/c7e4c72ee05711f1ae58deadb145c312) for [Coding in Color](https://www.ohack.dev/nonprofit/YIXYdYCoxIZC08uQ5DL3) at [ASU Opportunity Hack, November 14–15, 2026](https://www.ohack.dev/hack/fall-2026). [Problem 1 · Curriculum & Student Progress](https://www.ohack.dev/project/d09466fadf1b11f18e63deadc507a848).
 
-**[Open CIC Learn](https://cic-learn.vercel.app)** · **[Demo walkthrough](docs/demo.md)** · **[Set up and deploy](docs/maintainer-guide.md#set-up-a-connected-environment)**
-
-<!-- Add the verified demo video URL beside the walkthrough when it is available. -->
+**[Open CIC Learn](https://cic-learn.vercel.app)** · **[Watch the hackathon demo](https://www.youtube.com/watch?v=rHjQmchF_AE)** · **[Demo walkthrough](docs/demo.md)** · **[Set up and deploy](docs/maintainer-guide.md#set-up-a-connected-environment)**
 
 ## What you can do
 
