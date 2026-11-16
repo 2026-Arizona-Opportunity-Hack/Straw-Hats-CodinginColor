@@ -4,6 +4,7 @@ import { skipToken, useQuery } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadStaffClassProgress } from '../shared/staffProgress';
 import { RosterUpload } from './RosterUpload';
+import { RosterMatches, type RosterMatchActions } from './RosterMatches';
 import { makeLearners, type Activity, type ClassGroup, type Course, type Learner } from './model';
 import { attemptFor, classProgress, percent, points, withClassProgress } from './progress';
 import {
@@ -42,9 +43,10 @@ export function ClassList({ groups, courses, showProgress = true }: { groups: Cl
 
 export type ClassProgressSource = { client: SupabaseClient; queryKey: readonly string[] };
 
-export function ClassDashboard({ group, course, onSave, onAddStudents, justCreated, tab, detail, otherClasses, editor, blockActions, onMakeEditable, progressSource }: {
+export function ClassDashboard({ group, course, onSave, onAddStudents, rosterMatches, justCreated, tab, detail, otherClasses, editor, blockActions, onMakeEditable, progressSource }: {
   group: ClassGroup; course?: Course; onSave: (group: ClassGroup) => boolean; justCreated: boolean; tab: ClassTabId;
   onAddStudents: (students: Learner[]) => Promise<void>;
+  rosterMatches?: RosterMatchActions;
   /** Course builder shown inside the Curriculum tab while editing this class's curriculum. */
   editor?: ReactNode;
   blockActions?: (activity: Activity) => ReactNode;
@@ -56,7 +58,7 @@ export function ClassDashboard({ group, course, onSave, onAddStudents, justCreat
   progressSource?: ClassProgressSource;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
-  const [dialog, setDialog] = useState<'share' | 'roster' | 'assignment' | null>(null);
+  const [dialog, setDialog] = useState<'share' | 'roster' | 'matches' | 'assignment' | null>(null);
   const [rows, setRows] = useState<RosterRow[]>([]);
   const [savingRoster, setSavingRoster] = useState(false);
   const [rosterError, setRosterError] = useState('');
@@ -128,7 +130,9 @@ export function ClassDashboard({ group, course, onSave, onAddStudents, justCreat
       onMakeEditable={onMakeEditable} viewing={detail === 'view'} blockActions={blockActions} />)}
     {tab === 'assignments' && <AssignmentsTab group={group} course={course} otherClasses={otherClasses} assignmentId={detail} onSave={onSave} />}
     {tab === 'grades' && report && <GradesTab group={report} course={course} onSelect={setSelected} onSave={saveReport} />}
-    {tab === 'roster' && report && <RosterTab group={report} course={course} onSave={saveReport} onImport={openImport} />}
+    {tab === 'roster' && report && <RosterTab group={report} course={course} onSave={saveReport} onImport={openImport}
+      onReviewMatches={rosterMatches ? () => setDialog('matches') : undefined} />}
+    {dialog === 'matches' && rosterMatches && <RosterMatches classId={group.id} actions={rosterMatches} onClose={() => setDialog(null)} />}
     {details && <Dialog wide title={details.learner.name + ' · Activity details'} onClose={() => setSelected(null)}>
       <p className="ic-note">{details.status} · {details.completed} of {details.total} completed · {details.minutes} min · Learning gain {points(details.gain)}</p>
       <ul className="ic-list ic-section-gap">{activities.map(activity => {
@@ -150,7 +154,9 @@ export function ClassDashboard({ group, course, onSave, onAddStudents, justCreat
       <p className="ic-note" role="status">{feedback}</p>
     </Dialog>}
     {dialog === 'roster' && <Dialog wide title="Import more students" closeDisabled={savingRoster} onClose={() => setDialog(null)}>
-      <p className="ic-note">Students who sign up with the class code appear on the roster automatically. Importing those same students first can create duplicate roster entries.</p>
+      <p className="ic-note">{rosterMatches
+        ? 'After students sign up with the class code, use Review name matches in the Roster tab to confirm duplicates.'
+        : 'Students who sign up with the class code appear on the roster automatically.'}</p>
       <div inert={savingRoster}><RosterUpload rows={rows} setRows={updateRoster} /></div>
       {rosterError && <p className="ic-error" role="alert">{rosterError}</p>}
       <div className="ic-form-footer"><button type="button" disabled={savingRoster || !ready.length} className="ic-button ic-primary" onClick={importRoster}>

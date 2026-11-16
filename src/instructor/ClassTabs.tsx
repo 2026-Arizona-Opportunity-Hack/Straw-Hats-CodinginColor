@@ -225,8 +225,8 @@ export function CurriculumTab({ group, course, onEditAssignment, onMakeEditable,
   </div>;
 }
 
-export function RosterTab({ group, course, onSave, onImport }: {
-  group: ClassGroup; course?: Course; onSave: (group: ClassGroup) => boolean; onImport: () => void;
+export function RosterTab({ group, course, onSave, onImport, onReviewMatches }: {
+  group: ClassGroup; course?: Course; onSave: (group: ClassGroup) => boolean; onImport: () => void; onReviewMatches?: () => void;
 }) {
   const [name, setName] = useState('');
   const [search, setSearch] = useState('');
@@ -264,6 +264,7 @@ export function RosterTab({ group, course, onSave, onImport }: {
         <button type="submit" className="ic-button" disabled={!trimmed}><UserPlus size={16} /> Add</button>
       </form>
       <button type="button" className="ic-button" onClick={onImport}><Upload size={16} /> Import roster</button>
+      {onReviewMatches && <button type="button" className="ic-button" onClick={onReviewMatches}>Review name matches</button>}
       {message && <p className="ic-note" role="status">{message}</p>}
     </section>
     <section className="ic-tile">

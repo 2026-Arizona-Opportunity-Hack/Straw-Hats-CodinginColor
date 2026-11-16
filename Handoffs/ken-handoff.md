@@ -161,6 +161,8 @@ Apply migration 3017 before deploying the frontend change so the scoped reports 
 
 ## Log
 
+- 2026-11-15, Codex: added teacher-confirmed name matching for imported rosters and class-code signups. Apply migration 3021 before using Review name matches.
+
 - 2026-11-15, Codex: drafted the submission README, demo walkthrough and maintainer guide from the merged app. Add the verified demo video link when available.
 
 - 2026-11-15, Codex: added permanent module deletion and reversible archiving, restored global and class editing for instructors, and added CIC Library course creation, editing, and listing.
