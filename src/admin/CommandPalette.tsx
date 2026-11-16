@@ -21,7 +21,7 @@ export function CommandPalette() {
   const trigger = useRef<HTMLButtonElement>(null)
   const navigate = useNavigate()
   const { setPreviewRole } = useAuth()
-  const { data } = useOrg()
+  const { data } = useOrg(open)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

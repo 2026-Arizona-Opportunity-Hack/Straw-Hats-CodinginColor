@@ -14,7 +14,7 @@ export function PlacementCard() {
   const qc = useQueryClient()
   const key = ['placement', profile?.id]
   const { data, isLoading, isFetching, isError } = useQuery({
-    queryKey: key, queryFn: getMyPlacement, enabled: placementAvailable,
+    queryKey: key, queryFn: getMyPlacement, enabled: placementAvailable && !previewRole,
   })
   const hide = useMutation({
     mutationFn: hidePlacementCard,

@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { supabase } from '../shared/supabase.ts'
 import { InstructorWorkspace } from './InstructorWorkspace.tsx'
-import { importLibraryCourse, loadLiveData, publishLiveCourse, saveLiveClass, saveLiveData } from './liveStore.ts'
+import { addLiveCourseToLibrary, importLibraryCourse, loadLiveClassSubmissions, loadLiveData, manageLiveModule, publishLiveCourse, saveLiveClass, saveLiveData } from './liveStore.ts'
 import type { InstructorData, StaffRole } from './model.ts'
 import type { InstructorStore } from './store.ts'
 
@@ -18,62 +18,50 @@ export function InstructorRoute() {
   return <LiveWorkspace role={role} hash={hash} userId={profile.id} name={profile.display_name} />
 }
 
-/** Read-only stats screens (class list, class dashboard, program overview) refresh live so
- * student progress shows up without a reload. Editors, rosters, assignments and grade entry
- * never refresh on their own, so nothing a teacher is typing gets replaced. (Shivraj) */
-const LIVE_STATS_MS = 30_000
-function isStatsView(role: StaffRole, hash: string) {
-  if (role === 'reviewer') return false
-  const [section, item, subpage] = hash.replace(/^#\/?/, '').split('/')
-  if (!section || section === 'overview') return true
-  if (section !== 'classes') return false
-  return !item || (item !== 'new' && (!subpage || subpage === 'dashboard'))
-}
-
-/** A number that changes only when the loaded data really changes (React Query keeps the same
- * object when a refetch returns identical data), so live refreshes don't remount for nothing. */
-const versions = new WeakMap<object, number>()
-let nextVersion = 0
-function versionOf(data: object | undefined) {
-  if (!data) return 0
-  if (!versions.has(data)) versions.set(data, ++nextVersion)
-  return versions.get(data)!
-}
-
 function LiveWorkspace({ role, hash, userId, name }: { role: StaffRole; hash: string; userId: string; name: string }) {
   const client = supabase!
   const queryClient = useQueryClient()
   const queryKey = useMemo(() => ['instructor-workspace', userId, role], [userId, role])
-  const live = isStatsView(role, hash)
-  const { data, error, isPending, refetch } = useQuery({
+  const progressKey = useMemo(() => [...queryKey, 'class-progress'], [queryKey])
+  const { data, error, isPending, dataUpdatedAt, refetch } = useQuery({
     queryKey,
     queryFn: () => loadLiveData(client, role, name),
     // Refresh published data when returning to the workspace.
     refetchOnMount: 'always',
-    // Stats screens update live; editors stay stable on tab changes.
-    refetchOnWindowFocus: live,
-    refetchInterval: live ? LIVE_STATS_MS : false,
+    // Keep the active editor stable on tab changes.
+    refetchOnWindowFocus: false,
     staleTime: Infinity,
   })
   const [syncError, setSyncError] = useState('')
   // Saves run one at a time, in order, so quick edits cannot overtake each other.
   const [queue] = useState(createSerialQueue)
 
-  const store = useMemo<InstructorStore | null>(() => data ? {
-    load: () => structuredClone(data),
-    save: (next: InstructorData, previous: InstructorData) => {
-      return queue.run(() => saveLiveData(client, userId, previous, next, { editLibrary: role === 'admin' })).catch(problem => {
-        setSyncError(`${problem instanceof Error ? problem.message : 'Saving failed.'} The page was reloaded from the database, so recent changes may be missing.`)
-        void queryClient.invalidateQueries({ queryKey })
-        throw problem
-      })
-    },
-    saveClass: (group, previous, attempted) =>
-      queue.run(() => saveLiveClass(client, userId, group, previous, attempted)),
-    publishCourse: (course, previous, moduleId, expectedRevision) =>
-      queue.run(() => publishLiveCourse(client, course, previous, moduleId, expectedRevision)),
-    importCourse: source => importLibraryCourse(client, source.id),
-  } : null, [data, client, userId, role, queryClient, queryKey, queue])
+  const store = useMemo<InstructorStore | null>(() => {
+    if (!data) return null
+    function refreshProgress<T>(result: T): T {
+      void queryClient.invalidateQueries({ queryKey: progressKey })
+      return result
+    }
+    return {
+      load: () => structuredClone(data),
+      loadClassSubmissions: classId => queue.run(() => loadLiveClassSubmissions(client, classId)),
+      save: (next: InstructorData, previous: InstructorData) => {
+        return queue.run(() => saveLiveData(client, userId, previous, next, { editLibrary: role === 'admin' })).then(refreshProgress).catch(problem => {
+          setSyncError(`${problem instanceof Error ? problem.message : 'Saving failed.'} The page was reloaded from the database, so recent changes may be missing.`)
+          void queryClient.invalidateQueries({ queryKey })
+          throw problem
+        })
+      },
+      saveClass: (group, previous, attempted) =>
+        queue.run(() => saveLiveClass(client, userId, group, previous, attempted)).then(refreshProgress),
+      publishCourse: (course, previous, moduleId, expectedRevision) =>
+        queue.run(() => publishLiveCourse(client, course, previous, moduleId, expectedRevision)).then(refreshProgress),
+      manageModule: (courseId, moduleId, expectedRevision, action) =>
+        queue.run(() => manageLiveModule(client, courseId, moduleId, expectedRevision, action)).then(refreshProgress),
+      addToLibrary: courseId => queue.run(() => addLiveCourseToLibrary(client, courseId)),
+      importCourse: source => importLibraryCourse(client, source.id),
+    }
+  }, [data, client, userId, role, queryClient, queryKey, progressKey, queue])
 
   if (isPending) return <p className="p-6" role="status">Loading your classes…</p>
   if (error || !store) {
@@ -86,7 +74,8 @@ function LiveWorkspace({ role, hash, userId, name }: { role: StaffRole; hash: st
   return <>
     {syncError && <p role="alert" className="mb-4 rounded-lg bg-warn-soft px-4 py-3 text-sm font-semibold text-warn">{syncError}</p>}
     {/* Remount with fresh data after a reload. */}
-    <InstructorWorkspace key={userId + ':' + versionOf(data)} role={role} hash={hash} authorId={userId} store={store} />
+    <InstructorWorkspace key={userId + ':' + dataUpdatedAt} role={role} hash={hash} authorId={userId} store={store}
+      progressSource={{ client, queryKey: progressKey }} />
   </>
 }
 

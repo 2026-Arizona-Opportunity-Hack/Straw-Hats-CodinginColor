@@ -3,7 +3,7 @@ import { expect, it, vi } from 'vitest';
 import type { StaffModuleProgress } from '../shared/staffProgress';
 import { DashboardTab } from './ClassTabs';
 import type { ClassGroup, Course } from './model';
-import { assignedModules, classProgress } from './progress';
+import { assignedModules, classProgress, withClassProgress } from './progress';
 
 vi.mock('../shared/supabase', () => ({ supabase: null, isMockMode: true, isLocalDemo: true }));
 
@@ -46,4 +46,14 @@ it('retains truthful activity-percentage labels for mock fixtures', () => {
   delete mock.learners[0].moduleProgress;
   const html = renderToStaticMarkup(<DashboardTab group={mock} course={course} />);
   expect(html).toContain('50% of activities submitted');
+});
+
+it('attaches canonical rows by profile and drops rows from another class or an earlier course', () => {
+  const original = group([]);
+  original.learners[0].profileId = 'p';
+  const canonical = state();
+  const report = withClassProgress(original, [canonical, state({ class_id: 'other' }), state({ course_id: 'old' })]);
+  expect(report.learners[0].moduleProgress).toEqual([canonical]);
+  expect(original.learners[0].moduleProgress).toEqual([]);
+  expect(classProgress(report, course).roster[0].status).toBe('Complete');
 });

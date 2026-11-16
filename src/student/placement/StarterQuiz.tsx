@@ -3,7 +3,7 @@
 // database (submit_placement). No back button, so the timings stay honest.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { enrollInCourse } from '../../api/student/index.ts'
 import {
   listPlacementItems, skipPlacement, submitPlacement,
@@ -162,9 +162,14 @@ export function QuizResult({ result }: { result: PlacementResult }) {
 }
 
 export function StarterQuiz() {
+  const { previewRole } = useAuth()
+  return previewRole ? <Navigate to="/student" replace /> : <StudentStarterQuiz />
+}
+
+function StudentStarterQuiz() {
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { profile, previewRole } = useAuth()
+  const { profile } = useAuth()
   const { data: items = [], isLoading, isError } = useQuery({ queryKey: ['placementItems'], queryFn: listPlacementItems })
   const [step, setStep] = useState(-1) // -1 = intro
   const [value, setValue] = useState<Value>(undefined)
@@ -181,8 +186,7 @@ export function StarterQuiz() {
   const done = () => qc.refetchQueries({ queryKey: ['placement', profile?.id], type: 'all' })
   // Write the skip into the cache before leaving, so Home sees it at once and never redirects back.
   const skip = useMutation({
-    // A staff preview has nothing to save (skip_placement is students-only): just go Home.
-    mutationFn: () => (previewRole ? Promise.resolve() : skipPlacement()),
+    mutationFn: skipPlacement,
     onSuccess: () => {
       qc.setQueryData<MyPlacement | null>(['placement', profile?.id], (old) => old ?? { skipped: true, result: null, taken_at: new Date().toISOString() })
       navigate('/student', { replace: true })

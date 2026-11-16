@@ -191,7 +191,7 @@ Put each sentence on its own line.
 
 ## Log
 
-- 2026-11-15, Shivraj: instructor stats screens (class list, class dashboard, overview) refresh every 30 s and on focus; editors/roster/assignments/grades never auto-refresh, and the workspace remounts only when data changed (touches Ken's InstructorRoute.tsx). Staff previewing as a student are no longer sent to the starter quiz. One-time supabase/demo/cleanup_test_data.sql removes test/QA classes and courses and the 22 fictional roster names.
+- 2026-11-15, Shivraj and Codex: live progress refreshes on the selected class Dashboard every 30 seconds while open. Class and curriculum data keep their existing refresh behavior. Staff student preview skips the starter quiz, and student skip errors are shown.
 - 2026-11-15, Codex: populated scored Python demo pairs after schema setup and added publication readiness warnings, attempt preservation, and counted scores on student assessment cards.
 - 2026-11-15, Ken (Codex): split account creation into `/signup`, made username sign-in the default on `/login`, and added educator Google sign-up using the existing reviewer flow.
 - 2026-11-15, Shivraj: starter-quiz skip writes the result into the cache (one click), "Don't show again" on the quiz card (3013, hide_placement_card), separate sign-in/sign-up password fields so browsers only suggest strong passwords on sign-up.

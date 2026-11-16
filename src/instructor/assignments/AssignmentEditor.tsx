@@ -19,13 +19,15 @@ type Props = {
   onDelete: () => void;
 };
 
-export function AssignmentEditor({ initial, course, backHref, onSave, onDelete }: Props) {
+export function AssignmentEditor({ initial, group, course, backHref, onSave, onDelete }: Props) {
   const [draft, setDraft] = useState(initial);
   const [saved, setSaved] = useState(initial);
   const [view, setView] = useState<'edit' | 'preview'>('edit');
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
+  const hasSubmissions = group.submissions?.some(submission => submission.assignmentId === initial.id) ?? false;
+  const lockedContent = draft.kind === 'quiz' && hasSubmissions;
 
   function update(patch: Partial<Assignment>) {
     setDraft(current => ({ ...current, ...patch }));
@@ -63,7 +65,9 @@ export function AssignmentEditor({ initial, course, backHref, onSave, onDelete }
         <button type="button" aria-pressed={view === 'preview'} onClick={() => setView('preview')}><Eye size={15} /> Student preview</button>
       </div>
       <button type="button" className="ic-button" onClick={download}><Download size={16} /> Export</button>
-      <button type="button" className="ic-button" onClick={() => { if (window.confirm(`Delete "${draft.title}"?`)) onDelete(); }}><Trash2 size={16} /> Delete</button>
+      <button type="button" className="ic-button" disabled={hasSubmissions}
+        title={hasSubmissions ? 'Unpublish this assignment to hide it and keep student work.' : undefined}
+        onClick={() => { if (window.confirm(`Delete "${draft.title}"?`)) onDelete(); }}><Trash2 size={16} /> Delete</button>
       <button type="button" className="ic-button ic-primary" disabled={!dirty} onClick={() => save()}><Save size={16} /> Save</button>
     </PageHeader>
     {error && <p className="ic-error" role="alert">{error}</p>}
@@ -75,7 +79,11 @@ export function AssignmentEditor({ initial, course, backHref, onSave, onDelete }
           <label>Title<input value={draft.title} maxLength={200} onChange={event => update({ title: event.target.value })} /></label>
           <label>Instructions for students<textarea rows={4} value={draft.instructions} maxLength={20_000} placeholder="What should students do, and how will it be graded?" onChange={event => update({ instructions: event.target.value })} /></label>
         </section>
-        <BlockEditor blocks={draft.blocks} title={draft.title} onChange={blocks => update({ blocks })} />
+        {lockedContent && <p className="ic-note">This quiz has submissions. Duplicate it to change the questions.</p>}
+        <fieldset disabled={lockedContent} className="min-w-0">
+          <legend className="ic-sr-only">Assignment content</legend>
+          <BlockEditor blocks={draft.blocks} title={draft.title} onChange={blocks => update({ blocks })} />
+        </fieldset>
       </div>
       <Settings draft={draft} course={course} update={update} />
     </div>}
@@ -100,6 +108,7 @@ function Settings({ draft, course, update }: { draft: Assignment; course?: Cours
     </select></label>
     {draft.blocks.some(block => block.type === 'question') && <>
       <label className="ic-checkbox"><input type="checkbox" checked={draft.shuffle} onChange={event => update({ shuffle: event.target.checked })} />Shuffle question order</label>
+      {draft.kind === 'quiz' && <p className="ic-note">The student player shows earned points after grading. Correct-answer release is not available yet.</p>}
       <label>Show correct answers<select value={draft.showAnswers} onChange={event => update({ showAnswers: event.target.value as ShowAnswers })}>
         <option value="after_submit">Right after submitting</option><option value="after_due">After the due date</option><option value="never">Never</option>
       </select></label>

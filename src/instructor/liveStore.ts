@@ -1,5 +1,4 @@
 import { validLessonFigure } from '../shared/curriculum/figure';
-import { loadStaffProgress, type StaffModuleProgress } from '../shared/staffProgress';
 import { parseWebPracticeChecks } from '../shared/labs/webPracticeChecks';
 // Supabase-backed data for the instructor workspace. Loads courses, classes, rosters,
 // assignments and progress, and writes back only what changed. Row Level Security decides
@@ -10,7 +9,7 @@ import { savedConceptScores, savedResponse } from './attemptResponses';
 import { normalizeAssignment, totalPoints, type Assignment, type AssignmentKind } from './assignments/model';
 import {
   activityTypes, type Activity, type ActivityType, type Attempt, type ClassGroup, type ClassRules, type Course, type InstructorData,
-  type Learner, type ProgramSettings, type Question, type StaffRole,
+  type Learner, type ModuleAction, type ProgramSettings, type Question, type StaffRole,
 } from './model';
 
 type Json = Record<string, unknown>;
@@ -204,7 +203,7 @@ function countedAttempt(rows: Row[], info: ActivityInfo | undefined, maxTries: n
   return scored.sort((a, b) => Number(b.score) - Number(a.score))[0];
 }
 
-function learnersFor(classId: string, roster: Row[], attempts: Row[], activities: Map<string, ActivityInfo>, rules: ClassRules, progress: StaffModuleProgress[]): Learner[] {
+function learnersFor(classId: string, roster: Row[], attempts: Row[], activities: Map<string, ActivityInfo>, rules: ClassRules): Learner[] {
   return roster.slice().sort((a, b) => str(a.created_at).localeCompare(str(b.created_at))).map(student => {
     const mine = attempts.filter(a => a.class_id === classId && student.profile_id && a.student_id === student.profile_id);
     const byActivity = new Map<string, Row[]>();
@@ -223,8 +222,8 @@ function learnersFor(classId: string, roster: Row[], attempts: Row[], activities
       };
     });
     const last = mine.map(a => str(a.submitted_at)).filter(Boolean).sort().at(-1) ?? null;
-    return { id: String(student.id), name: str(student.display_name), passcode: str(student.passcode), baseline: null, attempts: list, hints: [], lastActive: last,
-      moduleProgress: progress.filter(row => row.class_id === classId && row.student_id === student.profile_id) };
+    return { id: String(student.id), profileId: str(student.profile_id) || undefined, name: str(student.display_name),
+      passcode: str(student.passcode), baseline: null, attempts: list, hints: [], lastActive: last };
   });
 }
 
@@ -232,11 +231,12 @@ function learnersFor(classId: string, roster: Row[], attempts: Row[], activities
 
 /** Supabase returns at most `max_rows` (1000) rows per request; read every page. */
 const PAGE = 1000;
-async function selectAll(supabase: SupabaseClient, table: string, columns: string, orderBy = ['id']): Promise<Row[]> {
+async function selectAll(supabase: SupabaseClient, table: string, columns: string, orderBy = ['id'], classId?: string): Promise<Row[]> {
   const rows: Row[] = [];
   for (let from = 0; ; from += PAGE) {
     // A stable order keeps pages from overlapping or skipping rows.
     let query = supabase.from(table).select(columns);
+    if (classId) query = query.eq('class_id', classId);
     for (const column of orderBy) query = query.order(column);
     const { data, error } = await query.range(from, from + PAGE - 1);
     fail(`load ${table}`, error);
@@ -245,14 +245,19 @@ async function selectAll(supabase: SupabaseClient, table: string, columns: strin
   }
 }
 
-const courseColumns = 'id, title, description, level, owner_id, is_library, copied_from, published, publication_revision, created_at, local_curricula (course_id), modules (id, position, title, concept, published, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))';
+export async function loadLiveClassSubmissions(supabase: SupabaseClient, classId: string): Promise<Submission[]> {
+  const rows = await selectAll(supabase, 'assignment_submissions', '*', ['id'], classId);
+  return rows.map(toSubmission);
+}
+
+const courseColumns = 'id, title, description, level, owner_id, is_library, in_cic_library, copied_from, published, publication_revision, created_at, local_curricula (course_id), modules (id, position, title, concept, published, archived_at, lessons (id, position, title, activities (id, position, type, concept, points, content, activity_keys (key))))';
 
 function toCourse(c: Row): Course {
   const course: Course = {
     id: String(c.id), title: str(c.title), description: str(c.description), level: titleCase(str(c.level) || 'beginner'),
     publicationRevision: Number(c.publication_revision ?? 0),
     modules: (arr(c.modules) as Row[]).sort(byPosition).map(m => ({
-      id: String(m.id), title: str(m.title), published: Boolean(m.published),
+      id: String(m.id), title: str(m.title), published: Boolean(m.published), archived: !!m.archived_at,
       position: typeof m.position === 'number' ? m.position : undefined,
       lessons: (arr(m.lessons) as Row[]).sort(byPosition).map(l => ({
         id: String(l.id), title: str(l.title), activities: (arr(l.activities) as Row[]).sort(byPosition).map(toActivity),
@@ -261,6 +266,7 @@ function toCourse(c: Row): Course {
   };
   if (typeof c.published === 'boolean') course.published = c.published;
   if (c.is_library) course.library = true;
+  if (c.in_cic_library) course.libraryListed = true;
   if (c.copied_from) course.copiedFrom = String(c.copied_from);
   if (Array.isArray(c.local_curricula) ? c.local_curricula.length : c.local_curricula) course.local = true;
   return course;
@@ -314,14 +320,13 @@ export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, di
     };
   }
 
-  const [courses, classes, attempts, moduleSettings, programSettings, progress] = await Promise.all([
+  const [courses, classes, attempts, moduleSettings, programSettings] = await Promise.all([
     // Includes published library courses (RLS "read published courses") so instructors can import them.
     supabase.from('courses').select(courseColumns).order('created_at'),
     supabase.from('classes').select('id, name, school, course_id, join_code, created_at, class_modules (module_id, released_at), class_students (id, display_name, passcode, profile_id, created_at), assignments (*), assignment_submissions (*)').not('class_students.passcode', 'is', null).order('created_at'),
     selectAll(supabase, 'activity_attempts', 'id, student_id, activity_id, class_id, score, submitted_at, time_on_task_ms, attempt_no, response'),
     selectAll(supabase, 'class_module_settings', 'class_id, module_id, pass_mark, max_posttest_tries', ['class_id', 'module_id']),
     supabase.from('program_settings').select('inactive_days, low_score_pct'),
-    loadStaffProgress(supabase),
   ]);
   fail('load courses', courses.error);
   fail('load classes', classes.error);
@@ -344,7 +349,7 @@ export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, di
       id: String(c.id), name: str(c.name), school: str(c.school), courseId: String(c.course_id), joinCode: str(c.join_code),
       moduleIds: (arr(c.class_modules) as Row[]).map(m => String(m.module_id)),
       progressModuleIds: released.length ? released : courseList.find(course => course.id === c.course_id)?.modules.filter(m => m.published).map(m => m.id) ?? [],
-      learners: learnersFor(String(c.id), arr(c.class_students) as Row[], attempts, activityInfo, rules, progress),
+      learners: learnersFor(String(c.id), arr(c.class_students) as Row[], attempts, activityInfo, rules),
       assignments: (arr(c.assignments) as Row[]).sort((a, b) => str(a.created_at).localeCompare(str(b.created_at))).map(toAssignment),
       submissions: (arr(c.assignment_submissions) as Row[]).map(toSubmission),
       rules,
@@ -402,7 +407,8 @@ export async function publishLiveCourse(supabase: SupabaseClient, course: Course
   const before = previous ? courseRows(previous) : { modules: [], lessons: [], activities: [] };
   const next = courseRows(course);
   const level = course.level.toLowerCase();
-  const { data, error } = await supabase.rpc('publish_curriculum', {
+  const firstLibraryPublish = !previous && course.libraryListed;
+  const { data, error } = await supabase.rpc(firstLibraryPublish ? 'publish_new_library_curriculum' : 'publish_curriculum', {
     p_course: { id: course.id, title: course.title.trim(), description: course.description, level: levels.includes(level) ? level : 'beginner' },
     p_module_id: moduleId,
     p_expected_revision: expectedRevision ?? null,
@@ -437,6 +443,22 @@ export async function publishLiveCourse(supabase: SupabaseClient, course: Course
     // Publication has already committed. Keep its revision even if the refresh failed.
   }
   return { revision, assessmentWarning: assessmentWarning ?? 'The assessment pair is ready. Reload the course to see its current assessment blocks before editing again.' };
+}
+
+export async function addLiveCourseToLibrary(supabase: SupabaseClient, courseId: string) {
+  const { error } = await supabase.rpc('add_course_to_cic_library', { p_course_id: courseId });
+  fail('add the course to CIC Library', error);
+}
+
+export async function manageLiveModule(supabase: SupabaseClient, courseId: string, moduleId: string, expectedRevision: number, action: ModuleAction) {
+  const { data, error } = await supabase.rpc('manage_curriculum_module', {
+    p_course_id: courseId,
+    p_module_id: moduleId,
+    p_expected_revision: expectedRevision,
+    p_action: action,
+  });
+  fail(`${action} the module`, error);
+  return Number(data);
 }
 
 /** Verify the stored assessment pair and fill missing forms from the curriculum when possible. */
@@ -508,10 +530,9 @@ export async function saveLiveClass(
     if (same(prevSubmissions.get(submission.id), submission)) continue;
     const result = await supabase.from('assignment_submissions').update({
       manual_scores: submission.manualScores, rubric_scores: submission.rubricScores, feedback: submission.feedback, graded_at: submission.gradedAt, graded_by: submission.gradedAt ? userId : null,
-    }).eq('id', submission.id).select('id');
+    }).eq('id', submission.id).eq('submitted_at', submission.submittedAt).select('id');
     fail('save the grade', result.error);
-    // RLS hides rows instead of erroring, so an update that matched nothing was not allowed.
-    if (!result.data?.length) throw new Error('Could not save the grade: you do not have access to this submission.');
+    if (!result.data?.length) throw new Error('Could not save the grade. Reload to check whether the submission changed or you lost access.');
   }
   const prevAssignments = new Map((prev?.assignments ?? []).map(a => [a.id, a]));
   const assignments = next.assignments ?? [];

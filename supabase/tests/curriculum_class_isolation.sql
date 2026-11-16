@@ -26,12 +26,33 @@ create function pg_temp.assert(ok boolean, message text) returns void language p
 begin if ok is distinct from true then raise exception '%', message; end if; end $$;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','81000000-0000-0000-0000-000000000002',true);
-select pg_temp.assert(not public.can_edit_course('82000000-0000-0000-0000-000000000004'),'Instructor owner can edit a non-library global original');
+select pg_temp.assert(public.can_edit_course('82000000-0000-0000-0000-000000000004'),'Instructor cannot edit a published global original');
+select add_course_to_cic_library('82000000-0000-0000-0000-000000000004');
+select pg_temp.assert(
+  (select in_cic_library and not is_library from courses where id='82000000-0000-0000-0000-000000000004'),
+  'CIC Library listing failed or changed class template scope');
+with deleted as (delete from courses where id='82000000-0000-0000-0000-000000000004' returning id)
+select pg_temp.assert(not exists(select 1 from deleted),'Instructor deleted a whole global course');
 -- Newly authored instructor content is local before it is attached to a class.
 insert into courses(id,title,owner_id,published) values
  ('82000000-0000-0000-0000-000000000003','A Python school course',auth.uid(),true);
 select pg_temp.assert(public.can_edit_course('82000000-0000-0000-0000-000000000003'),'New instructor author cannot edit before attachment');
 select pg_temp.assert(exists(select 1 from local_curricula where course_id='82000000-0000-0000-0000-000000000003'),'New instructor course not classified local');
+do $$ begin
+ begin
+  perform add_course_to_cic_library('82000000-0000-0000-0000-000000000003');
+  raise exception 'Listed class-local curriculum';
+ exception when raise_exception then if sqlerrm not like 'Choose a global course%' then raise; end if; end;
+end $$;
+select pg_temp.assert(publish_new_library_curriculum(
+  '{"id":"82000000-0000-0000-0000-000000000005","title":"New shared course","description":"","level":"beginner"}',
+  '83000000-0000-0000-0000-000000000005', null,
+  '[{"id":"83000000-0000-0000-0000-000000000005","position":1,"title":"New module","concept":"Fixture","published":true}]',
+  '[]', '[]', '{}', '{}') = 1,'Instructor could not publish a new CIC Library course');
+select pg_temp.assert(
+  (select in_cic_library and published and not is_library from courses where id='82000000-0000-0000-0000-000000000005')
+  and not exists(select 1 from local_curricula where course_id='82000000-0000-0000-0000-000000000005'),
+  'New CIC Library course is outside global scope');
 insert into modules(id,course_id,position,title,concept,published) values
  ('83000000-0000-0000-0000-000000000003','82000000-0000-0000-0000-000000000003',1,'Private module title','Fixture',true);
 select pg_temp.assert(not exists(select 1 from catalog_courses()
@@ -94,7 +115,6 @@ do $$ begin
   raise exception 'Promotion succeeded';
  exception when raise_exception then if sqlerrm <> 'COURSE_SCOPE_ADMIN_ONLY' then raise; end if; end;
 end $$;
-select set_config('request.jwt.claim.sub','81000000-0000-0000-0000-000000000001',true);
 select pg_temp.assert(publish_curriculum(
   '{"id":"82000000-0000-0000-0000-000000000001","title":"Updated global course","description":"","level":"beginner"}',
   '83000000-0000-0000-0000-000000000001', 0, '[]', '[]',

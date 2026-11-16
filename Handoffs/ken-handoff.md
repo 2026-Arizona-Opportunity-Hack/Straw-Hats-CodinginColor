@@ -49,7 +49,7 @@ Requests for W3Schools prioritize matching approved tutorials using reviewed sum
 **Add a coding lab** gives Sol the source text and article draft for an optional HTML/CSS practice block.
 The reference solution and review notes stay in the draft review. Adding the module keeps only the starter and checks.
 Local Vite can opt in to the real converter while keeping demo course data and browser drafts. Sample imports are labeled in the form.
-See the [README](../README.md#draft-curriculum-from-materials) for preview configuration.
+See the [maintainer guide](../docs/maintainer-guide.md#draft-curriculum-from-materials) for preview configuration.
 
 ## Student preview
 
@@ -63,8 +63,11 @@ The local preview can also run demo HTML activities and coding labs.
 ## Curriculum workspace
 
 Instructors and admins open published lessons from **Curriculum** and can leave staff comments on individual blocks.
-Global edits are an explicit admin action, and class edits follow the class's own curriculum route.
-**CIC Library** shows curated workshop slide decks from published global courses. Admins manage the catalog by selecting **Include in CIC Library** on a Slides block and publishing its module.
+Instructors and admins can edit published global curriculum, and class edits follow the class's own curriculum route.
+**CIC Library** lists shared courses alongside curated slide decks. Staff can list an existing global course, edit it from the library, or publish a new course from the library.
+Module archive preserves lessons and student work for republishing. Permanent delete cascades to lessons, activities, and their student work. Class release links must be removed before either action.
+Apply migrations 3018 and 3019 before deploying the module and library changes.
+Staff curate slide decks by selecting **Include in CIC Library** on a Slides block and publishing its module.
 Migrations 2011 and 2012 add durable class-local scope and staff-only comment threads. Apply them in that order before deploying the workspace.
 See the [curriculum isolation audit](curriculum-isolation-audit-2026-11-15.md) for the current database boundaries and legacy global course links.
 
@@ -78,7 +81,7 @@ Apply migration 1007 before deploying this change so published reading blocks do
 ## Coding labs and student demo
 
 PR #15 adds instructor starter files and practice checks for Python and HTML/CSS.
-Run the app in mock mode and the Python runner on loopback as described in the [README](../README.md#curriculum-builder-demo).
+Run the app in mock mode and the Python runner on loopback as described in the [demo walkthrough](../docs/demo.md#local-demo).
 Publish a module and switch from Instructor to Student in the same browser.
 The demo keeps student edits and submissions locally per published revision.
 Practice results stay out of the live reporting pipeline.
@@ -133,6 +136,7 @@ CSV and manual entry are available on the Roster tab. Imported rows require conf
 The import dialog explains that self-sign-up creates its own roster row. Previously issued login cards still work through student sign-in.
 Failed saves keep the roster draft available for retry with the same student IDs.
 Admins remove students from a class in **People & roles**. Migration 3015 removes the enrollment and retires its login card while keeping the linked roster row and submissions for re-enrollment. Class pickers display **Class, School**.
+Admin enrollment in **People & roles** confirms the saved membership and active linked roster entry before showing success. The local browser check used the existing SQL RPC for a committed enrollment and replayed a successful HTTP response without a write. An immediate reload preserved only the committed enrollment, which also appeared on the teacher roster.
 Class creation maps selected library modules to their copy using the complete course order or stored positions when the library hides unpublished modules.
 A class setup retry keeps the same copied course and selection mapping.
 The roster mapping endpoint checks the signed-in Supabase profile and calls Jev through OpenRouter when `OPENROUTER_API_KEY` is set. Otherwise it uses Vercel AI Gateway.
@@ -142,9 +146,32 @@ Only reviewed header labels and column positions go to the mapping endpoint. Use
 
 The public root introduces AI Academy and Responsive Web Development using the existing CIC brand tokens and fonts. Log in and Sign up open the existing student and staff flows. Featured course links continue to a catalog search after student sign-in. Coming Soon mirrors planned subjects in Student Explore.
 
+## Admin data refresh
+
+Admin overview, classes, people, and analytics share one cached organization snapshot.
+Successful edits refresh it, and **Refresh data** reloads it on demand.
+The command palette requests organization data only when open.
+
+## Selected-class progress
+
+The instructor workspace loads progress on the selected class's Dashboard, Grades, and Roster tabs.
+Class-filtered admin analytics use the same scoped RPC and share their query with the toolbar.
+The partner CSV still requests program-wide data when needed.
+Apply migration 3017 before deploying the frontend change so the scoped reports can load.
+
 ## Log
 
+- 2026-11-15, Codex: drafted the submission README, demo walkthrough and maintainer guide from the merged app. Add the verified demo video link when available.
+
+- 2026-11-15, Codex: added permanent module deletion and reversible archiving, restored global and class editing for instructors, and added CIC Library course creation, editing, and listing.
+
+- 2026-11-15, Codex: scoped canonical progress to the selected class and preserved the existing staff access checks.
+
+- 2026-11-15, Codex: replaced minute-by-minute admin polling with refresh after edits and on demand.
+
 - 2026-11-15, Codex: verified final-check modal focus, Escape and submission navigation in Chrome with local demo data.
+
+- 2026-11-15, Codex: confirmed admin enrollment saves before showing success and verified the roster after immediate reload using disposable PostgreSQL.
 
 - 2026-11-15, Codex: added admin class removal for students with preserved work and class-and-school dropdown labels.
 
