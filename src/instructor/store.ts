@@ -1,6 +1,7 @@
 import { BuilderDemo, demoData, LibraryDemo, SchoolAlaDemo } from './demoData';
 import { normalizeAssignment, type Assignment } from './assignments/model';
 import type { ClassGroup, Course, InstructorData, Module, ModuleAction } from './model';
+import type { RosterMatchActions } from './RosterMatches';
 
 export type SchoolClassRequest = {
   id: string; schoolId: string; name: string; joinCode: string;
@@ -30,6 +31,7 @@ export interface InstructorStore {
   save(data: InstructorData, previous: InstructorData): void | Promise<void>;
   /** Save a roster change without discarding the caller's draft on failure. */
   saveClass?(group: ClassGroup, previous?: ClassGroup, attempted?: ClassGroup): Promise<void>;
+  rosterMatches?: RosterMatchActions;
   publishCourse?(course: Course, previous: Course | undefined, moduleId: string, expectedRevision: number | undefined):
     Promise<{ revision: number; assessmentWarning?: string; released?: Module }>;
   manageModule?(courseId: string, moduleId: string, expectedRevision: number, action: ModuleAction): Promise<number>;

@@ -425,6 +425,7 @@ export function InstructorWorkspace({
       if (group) return <ClassDashboard key={group.id} group={group} course={course} onSave={saveClass} justCreated={newClass === group.id} tab={isClassTab(subpage) ? subpage : 'dashboard'} detail={detail} otherClasses={visibleClasses}
         progressSource={progressSource}
         onAddStudents={students => addRosterStudents(group.id, students)}
+        rosterMatches={store.rosterMatches}
         editor={subpage === 'curriculum' && detail === 'edit' && course && !course.library
           ? builderFor(course.id, { inClass: { className: group.name, backTo: `#/classes/${group.id}/curriculum/view` } }) : undefined}
         blockActions={activity => comments(activity, group.id)}

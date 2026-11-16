@@ -303,7 +303,7 @@ export async function loadLiveCurriculumSnapshot(supabase: SupabaseClient, id: s
   return toCourse(data!.curriculum as Row);
 }
 
-/** The catalog still works while a hosted database is waiting on migration 3021. */
+/** The catalog still works while a hosted database is waiting on migration 3022. */
 function schoolRows(result: { data: unknown; error: { message: string; code?: string } | null }, label: string) {
   if (!['PGRST205', '42P01'].includes(result.error?.code ?? '')) fail(label, result.error);
   return arr(result.data) as Row[];

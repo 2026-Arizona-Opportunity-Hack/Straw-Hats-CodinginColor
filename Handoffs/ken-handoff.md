@@ -49,7 +49,7 @@ Requests for W3Schools prioritize matching approved tutorials using reviewed sum
 **Add a coding lab** gives Sol the source text and article draft for an optional HTML/CSS practice block.
 The reference solution and review notes stay in the draft review. Adding the module keeps only the starter and checks.
 Local Vite can opt in to the real converter while keeping demo course data and browser drafts. Sample imports are labeled in the form.
-See the [README](../README.md#draft-curriculum-from-materials) for preview configuration.
+See the [maintainer guide](../docs/maintainer-guide.md#draft-curriculum-from-materials) for preview configuration.
 
 ## Student preview
 
@@ -71,10 +71,6 @@ Staff curate slide decks by selecting **Include in CIC Library** on a Slides blo
 Migrations 2011 and 2012 add durable class-local scope and staff-only comment threads. Apply them in that order before deploying the workspace.
 See the [curriculum isolation audit](curriculum-isolation-audit-2026-11-15.md) for the current database boundaries and legacy global course links.
 
-The curriculum catalog uses course cards, with class curricula, shared templates, and archive history grouped by school. Migration 3021 adds verified school membership and a school-owned template per global original. Admins set up membership and seed a template from a selected existing class in **Schools & classes**. Publishing the school template updates the default for future classes. A class gets a separate copy from the school template or its global original, so existing class edits and student attempts retain their IDs.
-
-A class archived after migration 3021 gets a read-only snapshot of its published assigned curriculum. The term-ended status in admin reports is derived, so an admin uses **Archive** to capture the current version. Previously archived classes have no historical snapshot unless one was recorded at that time. The local preview includes fictional Salt River ALA content.
-
 ## Read & check
 
 Choose **Read & check** when creating a course, or apply the template to any empty lesson.
@@ -85,7 +81,7 @@ Apply migration 1007 before deploying this change so published reading blocks do
 ## Coding labs and student demo
 
 PR #15 adds instructor starter files and practice checks for Python and HTML/CSS.
-Run the app in mock mode and the Python runner on loopback as described in the [README](../README.md#curriculum-builder-demo).
+Run the app in mock mode and the Python runner on loopback as described in the [demo walkthrough](../docs/demo.md#local-demo).
 Publish a module and switch from Instructor to Student in the same browser.
 The demo keeps student edits and submissions locally per published revision.
 Practice results stay out of the live reporting pipeline.
@@ -165,7 +161,11 @@ Apply migration 3017 before deploying the frontend change so the scoped reports 
 
 ## Log
 
-- 2026-11-15, Codex: added school-grouped curriculum cards, school template selection, global override, and archive snapshots on `ken/curriculum-builder-fixes`. Hosted migration and school setup are pending.
+- 2026-11-15, Codex: reconciled school curriculum defaults, global override, and archive snapshots with the current workspace. The school curriculum uses 3022 after roster matching (3021).
+
+- 2026-11-15, Codex: added teacher-confirmed name matching for imported rosters and class-code signups. Apply migration 3021 before using Review name matches.
+
+- 2026-11-15, Codex: drafted the submission README, demo walkthrough and maintainer guide from the merged app. Add the verified demo video link when available.
 
 - 2026-11-15, Codex: added permanent module deletion and reversible archiving, restored global and class editing for instructors, and added CIC Library course creation, editing, and listing.
 

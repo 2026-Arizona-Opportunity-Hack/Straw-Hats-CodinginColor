@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { confirmRosterNameMatch, listRosterNameMatches } from '../api/instructor/rosterMatches.ts'
 import { useAuth } from '../shared/auth/AuthContext.tsx'
 import { supabase } from '../shared/supabase.ts'
 import { InstructorWorkspace } from './InstructorWorkspace.tsx'
@@ -54,6 +55,11 @@ function LiveWorkspace({ role, hash, userId, name }: { role: StaffRole; hash: st
       },
       saveClass: (group, previous, attempted) =>
         queue.run(() => saveLiveClass(client, userId, group, previous, attempted)).then(refreshProgress),
+      rosterMatches: {
+        list: classId => queue.run(() => listRosterNameMatches(client, classId)),
+        confirm: (classId, match) => queue.run(() => confirmRosterNameMatch(client, classId, match)),
+        refreshRoster: () => { void queue.run(async () => { await refetch() }) },
+      },
       publishCourse: (course, previous, moduleId, expectedRevision) =>
         queue.run(() => publishLiveCourse(client, course, previous, moduleId, expectedRevision)).then(refreshProgress),
       manageModule: (courseId, moduleId, expectedRevision, action) =>
@@ -63,7 +69,7 @@ function LiveWorkspace({ role, hash, userId, name }: { role: StaffRole; hash: st
       createSchoolClass: request => queue.run(() => createLiveSchoolClass(client, request)).then(refreshProgress),
       loadCurriculumSnapshot: id => loadLiveCurriculumSnapshot(client, id),
     }
-  }, [data, client, userId, role, queryClient, queryKey, progressKey, queue])
+  }, [data, client, userId, role, queryClient, queryKey, progressKey, queue, refetch])
 
   if (isPending) return <p className="p-6" role="status">Loading your classes…</p>
   if (error || !store) {
