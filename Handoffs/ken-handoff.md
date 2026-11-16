@@ -161,6 +161,8 @@ Apply migration 3017 before deploying the frontend change so the scoped reports 
 
 ## Log
 
+- 2026-11-15, Codex: linked the submitted Straw Hats demo video in the README and checked that YouTube serves it without signing in.
+
 - 2026-11-15, Codex: added the no-sign-in `/demo` walkthrough with fictional classes, editable sample curriculum, practice checks, grading, aggregate reporting, and published curriculum review.
 
 - 2026-11-15, Codex: reconciled school curriculum defaults, global override, and archive snapshots with the current workspace. The school curriculum uses 3022 after roster matching (3021).
