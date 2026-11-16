@@ -191,6 +191,7 @@ Put each sentence on its own line.
 
 ## Log
 
+- 2026-11-15, Shivraj and Codex: live progress refreshes on the selected class Dashboard every 30 seconds while open. Class and curriculum data keep their existing refresh behavior. Staff student preview skips the starter quiz, and student skip errors are shown.
 - 2026-11-15, Codex: populated scored Python demo pairs after schema setup and added publication readiness warnings, attempt preservation, and counted scores on student assessment cards.
 - 2026-11-15, Ken (Codex): split account creation into `/signup`, made username sign-in the default on `/login`, and added educator Google sign-up using the existing reviewer flow.
 - 2026-11-15, Shivraj: starter-quiz skip writes the result into the cache (one click), "Don't show again" on the quiz card (3013, hide_placement_card), separate sign-in/sign-up password fields so browsers only suggest strong passwords on sign-up.

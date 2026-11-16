@@ -10,11 +10,11 @@ import { useAuth } from '../../shared/auth/AuthContext.tsx'
 import { languageOf } from '../languages.ts'
 
 export function PlacementCard() {
-  const { profile } = useAuth()
+  const { profile, previewRole } = useAuth()
   const qc = useQueryClient()
   const key = ['placement', profile?.id]
   const { data, isLoading, isFetching, isError } = useQuery({
-    queryKey: key, queryFn: getMyPlacement, enabled: placementAvailable,
+    queryKey: key, queryFn: getMyPlacement, enabled: placementAvailable && !previewRole,
   })
   const hide = useMutation({
     mutationFn: hidePlacementCard,
@@ -22,7 +22,9 @@ export function PlacementCard() {
     onMutate: () => qc.setQueryData<MyPlacement | null>(key, (old) => old && { ...old, card_hidden: true }),
     onError: () => void qc.invalidateQueries({ queryKey: key }),
   })
-  if (!placementAvailable || isLoading || isError) return null
+  // Staff previewing as a student have no placement (my_placement is students-only), so never
+  // send them to the quiz: that looped, and skipping failed with STUDENTS_ONLY.
+  if (!placementAvailable || previewRole || isLoading || isError) return null
   // Only redirect on a fresh answer: a cached "never taken" from before the quiz must not win.
   if (data === null) return isFetching ? null : <Navigate to="/student/start" replace />
   if (data?.card_hidden) return null
