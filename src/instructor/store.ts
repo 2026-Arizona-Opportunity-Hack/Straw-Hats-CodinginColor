@@ -1,7 +1,12 @@
-import { BuilderDemo, demoData, LibraryDemo } from './demoData';
+import { BuilderDemo, demoData, LibraryDemo, SchoolAlaDemo } from './demoData';
 import { normalizeAssignment, type Assignment } from './assignments/model';
 import type { ClassGroup, Course, InstructorData, Module, ModuleAction } from './model';
 import type { RosterMatchActions } from './RosterMatches';
+
+export type SchoolClassRequest = {
+  id: string; schoolId: string; name: string; joinCode: string;
+  source: Course; moduleIds: string[];
+};
 
 const storeKey = 'cic-learn.instructor-preview.v1';
 const liveDraftKey = (author: string) => 'cic-learn.course-drafts.v1:' + author;
@@ -36,6 +41,8 @@ export interface InstructorStore {
    * Without it (browser preview) the workspace copies the course itself and saves it.
    */
   importCourse?(source: Course): Promise<Course>;
+  createSchoolClass?(request: SchoolClassRequest): Promise<{ course: Course; moduleIds: string[] }>;
+  loadCurriculumSnapshot?(id: string): Promise<Course>;
 }
 
 export const browserInstructorStore: InstructorStore = {
@@ -44,10 +51,13 @@ export const browserInstructorStore: InstructorStore = {
       const saved = JSON.parse(localStorage.getItem(storeKey) || 'null');
       if (Array.isArray(saved?.classes) && Array.isArray(saved?.courses)) {
         // Older saves predate these demo courses; add them.
-        const courses = [BuilderDemo, LibraryDemo].reduce((list: Course[], demo) =>
+        const courses = [BuilderDemo, LibraryDemo, SchoolAlaDemo].reduce((list: Course[], demo) =>
           list.some(course => course?.id === demo.id) ? list : [...list, structuredClone(demo)], saved.courses);
         return {
           ...saved, courses,
+          schools: structuredClone(demoData.schools),
+          schoolCurricula: structuredClone(demoData.schoolCurricula),
+          curriculumSnapshots: structuredClone(demoData.curriculumSnapshots),
           staff: Array.isArray(saved.staff) && saved.staff.length ? saved.staff : structuredClone(demoData.staff),
           // Data saved before assignments existed: start from the demo set for demo classes.
           classes: saved.classes.map((group: ClassGroup) => Array.isArray(group.assignments)

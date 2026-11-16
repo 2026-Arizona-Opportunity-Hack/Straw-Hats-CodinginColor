@@ -124,6 +124,17 @@ To add a slide deck, select **Include in CIC Library** on a Slides block in a gl
 In **Create a class**, picking a global course template makes an independent copy with its own content IDs.
 Apply curriculum migrations `2011`, `2012`, `3018`, and `3019` before deploying this workspace. The [curriculum isolation audit](../Handoffs/curriculum-isolation-audit-2026-11-15.md) covers the original isolation change and legacy classes still using shared courses directly.
 
+### Set up Salt River's ALA curriculum
+
+1. Apply [migration 3022](../supabase/migrations/3022_school_curriculum.sql) after migrations through 3021, then deploy the app. Use the existing hosted curriculum and instructor accounts.
+2. In **Admin → Schools & classes → School curriculum**, select or add the verified Salt River school record. Grant access to the instructors approved to maintain ALA. School membership gives access to the shared template and school curriculum history. Class roster access follows class membership.
+3. Under **Existing class**, choose the Salt River class that holds the approved, published ALA curriculum. Under **Global original**, select the published CIC template ALA was adapted from. Choose **Create school template**. This copies the published modules and their answer keys, and links the source class to the school while preserving its existing enrollment and progress. Use **Link class to school** for additional verified classes.
+4. As a Salt River instructor, open **Curriculum → Salt River → ALA** and check the published module and lesson titles. In **Create a class**, choose Salt River and confirm ALA is preselected. Choose **Use global original** to verify the alternative module choices.
+
+In **Curriculum**, open the school template and publish changes there for future classes. Class setup preselects the school's published template when available. **Use global original** switches the course and module choices to the CIC template. Each class gets its own copy and retains its student activity history.
+
+The **Archive** action saves the class's published assigned curriculum under the school in **Curriculum → Archived curriculum**. Term-ended classes can use that action to capture their current curriculum. Earlier archives without a saved snapshot cannot be reconstructed. The local demo includes a sample Salt River ALA template and a sample archive.
+
 **Class Dashboard.** Shows learning gain with the pretest and post-test averages behind it, average assignment score, work to grade and missing work.
 **Needs attention** lists each student who needs help and opens to the exact reasons (stuck, inactive, below mastery, missing or low work, post-test drop).
 **Module completion** opens each module to its assignments, due dates and turn-in counts.

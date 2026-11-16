@@ -43,7 +43,7 @@ export interface OrgData {
   courseEnrollments: { student_id: string; course_id: string }[]
   /** Their work: attempts with no class. */
   selfPacedAttempts: Attempt[]
-  classes: { id: string; name: string; school: string; course_id: string; join_code: string; created_at?: string; archived_at?: string | null }[]
+  classes: { id: string; name: string; school: string; school_id?: string | null; course_id: string; join_code: string; created_at?: string; archived_at?: string | null }[]
   courses: { id: string; title: string; delivery_mode: 'self_paced' | 'instructor_led' }[]
   classInstructors: { class_id: string; instructor_id: string }[]
   enrollments: { class_id: string; student_id: string }[]

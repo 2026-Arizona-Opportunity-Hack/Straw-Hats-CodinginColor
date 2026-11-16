@@ -161,6 +161,8 @@ Apply migration 3017 before deploying the frontend change so the scoped reports 
 
 ## Log
 
+- 2026-11-15, Codex: reconciled school curriculum defaults, global override, and archive snapshots with the current workspace. The school curriculum uses 3022 after roster matching (3021).
+
 - 2026-11-15, Codex: added teacher-confirmed name matching for imported rosters and class-code signups. Apply migration 3021 before using Review name matches.
 
 - 2026-11-15, Codex: drafted the submission README, demo walkthrough and maintainer guide from the merged app. Add the verified demo video link when available.

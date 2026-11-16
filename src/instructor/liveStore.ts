@@ -5,6 +5,7 @@ import { parseWebPracticeChecks } from '../shared/labs/webPracticeChecks';
 // what the signed-in person can read or change (supabase/migrations/2001_instructor_workspace.sql).
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Submission } from './assignments/grading';
+import type { SchoolClassRequest } from './store';
 import { savedConceptScores, savedResponse } from './attemptResponses';
 import { normalizeAssignment, totalPoints, type Assignment, type AssignmentKind } from './assignments/model';
 import {
@@ -284,6 +285,30 @@ export async function importLibraryCourse(supabase: SupabaseClient, libraryCours
   return toCourse(loaded.data as Row);
 }
 
+export async function createLiveSchoolClass(supabase: SupabaseClient, request: SchoolClassRequest) {
+  const { data, error } = await supabase.rpc('create_school_class', {
+    p_class_id: request.id, p_school_id: request.schoolId, p_name: request.name, p_join_code: request.joinCode,
+    p_source_course_id: request.source.id, p_source_revision: request.source.publicationRevision ?? 0,
+    p_module_ids: request.moduleIds,
+  });
+  fail('create the school class', error);
+  const loaded = await supabase.from('courses').select(courseColumns).eq('id', data.course_id).single();
+  fail('load the class curriculum', loaded.error);
+  return { course: toCourse(loaded.data as Row), moduleIds: data.module_ids as string[] };
+}
+
+export async function loadLiveCurriculumSnapshot(supabase: SupabaseClient, id: string): Promise<Course> {
+  const { data, error } = await supabase.from('class_curriculum_snapshots').select('curriculum').eq('id', id).single();
+  fail('load the archived curriculum', error);
+  return toCourse(data!.curriculum as Row);
+}
+
+/** The catalog still works while a hosted database is waiting on migration 3022. */
+function schoolRows(result: { data: unknown; error: { message: string; code?: string } | null }, label: string) {
+  if (!['PGRST205', '42P01'].includes(result.error?.code ?? '')) fail(label, result.error);
+  return arr(result.data) as Row[];
+}
+
 /** program_settings (migration 2006): the single row of CIC-wide thresholds. */
 function toSettings(rows: Row[] | null): ProgramSettings {
   const row = rows?.[0];
@@ -320,13 +345,18 @@ export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, di
     };
   }
 
-  const [courses, classes, attempts, moduleSettings, programSettings] = await Promise.all([
+  const [courses, classes, attempts, moduleSettings, programSettings, schools, schoolCurricula, snapshots] = await Promise.all([
     // Includes published library courses (RLS "read published courses") so instructors can import them.
     supabase.from('courses').select(courseColumns).order('created_at'),
-    supabase.from('classes').select('id, name, school, course_id, join_code, created_at, class_modules (module_id, released_at), class_students (id, display_name, passcode, profile_id, created_at), assignments (*), assignment_submissions (*)').not('class_students.passcode', 'is', null).order('created_at'),
+    supabase.from('classes').select('*, class_modules (module_id, released_at), class_students (id, display_name, passcode, profile_id, created_at), assignments (*), assignment_submissions (*)').not('class_students.passcode', 'is', null).order('created_at'),
     selectAll(supabase, 'activity_attempts', 'id, student_id, activity_id, class_id, score, submitted_at, time_on_task_ms, attempt_no, response'),
     selectAll(supabase, 'class_module_settings', 'class_id, module_id, pass_mark, max_posttest_tries', ['class_id', 'module_id']),
     supabase.from('program_settings').select('inactive_days, low_score_pct'),
+    supabase.from('schools').select('id, name').order('name'),
+    supabase.from('school_curricula').select('school_id, course_id, global_course_id'),
+    supabase.from('class_curriculum_snapshots')
+      .select('id, class_id, school_id, school_name, class_name, class_created_at, archived_at, course_title, module_count')
+      .order('archived_at', { ascending: false }),
   ]);
   fail('load courses', courses.error);
   fail('load classes', classes.error);
@@ -347,6 +377,7 @@ export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, di
     const released = (arr(c.class_modules) as Row[]).filter(m => Date.parse(str(m.released_at)) <= Date.now()).map(m => String(m.module_id));
     return {
       id: String(c.id), name: str(c.name), school: str(c.school), courseId: String(c.course_id), joinCode: str(c.join_code),
+      schoolId: str(c.school_id) || undefined, archivedAt: str(c.archived_at) || undefined,
       moduleIds: (arr(c.class_modules) as Row[]).map(m => String(m.module_id)),
       progressModuleIds: released.length ? released : courseList.find(course => course.id === c.course_id)?.modules.filter(m => m.published).map(m => m.id) ?? [],
       learners: learnersFor(String(c.id), arr(c.class_students) as Row[], attempts, activityInfo, rules),
@@ -358,6 +389,15 @@ export async function loadLiveData(supabase: SupabaseClient, role: StaffRole, di
   return {
     courses: courseList,
     classes: classList,
+    schools: schoolRows(schools, 'load schools').map(row => ({ id: str(row.id), name: str(row.name) })),
+    schoolCurricula: schoolRows(schoolCurricula, 'load school templates').map(row => ({
+      schoolId: str(row.school_id), courseId: str(row.course_id), globalCourseId: str(row.global_course_id),
+    })),
+    curriculumSnapshots: schoolRows(snapshots, 'load curriculum history').map(row => ({
+      id: str(row.id), classId: str(row.class_id) || undefined, schoolId: str(row.school_id) || undefined,
+      className: str(row.class_name), schoolName: str(row.school_name), classCreatedAt: str(row.class_created_at),
+      archivedAt: str(row.archived_at), courseTitle: str(row.course_title), moduleCount: Number(row.module_count),
+    })),
     settings,
     // The signed-in person; RLS already limits classes to the ones they can see.
     staff: [{ id: role, name: displayName, role, classIds: classList.map(group => group.id) }],

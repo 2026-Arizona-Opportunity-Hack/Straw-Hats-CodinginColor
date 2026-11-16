@@ -100,6 +100,8 @@ export type ClassGroup = {
   id: string;
   name: string;
   school: string;
+  schoolId?: string;
+  archivedAt?: string;
   courseId: string;
   moduleIds: string[];
   /** Released module scope for reports; assignment editing still uses moduleIds. */
@@ -118,6 +120,13 @@ export type ClassGroup = {
 };
 export type StaffRole = 'instructor' | 'admin' | 'reviewer';
 export type StaffProfile = { id: string; name: string; role: StaffRole; classIds: string[] };
+export type CurriculumSchool = { id: string; name: string };
+export type SchoolCurriculum = { schoolId: string; courseId: string; globalCourseId: string };
+export type CurriculumSnapshot = {
+  id: string; classId?: string; className: string; schoolId?: string; schoolName: string;
+  classCreatedAt: string; archivedAt: string; courseTitle: string; moduleCount: number;
+  course?: Course;
+};
 export type InstructorData = {
   courses: Course[];
   classes: ClassGroup[];
@@ -126,6 +135,9 @@ export type InstructorData = {
   settings?: ProgramSettings;
   courseDrafts?: Record<string, Course>;
   savedBlocks?: Record<string, Activity[]>;
+  schools?: CurriculumSchool[];
+  schoolCurricula?: SchoolCurriculum[];
+  curriculumSnapshots?: CurriculumSnapshot[];
 };
 
 export function copyBlock(block: Activity): Activity {

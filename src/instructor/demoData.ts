@@ -75,6 +75,17 @@ export const LibraryDemo: Course = {
     }],
   }],
 };
+export const SchoolAlaDemo: Course = {
+  ...LibraryDemo, id: 'salt-river-ala', title: 'ALA Curriculum', library: false, local: true,
+  copiedFrom: LibraryDemo.id, description: 'A sample school adaptation of AI Academy for Salt River.',
+  modules: LibraryDemo.modules.map((module, index) => ({
+    ...module, id: 'ala-' + module.id, title: index === 0 ? 'AI in our community' : module.title,
+    lessons: module.lessons.map(lesson => ({
+      ...lesson, id: 'ala-' + lesson.id,
+      activities: lesson.activities.map(activity => ({ ...activity, id: 'ala-' + activity.id })),
+    })),
+  })),
+};
 export const BuilderDemo: Course = {
   id: 'builder-demo', title: 'Try the curriculum builder', description: 'Practice with quizzes, a custom activity, and two coding labs.', level: 'Beginner',
   modules: [{
@@ -224,7 +235,15 @@ const maryvaleSubmissions: Submission[] = learners.slice(0, 7).flatMap((learner,
 });
 
 export const demoData: InstructorData = {
-  courses: [Python, Web, BuilderDemo, LibraryDemo],
+  courses: [Python, Web, BuilderDemo, LibraryDemo, SchoolAlaDemo],
+  schools: [{ id: 'salt-river', name: 'Salt River School' }],
+  schoolCurricula: [{ schoolId: 'salt-river', courseId: SchoolAlaDemo.id, globalCourseId: LibraryDemo.id }],
+  curriculumSnapshots: [{
+    id: 'salt-river-ala-2025', schoolId: 'salt-river', schoolName: 'Salt River School',
+    className: 'ALA · 2025–26', classCreatedAt: '2025-08-15T16:00:00Z', archivedAt: '2026-05-22T22:00:00Z',
+    courseTitle: SchoolAlaDemo.title, moduleCount: 1,
+    course: { ...SchoolAlaDemo, id: 'salt-river-ala-2025', modules: SchoolAlaDemo.modules.slice(0, 1) },
+  }],
   staff: [
     { id: 'instructor', name: 'Demo instructor', role: 'instructor', classIds: ['maryvale', 'desert-edge'] },
     { id: 'admin', name: 'Demo program manager', role: 'admin', classIds: [] },

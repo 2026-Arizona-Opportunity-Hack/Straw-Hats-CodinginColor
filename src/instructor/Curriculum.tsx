@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, ChevronLeft, ChevronRight, Library, ListTree, Copy, Eye, FilePlus2, GripVertical, ImagePlus, Plus, Save, Star, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, ChevronLeft, ChevronRight, ListTree, Copy, Eye, FilePlus2, GripVertical, ImagePlus, Plus, Save, Star, Trash2 } from 'lucide-react';
 import { isLocalDemo } from '../shared/supabase.ts';
+import { languageOf } from '../student/languages.ts';
 import { CodingLabEditor } from './CodingLabEditor';
 import { CourseCreateDialog } from './CourseCreateDialog';
 import { DiscussionReview } from './DiscussionReview';
@@ -14,65 +15,140 @@ import { ActivityPreview, LessonPreview } from './LessonPreview';
 import { StudentPreview } from './StudentLessonPreview';
 import {
   activityTypes, blankQuestion, copyBlock, embedUrl, gradedTypes, newActivity, newLesson, newModule, questionTypes, reorder, slidesUrl, unresolvedModuleContent,
-  type Activity, type ClassGroup, type Course, type Lesson, type Module, type ModuleAction,
+  type Activity, type ClassGroup, type Course, type CurriculumSnapshot, type Lesson, type Module, type ModuleAction,
 } from './model';
 import { Dialog, Empty, PageHeader, Panel } from './ui';
 
 type View = { moduleId?: string; lessonId?: string; activityId?: string };
 type OutlineKind = 'module' | 'lesson' | 'block';
 type DragItem = { kind: OutlineKind; index: number; parent: string };
+type ClassCurriculum = { group: ClassGroup; course: Course };
+type SchoolCourse = { name: string; course: Course; globalCourseId: string };
 
-export function CurriculumList({ courses, classCurricula = [], unassigned = [], reviewer = false, onCreate }: {
+export function CurriculumList({ courses, classCurricula = [], schoolCourses = [], snapshots = [], unassigned = [], reviewer = false, onCreate }: {
   courses: Course[];
-  classCurricula?: { group: ClassGroup; course: Course }[];
+  classCurricula?: ClassCurriculum[];
+  schoolCourses?: SchoolCourse[];
+  snapshots?: CurriculumSnapshot[];
   unassigned?: Course[];
   reviewer?: boolean;
   onCreate?: (course: Course) => void;
 }) {
   const [adding, setAdding] = useState(false);
   const visible = reviewer ? courses.filter(course => course.modules.some(module => module.published)) : courses;
+  const schools = new Map<string, { name: string; classes: ClassCurriculum[]; templates: SchoolCourse[]; history: CurriculumSnapshot[] }>();
+  function groupFor(schoolName: string) {
+    const name = schoolName.trim() || 'School not specified';
+    // Display grouping only. Workspace permissions determine the accessible data.
+    const key = name.toLowerCase();
+    const school = schools.get(key) ?? { name, classes: [], templates: [], history: [] };
+    schools.set(key, school);
+    return school;
+  }
+  const archivedClassIds = new Set(snapshots.map(snapshot => snapshot.classId));
+  for (const entry of schoolCourses) groupFor(entry.name).templates.push(entry);
+  for (const entry of classCurricula) {
+    if (!entry.group.archivedAt || !archivedClassIds.has(entry.group.id)) groupFor(entry.group.school).classes.push(entry);
+  }
+  for (const snapshot of snapshots) groupFor(snapshot.schoolName).history.push(snapshot);
+  const globalCourses = new Map(courses.map(course => [course.id, course]));
   return <>
     <PageHeader title={reviewer ? 'Curriculum reviewer' : 'Curriculum'} description={reviewer
       ? 'Browse published courses and lessons.'
       : 'Browse global courses and curriculum used in classes.'}>
       {onCreate && <button className="ic-button ic-primary" onClick={() => setAdding(true)}><Plus size={17} /> New course</button>}
     </PageHeader>
-    <div className="ic-stack">
-      {!reviewer && <h2 className="ic-section-title">Global curriculum</h2>}
-      {visible.map(course => <CurriculumCourseRow key={course.id} course={course} reviewer={reviewer}
-        to={`#/${reviewer ? 'review' : 'curriculum'}/${course.id}`} />)}
-      {!visible.length && <Panel><Empty>No courses are available here yet.</Empty></Panel>}
-      {!reviewer && <>
-        <h2 className="ic-section-title">Class curriculum</h2>
-        {classCurricula.map(({ group, course }) => <CurriculumCourseRow key={group.id} course={course}
-          to={`#/classes/${group.id}/curriculum/view`} context={[group.name, group.school, course.library ? 'Uses global curriculum' : ''].filter(Boolean).join(' · ')} />)}
-        {!classCurricula.length && <Panel><Empty>No classes with curriculum are available.</Empty></Panel>}
-      </>}
-      {!!unassigned.length && <>
-        <h2 className="ic-section-title">Unassigned class curriculum</h2>
-        {unassigned.map(course => <CurriculumCourseRow key={course.id} course={course} to={`#/curriculum/${course.id}`} />)}
-      </>}
+    <div className="ic-curriculum-catalog">
+      <section className="ic-curriculum-section" aria-label={reviewer ? 'Published courses' : undefined} aria-labelledby={!reviewer ? 'ic-global-curriculum' : undefined}>
+        {!reviewer && <h2 className="ic-section-title" id="ic-global-curriculum">Global curriculum</h2>}
+        {visible.length ? <div className="ic-curriculum-grid">{visible.map(course => <CurriculumCourseCard key={course.id} course={course} heading={reviewer ? 'h2' : 'h3'}
+          status={course.library ? 'Global template' : undefined} to={`#/${reviewer ? 'review' : 'curriculum'}/${course.id}`} />)}</div>
+          : <Panel><Empty>No courses are available here yet.</Empty></Panel>}
+      </section>
+      {!reviewer && <section className="ic-curriculum-section" aria-labelledby="ic-class-curriculum">
+        <h2 className="ic-section-title" id="ic-class-curriculum">Class curriculum</h2>
+        {[...schools.values()].sort((a, b) => a.name.localeCompare(b.name)).map(({ name, classes, templates, history }) => <div key={name} className="ic-curriculum-school">
+          <h3>{name}</h3>
+          {(templates.length > 0 || classes.length > 0) && <div className="ic-curriculum-grid">
+            {templates.map(({ course, globalCourseId }) => <CurriculumCourseCard key={course.id} course={course} heading="h4"
+              to={`#/curriculum/school/${course.id}`} status="School template" original={globalCourses.get(globalCourseId)} />)}
+            {classes.map(({ group, course }) => <CurriculumCourseCard key={group.id} course={course} heading="h4"
+              to={`#/classes/${group.id}/curriculum/view`} context={group.name}
+              status={group.archivedAt ? 'Archived class' : course.library ? 'Global template' : 'Class copy'}
+              original={course.copiedFrom ? globalCourses.get(course.copiedFrom) : undefined} />)}
+          </div>}
+          {history.length > 0 && <details className="ic-curriculum-history">
+            <summary>Archived curriculum ({history.length})</summary>
+            <div className="ic-curriculum-grid">{history.map(snapshot => <CurriculumCourseCard key={snapshot.id}
+              course={{ title: snapshot.courseTitle }} moduleCount={snapshot.moduleCount} heading="h4" status="Snapshot"
+              context={snapshot.className + ' · ' + snapshotDate(snapshot.archivedAt)}
+              to={`#/curriculum/history/${snapshot.id}`} />)}</div>
+          </details>}
+        </div>)}
+        {!schools.size && <Panel><Empty>No classes with curriculum are available.</Empty></Panel>}
+      </section>}
+      {!!unassigned.length && <section className="ic-curriculum-section" aria-labelledby="ic-unassigned-curriculum">
+        <h2 className="ic-section-title" id="ic-unassigned-curriculum">Unassigned class curriculum</h2>
+        <div className="ic-curriculum-grid">{unassigned.map(course => <CurriculumCourseCard key={course.id} course={course} heading="h3" to={`#/curriculum/${course.id}`} />)}</div>
+      </section>}
     </div>
     {adding && onCreate && <CourseCreateDialog onCreate={onCreate} onClose={() => setAdding(false)} />}
   </>;
 }
 
-function CurriculumCourseRow({ course, to, context, reviewer }: {
-  course: Course; to: string; context?: string; reviewer?: boolean;
+function CurriculumCourseCard({ course, to, context, status, original, heading: Heading, moduleCount }: {
+  course: Pick<Course, 'title'> & Partial<Pick<Course, 'modules' | 'level' | 'description'>>;
+  to: string; context?: string; status?: string; original?: Course; heading: 'h2' | 'h3' | 'h4'; moduleCount?: number;
 }) {
-  const Heading = reviewer ? 'h2' : 'h3';
-  const Icon = course.library ? Library : BookOpen;
-  const published = course.modules.filter(module => module.published).length;
-  return <article className="ic-panel ic-course-row">
-    <div className={'ic-class-mark' + (course.library ? ' ic-library-mark' : '')}><Icon size={21} aria-hidden="true" /></div>
-    <div>
-      <Heading><a href={to}>{course.title}</a></Heading>
-      {context && <p>{context}</p>}
-      {course.description && <p className="ic-clamp-2">{course.description}</p>}
-      <span className="ic-note">{course.level} · {published} published</span>
+  const published = moduleCount ?? course.modules?.filter(module => module.published).length ?? 0;
+  const contextId = useId();
+  const [artworkUnavailable, setArtworkUnavailable] = useState(false);
+  return <article className="ic-curriculum-card">
+    <div className="ic-curriculum-card-body">
+      <div className="ic-curriculum-card-top">
+        <span className="ic-curriculum-logo" aria-hidden="true">{artworkUnavailable ? <BookOpen size={24} />
+          : <img src={languageOf(course.title).logo} alt="" width="28" height="28" onError={() => setArtworkUnavailable(true)} />}</span>
+        {status && <span className="ic-curriculum-status">{status}</span>}
+      </div>
+      <Heading><a className="ic-curriculum-card-link" href={to} aria-describedby={context ? contextId : undefined}>{course.title}</a></Heading>
+      {context && <p className="ic-curriculum-context" id={contextId}>{context}</p>}
+      {course.description && <p className="ic-curriculum-description">{course.description}</p>}
+      <div className="ic-curriculum-card-footer">
+        <span>{course.level && course.level + ' · '}{published ? `${published} module${published === 1 ? '' : 's'}` : 'No published modules'}</span>
+        <span aria-hidden="true">View <ArrowRight size={16} /></span>
+      </div>
     </div>
-    <a className="ic-button" href={to} aria-label={`View ${course.title}${context ? ` · ${context}` : ''}`}><Eye size={16} aria-hidden="true" /> View</a>
+    {original && <a className="ic-curriculum-original" href={`#/curriculum/${original.id}`}
+      aria-label={`View global original · ${original.title}`}>View global original</a>}
   </article>;
+}
+
+function snapshotDate(iso: string) {
+  return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(iso));
+}
+
+export function ArchivedCurriculum({ snapshot, load }: { snapshot: CurriculumSnapshot; load?: (id: string) => Promise<Course> }) {
+  const [course, setCourse] = useState(snapshot.course);
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    if (snapshot.course || !load) return;
+    let active = true;
+    void load(snapshot.id).then(
+      value => { if (active) setCourse(value); },
+      problem => { if (active) setError(problem instanceof Error ? problem.message : 'Could not open the snapshot.'); },
+    );
+    return () => { active = false; };
+  }, [load, retry, snapshot]);
+  const back = { label: 'Curriculum', to: '#/curriculum' };
+  return course
+    ? <CourseReviewer course={course} back={back}
+      actions={<span className="ic-note">{snapshot.className} · Archived {snapshotDate(snapshot.archivedAt)}</span>} />
+    : <>
+      <PageHeader title={snapshot.courseTitle} back={back} />
+      {error ? <Panel><p className="ic-error" role="alert">{error}</p><button className="ic-button" onClick={() => { setError(''); setRetry(value => value + 1); }}>Try again</button></Panel>
+        : <p role="status">Loading archived curriculum…</p>}
+    </>;
 }
 
 const lessonListKey = 'cic.reviewer.lessonList';
@@ -119,9 +195,10 @@ export function CourseReviewer({ course, back = { label: 'Reviewer library', to:
   </>;
 }
 
-export function CourseBuilder({ initial, released, localAuthoring, onSave, onRelease, onManageModule, assigned, library, onSaveLibrary, inClass, initialLessonId, canCurate, back }: {
+export function CourseBuilder({ initial, released, localAuthoring, onSave, onRelease, onManageModule, assigned, library, onSaveLibrary, inClass, inSchool, initialLessonId, canCurate, back }: {
   /** Set when the builder opens inside a class card: a compact header that returns to the class. */
   inClass?: { className: string; backTo: string };
+  inSchool?: { schoolName: string; backTo: string };
   initialLessonId?: string;
   canCurate?: boolean;
   back?: { label: string; to: string };
@@ -381,8 +458,9 @@ export function CourseBuilder({ initial, released, localAuthoring, onSave, onRel
             <h2>Edit curriculum</h2><p className="ic-note">Edits apply to this class’s copy.</p></div>
           <div className="ic-row">{actions}</div>
         </div>
-        : <PageHeader title={course.title || 'Untitled course'} description="Course builder"
-          back={back ?? { label: 'View curriculum', to: `#/curriculum/${course.id}${initialLessonId ? `/view/${initialLessonId}` : ''}` }}>{actions}</PageHeader>;
+        : <PageHeader title={course.title || 'Untitled course'}
+          description={inSchool ? inSchool.schoolName + ' · Publish changes for future classes.' : 'Course builder'}
+          back={back ?? { label: 'View curriculum', to: inSchool?.backTo ?? `#/curriculum/${course.id}${initialLessonId ? `/view/${initialLessonId}` : ''}` }}>{actions}</PageHeader>;
     })()}
     <div className="ic-builder-status">
       <span role="status">{busy ? 'Updating curriculum…' : unsaved ? 'Unsaved draft changes' : 'Draft saved in this browser'}</span>

@@ -4,12 +4,12 @@ import { ClassSetup } from './ClassSetup';
 import { ClassDashboard, ClassList, type ClassProgressSource } from './Classes';
 import { copiedModuleIds } from './classCurriculum';
 import { isClassTab } from './classTabIds';
-import { CourseBuilder, CourseReviewer, CurriculumList } from './Curriculum';
+import { ArchivedCurriculum, CourseBuilder, CourseReviewer, CurriculumList } from './Curriculum';
 import { CurriculumBlockComments } from './CurriculumBlockComments';
 import { CicLibrary } from './CicLibrary';
-import { changeModuleState, copyCourse, publishModule, type Activity, type ClassGroup, type Course, type Learner, type Module, type ModuleAction, type StaffRole } from './model';
+import { changeModuleState, copyCourse, publishedCourses, publishModule, type Activity, type ClassGroup, type Course, type Learner, type Module, type ModuleAction, type StaffRole } from './model';
 import { AccessSettings, ProgramOverview } from './Operations';
-import { browserInstructorStore, loadCourseDrafts, saveCourseDraft, type InstructorStore } from './store';
+import { browserInstructorStore, loadCourseDrafts, saveCourseDraft, type InstructorStore, type SchoolClassRequest } from './store';
 import { PageHeader } from './ui';
 import logo from './cic-logo.png';
 import './styles.css';
@@ -136,8 +136,7 @@ export function InstructorWorkspace({
     return save({ ...current, classes }, current);
   }
 
-  async function createClass(group: ClassGroup, imported?: Course, attempted?: ClassGroup) {
-    const startedOn = currentRoute();
+  async function createClass(group: ClassGroup, imported?: Course, attempted?: ClassGroup, startedOn = currentRoute()) {
     const withClass = (current: typeof data) => ({
       ...current,
       courses: imported && !current.courses.some(course => course.id === imported.id)
@@ -146,16 +145,43 @@ export function InstructorWorkspace({
       staff: current.staff.map(person => person.id === profile.id && person.role === 'instructor' && !person.classIds.includes(group.id)
         ? { ...person, classIds: [...person.classIds, group.id] } : person),
     });
-    if (store.saveClass) await store.saveClass(group, undefined, attempted);
-    else {
-      const current = store.load();
-      await store.save(withClass(current), current);
+    // The school RPC commits the class and its assigned modules together.
+    if (!group.schoolId || !store.createSchoolClass) {
+      if (store.saveClass) await store.saveClass(group, undefined, attempted);
+      else {
+        const current = store.load();
+        await store.save(withClass(current), current);
+      }
     }
     setData(withClass);
     if (currentRoute() === startedOn) {
       setNewClass(group.id);
       window.location.assign('#/classes/' + group.id);
     }
+  }
+
+  async function createSchoolClass(request: SchoolClassRequest) {
+    const startedOn = currentRoute();
+    const school = data.schools?.find(item => item.id === request.schoolId);
+    if (!school) throw new Error('Choose a school you have access to.');
+    let imported: Course;
+    let moduleIds: string[];
+    if (store.createSchoolClass) {
+      ({ course: imported, moduleIds } = await store.createSchoolClass(request));
+    } else {
+      const saved = store.load();
+      const template = saved.schoolCurricula?.find(item => item.schoolId === school.id && item.courseId === request.source.id);
+      const latest = saved.courses.find(item => item.id === request.source.id);
+      if (!latest || (!latest.library && !template)) throw new Error('This template is unavailable for this school.');
+      const source = publishedCourses([latest])[0];
+      if (!source || source.publicationRevision !== request.source.publicationRevision) throw new Error('The template was updated. Reload and choose modules again.');
+      imported = { ...copyCourse(source), copiedFrom: template?.globalCourseId ?? source.id, publicationRevision: 0 };
+      moduleIds = copiedModuleIds(source, imported, request.moduleIds);
+    }
+    await createClass({
+      id: request.id, schoolId: school.id, school: school.name, name: request.name,
+      joinCode: request.joinCode, courseId: imported.id, moduleIds, learners: [],
+    }, imported, undefined, startedOn);
   }
 
   async function addRosterStudents(classId: string, students: Learner[]) {
@@ -330,7 +356,9 @@ export function InstructorWorkspace({
 
   /** The builder for a published course or a private draft; null when neither exists. */
   const builderFor = (courseId: string, options: {
-    inClass?: { className: string; backTo: string }; initialLessonId?: string; canCurate?: boolean; back?: { label: string; to: string };
+    inClass?: { className: string; backTo: string }; inSchool?: { schoolName: string; backTo: string };
+    initialLessonId?: string; canCurate?: boolean;
+    back?: { label: string; to: string };
   } = {}) => {
     const released = data.courses.find(item => item.id === courseId);
     const initial = draftOf(courseId) ?? released;
@@ -351,7 +379,9 @@ export function InstructorWorkspace({
   const catalog = isAdmin ? [...shared] : global;
   // Unpublished admin courses may exist only as a draft in this browser.
   if (isAdmin) catalog.push(...Object.values(liveDrafts).filter(draft => !data.courses.some(course => course.id === draft.id)));
-  const unassigned = isAdmin ? data.courses.filter(course => (course.local || course.copiedFrom) && !classCourseIds.has(course.id)) : [];
+  const schoolTemplates = new Set(data.schoolCurricula?.map(item => item.courseId));
+  const unassigned = isAdmin ? data.courses.filter(course => (course.local || course.copiedFrom)
+    && !classCourseIds.has(course.id) && !schoolTemplates.has(course.id)) : [];
   const catalogCourse = catalog.find(course => course.id === item);
   const ownDrafts = draftsLocal
     ? Object.entries(data.courseDrafts ?? {}).filter(([key]) => key.startsWith(author + ':')).map(([, course]) => course)
@@ -362,8 +392,13 @@ export function InstructorWorkspace({
     const course = data.courses.find(course => course.id === group.courseId);
     return course ? [{ group, course }] : [];
   });
+  const schoolCourses = data.schoolCurricula?.flatMap(template => {
+    const school = data.schools?.find(item => item.id === template.schoolId);
+    const course = data.courses.find(item => item.id === template.courseId);
+    return school && course ? [{ name: school.name, course, globalCourseId: template.globalCourseId }] : [];
+  }) ?? [];
   const catalogPage = () => <CurriculumList courses={catalog} classCurricula={classCurricula} unassigned={unassigned}
-    onCreate={isAdmin ? createCourse : undefined} />;
+    schoolCourses={schoolCourses} snapshots={data.curriculumSnapshots} onCreate={isAdmin ? createCourse : undefined} />;
   const comments = (activity: Activity, classId?: string) =>
     <CurriculumBlockComments activityId={activity.id} activityTitle={activity.title} classId={classId} viewerId={author} viewerName={profile.name} />;
   const viewCatalogCourse = (course: Course, initialLessonId?: string) => <CourseReviewer key={course.id + (initialLessonId ?? '')} course={course}
@@ -385,7 +420,8 @@ export function InstructorWorkspace({
   const content = (() => {
     if (!navigation.some(({ path }) => path === section)) return <PageHeader title="Page unavailable for this role" back={{ label: 'Back to workspace', to: home }} />;
     if (section === 'classes') {
-      if (item === 'new') return <ClassSetup courses={data.courses} classes={data.classes} onCreate={createClass} onImport={importCourse} />;
+      if (item === 'new') return <ClassSetup courses={data.courses} classes={data.classes} schools={data.schools}
+        schoolCurricula={data.schoolCurricula} onCreate={createClass} onImport={importCourse} onCreateForSchool={createSchoolClass} />;
       if (group) return <ClassDashboard key={group.id} group={group} course={course} onSave={saveClass} justCreated={newClass === group.id} tab={isClassTab(subpage) ? subpage : 'dashboard'} detail={detail} otherClasses={visibleClasses}
         progressSource={progressSource}
         onAddStudents={students => addRosterStudents(group.id, students)}
@@ -398,6 +434,23 @@ export function InstructorWorkspace({
     }
     if (section === 'curriculum') {
       if (!item) return catalogPage();
+      if (item === 'history') {
+        const snapshot = data.curriculumSnapshots?.find(entry => entry.id === subpage);
+        if (snapshot) return <ArchivedCurriculum key={snapshot.id} snapshot={snapshot} load={store.loadCurriculumSnapshot} />;
+      }
+      if (item === 'school') {
+        const template = schoolCourses.find(entry => entry.course.id === subpage);
+        if (template) {
+          const to = `#/curriculum/school/${template.course.id}`;
+          if (detail === 'edit') return builderFor(template.course.id, { inSchool: { schoolName: template.name, backTo: to } });
+          const original = catalog.find(entry => entry.id === template.globalCourseId);
+          return <CourseReviewer key={template.course.id} course={template.course} back={{ label: 'Curriculum', to: '#/curriculum' }}
+            actions={<>
+              {original && <a className="ic-button" href={`#/curriculum/${original.id}`}>View global original</a>}
+              <a className="ic-button ic-primary" href={`${to}/edit`}><Pencil size={16} aria-hidden="true" /> Edit school template</a>
+            </>} />;
+        }
+      }
       const selected = catalogCourse ?? unassigned.find(course => course.id === item);
       if (selected) {
         if (subpage === 'edit' && (isAdmin || (canEditGlobal && !!catalogCourse))) {
