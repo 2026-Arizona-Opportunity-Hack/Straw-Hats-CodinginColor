@@ -10,11 +10,11 @@ import { autoPoints, gradebookCsv, gradeSubmission, isFileList, isLate, needsIns
 import { RubricPicker } from './Rubric';
 import { blockLabels, blockPoints, hasRubricSupport, questionKinds, totalPoints, type Assignment, type Block, type RubricBlock } from './model';
 
-type Props = { group: ClassGroup; onSave: (group: ClassGroup) => boolean };
+type Props = { group: ClassGroup; onSave: (group: ClassGroup) => boolean; classLinks?: boolean };
 
 const pct = (earned: number | null, possible: number) => (earned === null || !possible ? '—' : Math.round((earned / possible) * 100) + '%');
 
-export function Gradebook({ group, onSave }: Props) {
+export function Gradebook({ group, onSave, classLinks = true }: Props) {
   const [search, setSearch] = useState('');
   const [onlyNeeds, setOnlyNeeds] = useState(false);
   const [open, setOpen] = useState<{ assignmentId: string; studentId: string } | null>(null);
@@ -62,7 +62,10 @@ export function Gradebook({ group, onSave }: Props) {
           <table className="ic-data-table ic-gradebook">
             <thead><tr>
               <th scope="col">Student</th>
-              {assignments.map(a => <th scope="col" key={a.id}><a href={`#/classes/${group.id}/assignments/${a.id}`} className="ic-gradebook-title" title={a.title}>{a.title}</a><span className="ic-note">{pointsLabel(totalPoints(a))}{a.dueAt ? ' · ' + formatDue(a.dueAt) : ''}</span></th>)}
+              {assignments.map(a => <th scope="col" key={a.id}>
+                {classLinks ? <a href={`#/classes/${group.id}/assignments/${a.id}`} className="ic-gradebook-title" title={a.title}>{a.title}</a> : a.title}
+                <span className="ic-note">{pointsLabel(totalPoints(a))}{a.dueAt ? ' · ' + formatDue(a.dueAt) : ''}</span>
+              </th>)}
               <th scope="col">Total</th>
             </tr></thead>
             <tbody>{students.map(learner => {

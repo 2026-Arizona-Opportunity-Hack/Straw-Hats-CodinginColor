@@ -10,6 +10,7 @@ service-account*.json
 # Dependencies / builds
 node_modules/
 dist/
+dist-walkthrough/
 build/
 .next/
 out/

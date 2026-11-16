@@ -2,6 +2,12 @@
 
 Use one fictional class and one fictional student to show what happens when a learner misses class and returns to work independently.
 
+## Public walkthrough
+
+Open `/demo`, or choose **Try the demo** from the home page. The six stops cover a student lesson, curriculum editing, the class dashboard, grading, aggregate reporting, and the reviewer library. Start with the student lesson to see how its scores change the class and program reports. Every school and student is fictional. Demo work is held for the current visit and can be reset without a sign-in. The walkthrough reuses the app's lesson and staff components and runs without a database connection or an AI key.
+
+To publish the walkthrough by itself, run `npm run build:walkthrough` and serve `dist-walkthrough/demo.html` alongside its `assets/` folder. This build has no application sign-in, database connection, or school API routes.
+
 ## Four-minute walkthrough
 
 Before recording, sign in as instructor, student and CIC admin in separate browser profiles or windows with isolated sessions. Open a demo class with two released modules, an in-progress student and at least one scored warm-up and final-check pair. Keep the class code and an example curriculum draft ready. Use [the hosted app](https://cic-learn.vercel.app) with team-provisioned demo accounts.

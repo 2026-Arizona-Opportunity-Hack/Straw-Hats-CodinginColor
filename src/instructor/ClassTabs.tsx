@@ -52,7 +52,7 @@ function moduleStats(group: ClassGroup, course: Course | undefined, moduleId: st
   };
 }
 
-export function DashboardTab({ group, course }: { group: ClassGroup; course?: Course }) {
+export function DashboardTab({ group, course, classLinks = true }: { group: ClassGroup; course?: Course; classLinks?: boolean }) {
   const { mastery } = classProgress(group, course);
   const modules = assignedModules(group, course);
   const attention = attentionList(group, course);
@@ -73,7 +73,7 @@ export function DashboardTab({ group, course }: { group: ClassGroup; course?: Co
     <p className="ic-note ic-gain-help">Learning gain = post-test score minus pretest score, in percentage points (pts). +15 pts means a student went from, say, 50% to 65%.</p>
     <div className="ic-tile-grid">
       <Tile title="Students needing attention" note="Open a name to see exactly where they need help."
-        actions={<a className="ic-see-all" href={`#/classes/${group.id}/grades`}>Grades <ArrowRight size={15} /></a>}>
+        actions={classLinks && <a className="ic-see-all" href={`#/classes/${group.id}/grades`}>Grades <ArrowRight size={15} /></a>}>
         {attention.length ? <ul className="ic-drill">{attention.map(row => <li key={row.learnerId}>
           <details>
             <summary><strong>{row.name}</strong>
@@ -94,7 +94,7 @@ export function DashboardTab({ group, course }: { group: ClassGroup; course?: Co
               <strong aria-label={live ? `${percent(completion)} of enrolled students completed this module` : `${percent(completion)} of activities submitted`}>{percent(completion)}</strong>
             </summary>
             {work.length ? <ul className="ic-module-work">{work.map(({ assignment, submitted, toGrade, missing, students }) => <li key={assignment.id}>
-              <a href={`#/classes/${group.id}/assignments/${assignment.id}`}>{assignment.title}</a>
+              {classLinks ? <a href={`#/classes/${group.id}/assignments/${assignment.id}`}>{assignment.title}</a> : <strong>{assignment.title}</strong>}
               <span className="ic-note">Due {formatDue(assignment.dueAt)}{assignment.dueAt && new Date(assignment.dueAt).getTime() < Date.now() ? <strong className="ic-overdue"> · past due</strong> : null}</span>
               <span className="ic-note">{submitted}/{students} turned in{toGrade ? ` · ${toGrade} to grade` : ''}{missing ? ` · ${missing} missing` : ''}</span>
             </li>)}</ul> : <p className="ic-note ic-module-empty">No assignments linked to this module. Pick the module in an assignment's settings to show it here.</p>}

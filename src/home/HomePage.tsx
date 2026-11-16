@@ -52,7 +52,7 @@ export function HomePage() {
               <p className="learn-intro">Build your first web page or find out how AI works. Start with short lessons and hands-on projects you can do right in your browser.</p>
               <div className="learn-hero-actions">
                 <a className="learn-button" href="#courses">Explore courses <ArrowDown size={18} aria-hidden="true" /></a>
-                <span>No coding experience needed.</span>
+                <Link className="learn-text-link" to="/demo">Try the demo <ArrowRight size={16} aria-hidden="true" /></Link>
               </div>
             </div>
             <div className="learn-hero-visual">
