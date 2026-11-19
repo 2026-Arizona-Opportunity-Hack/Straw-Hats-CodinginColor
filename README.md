@@ -68,5 +68,6 @@ Run `npm test`, `npm run build` and `npm run lint` before opening a pull request
 - Kennett Ho — instructor workspace and curriculum builder
 - Ruthvik — instructor backend, curriculum and reporting
 - Shivraj — student backend, assessment and progression
+- Aryan - complete app UI/UX designer
 
 Aryan contributed app integration, authentication and the CIC admin workspace. Greg V from Opportunity Hack created the repository scaffold. [Repository contributors](https://github.com/2026-Arizona-Opportunity-Hack/Straw-Hats-CodinginColor/graphs/contributors)
